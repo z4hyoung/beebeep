@@ -25,6 +25,7 @@
 #define BEEBEEP_GUICHATMESSAGE_H
 
 #include "Config.h"
+#include <QDateTime>
 class Chat;
 class ChatMessage;
 class User;
@@ -38,8 +39,12 @@ public:
   static QString chatToHtml( const Chat&, bool skip_file_transfers, bool skip_system_message, bool force_timestamp, bool force_datestamp,
                                           bool use_chat_compact, bool skip_cannot_be_saved_messages );
 
+  // YongBEEP S3-4b: WeChat-style bubble rendering (PRD 4.1 / ADR-D7 HTML color
+  // blocks). last_message_timestamp drives the centered gray time separators
+  // (shown on first message, on >=5min gaps or on day change, WeChat-like).
   static QString formatMessage( const User&, const ChatMessage&, VNumber last_user_id, bool show_timestamp, bool show_datestamp, bool skip_system_message,
-                                                                                       bool show_message_group_by_user, bool use_your_name, bool use_chat_compact );
+                                                                                       bool show_message_group_by_user, bool use_your_name, bool use_chat_compact,
+                                                                                       const QDateTime& last_message_timestamp = QDateTime() );
 
   static QString formatSystemMessage( const ChatMessage&, VNumber last_user_id, bool show_timestamp, bool show_datestamp, bool use_chat_compact );
 

@@ -24,7 +24,9 @@
 
 #include "AudioManager.h"
 #include "BeeApplication.h"
+#include "Chat.h"
 #include "ChatManager.h"
+#include "ChatMessage.h"
 #include "ColorManager.h"
 #include "Core.h"
 #include "EmoticonManager.h"
@@ -34,6 +36,7 @@
 #include "HistoryManager.h"
 #include "Hive.h"
 #include "IconManager.h"
+#include "Message.h"
 #ifdef BEEBEEP_USE_SHAREDESKTOP
   #include "ImageOptimizer.h"
 #endif
@@ -41,6 +44,7 @@
 #include "MessageManager.h"
 #include "NetworkManager.h"
 #include "PluginManager.h"
+#include "User.h"
 #include "UserManager.h"
 #include "Protocol.h"
 #include "Random.h"
@@ -259,10 +263,20 @@ int main( int argc, char *argv[] )
 
   /* Init Main Window (YongBEEP S3-4a: WeChat-style window replaces GuiMain) */
   QString screenshot_path;
+  bool demo_chat = false;
+  bool demo_scan = false;
   for( int i = 1; i < argc - 1; i++ )
   {
     if( QString::fromLocal8Bit( argv[i] ) == QLatin1String( "--screenshot" ) )
       screenshot_path = QString::fromLocal8Bit( argv[i+1] );
+  }
+  for( int i = 1; i < argc; i++ )
+  {
+    const QString argument = QString::fromLocal8Bit( argv[i] );
+    if( argument == QLatin1String( "--demo-chat" ) )
+      demo_chat = true;
+    else if( argument == QLatin1String( "--demo-scan" ) )
+      demo_scan = true;
   }
 
   GuiMainWindow mw;
@@ -276,6 +290,47 @@ int main( int argc, char *argv[] )
   QMetaObject::invokeMethod( &mw, "checkWindowFlagsAndShow", Qt::QueuedConnection );
   qDebug() << "Loading saved session";
   mw.loadSession();
+
+  if( demo_chat )
+  {
+    // YongBEEP S3-4b debug helper: fill the default chat with fake messages
+    // (2 from a remote peer, 2 from the local user, 1 system) to verify the
+    // bubble rendering and take screenshots headlessly (with --screenshot).
+    User demo_user;
+    demo_user.setId( 990001 );
+    demo_user.setName( QStringLiteral( "Windows-PC" ) );
+    demo_user.setStatus( User::Online );
+    demo_user.setColor( QStringLiteral( "#4f7ecb" ) );
+    UserManager::instance().setUser( demo_user );
+
+    Chat demo_chat_chat = ChatManager::instance().chat( ID_DEFAULT_CHAT );
+    if( demo_chat_chat.isValid() )
+    {
+      QList< QPair<VNumber, QString> > demo_messages;
+      demo_messages.append( qMakePair( demo_user.id(), QStringLiteral( "那个文件发你" ) ) );
+      demo_messages.append( qMakePair( demo_user.id(), QStringLiteral( "好，稍等 😀" ) ) );
+      demo_messages.append( qMakePair( ID_LOCAL_USER, QStringLiteral( "收到，谢谢！" ) ) );
+      demo_messages.append( qMakePair( ID_LOCAL_USER, QStringLiteral( "报告稍后发你" ) ) );
+      for( int demo_i = 0; demo_i < demo_messages.size(); demo_i++ )
+      {
+        Message m( Message::Chat, demo_messages.at( demo_i ).first, demo_messages.at( demo_i ).second );
+        demo_chat_chat.addMessage( ChatMessage( demo_messages.at( demo_i ).first, m, ChatMessage::Chat, false ) );
+      }
+      // File message through the real path (system FileTransfer message with
+      // a clickable file link, rendered as the paperclip block).
+      Message demo_file_m( Message::System, ID_SYSTEM_MESSAGE,
+                           QStringLiteral( "<a href=\"file:///tmp/demo-report.docx\">报告.docx</a> 143KB ✓" ) );
+      demo_chat_chat.addMessage( ChatMessage( ID_SYSTEM_MESSAGE, demo_file_m, ChatMessage::FileTransfer, false ) );
+      Message sys_m( Message::System, ID_SYSTEM_MESSAGE, QObject::tr( "%1 is connected" ).arg( demo_user.name() ) );
+      demo_chat_chat.addMessage( ChatMessage( ID_SYSTEM_MESSAGE, sys_m, ChatMessage::System, false ) );
+      ChatManager::instance().setChat( demo_chat_chat );
+      QMetaObject::invokeMethod( &mw, "loadSession", Qt::QueuedConnection );
+      qDebug() << "Demo chat messages loaded in the default chat";
+    }
+  }
+
+  if( demo_scan )
+    QMetaObject::invokeMethod( &mw, "openScanDevicesDialog", Qt::QueuedConnection );
 
   if( !screenshot_path.isEmpty() )
   {

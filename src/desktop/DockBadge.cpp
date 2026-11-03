@@ -1,0 +1,16 @@
+//////////////////////////////////////////////////////////////////////
+//
+// YongBEEP — macOS dock unread badge (S3-4b): non-macOS stub
+//
+//////////////////////////////////////////////////////////////////////
+
+#include "DockBadge.h"
+
+#ifndef Q_OS_MACOS
+
+void DockBadge::setUnreadCount( int unread_count )
+{
+  Q_UNUSED( unread_count );
+}
+
+#endif // !Q_OS_MACOS

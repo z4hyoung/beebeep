@@ -25,9 +25,15 @@
 #include "Chat.h"
 #include "GuiChatMessage.h"
 #include "ChatMessage.h"
+#include "IconManager.h"
 #include "Settings.h"
 #include "Settings.h"
 #include "UserManager.h"
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QPixmap>
+#include <QUrl>
 
 
 static QString textImportantPrefix()
@@ -38,6 +44,51 @@ static QString textImportantPrefix()
 static QString textImportantSuffix()
 {
   return QString( "" );
+}
+
+// ---------------------------------------------------------------------
+// YongBEEP S3-4b: WeChat-style bubble palette (PRD 4.1, ADR-D7: rich text
+// has no border-radius, square color blocks are the approved compromise).
+// Qt rich text cannot shrink-wrap a bgcolor <td> (it stretches to the full
+// cell), while a CSS background-color <span> hugs its text and stays
+// continuous across wrapped lines - but only when it sits inside a table
+// cell. So every bubble is: outer positioning table (avatar column + empty
+// 30% spacer to cap the bubble width) + <span> color block inside the
+// content cell. Verified with a standalone QTextBrowser test bench.
+// ---------------------------------------------------------------------
+static QString ownBubbleStyle()
+{
+  // WeChat green in light style; darker green with white text in dark style
+  return Settings::instance().useDarkStyle() ? QStringLiteral( "background-color:#3eb575;color:#ffffff" )
+                                             : QStringLiteral( "background-color:#95ec69" );
+}
+
+static QString peerBubbleStyle()
+{
+  return Settings::instance().useDarkStyle() ? QStringLiteral( "background-color:#3c4048" )
+                                             : QStringLiteral( "background-color:#f0f0f0" );
+}
+
+static QString centeredInfoLine( const QString& text )
+{
+  return QString( "<div align=center><font color=%1 size=2>%2</font></div>" ).arg( Settings::instance().chatSystemTextColor(), text );
+}
+
+// Caches the user avatar (Bee::avatarForUser: real photo or initials, the
+// same generator the conversation list uses) as a png in the data cache
+// folder so the HTML stream can reference it with a file:// url.
+static QString avatarHtml( const User& u )
+{
+  const QString avatar_folder = Settings::instance().cacheFolder();
+  const QString avatar_path = QString( "%1/chat_avatar_%2.png" ).arg( avatar_folder, QString::number( static_cast<qulonglong>( u.isValid() ? u.id() : ID_INVALID ) ) );
+  if( !QFile::exists( avatar_path ) )
+  {
+    QDir().mkpath( avatar_folder );
+    QPixmap avatar_pixmap = Bee::avatarForUser( u, QSize( 96, 96 ), true );
+    if( avatar_pixmap.isNull() || !avatar_pixmap.save( avatar_path, "PNG" ) )
+      return IconManager::instance().toHtml( "user.png", "*", 24, 24 );
+  }
+  return QString( "<img src='%1' width=24 height=24 border=0>" ).arg( QUrl::fromLocalFile( avatar_path ).toString() );
 }
 
 QString GuiChatMessage::datetimestampToString( const ChatMessage& cm, bool show_timestamp, bool show_datestamp )
@@ -70,11 +121,12 @@ QString GuiChatMessage::datetimestampToString( const ChatMessage& cm, bool show_
 }
 
 QString GuiChatMessage::formatMessage( const User& u, const ChatMessage& cm, VNumber last_user_id, bool show_timestamp, bool show_datestamp,
-                                       bool skip_system_message, bool show_message_group_by_user, bool use_your_name, bool use_chat_compact )
+                                       bool skip_system_message, bool show_message_group_by_user, bool use_your_name, bool use_chat_compact,
+                                       const QDateTime& last_message_timestamp )
 {
-  QString html_message = "";
-  if( cm.isImportant() )
-    html_message += textImportantPrefix();
+  Q_UNUSED( skip_system_message );
+  Q_UNUSED( use_your_name );
+  Q_UNUSED( use_chat_compact );
 
   QString text_formatted = cm.message();
 
@@ -102,102 +154,92 @@ QString GuiChatMessage::formatMessage( const User& u, const ChatMessage& cm, VNu
     }
   }
 
+  bool own_message = u.isValid() && u.isLocal();
   bool append_message_to_previous = show_message_group_by_user && last_user_id == u.id() && !cm.isImportant();
 
-  QString user_name_to_show = Bee::userNameToShow( u, true );
-  QString date_time_stamp = datetimestampToString( cm, show_timestamp, show_datestamp );
-  QString html_date_time_stamp = date_time_stamp.isEmpty() ? date_time_stamp : QString( "<font color=%1>(%2)</font>" ).arg( Settings::instance().chatSystemTextColor(), date_time_stamp );
-  QString user_name = append_message_to_previous ? QString( "" ) : (u.isLocal() && !use_your_name) ? QObject::tr( "You" ) : (u.isValid() ? user_name_to_show : QObject::tr( "Unknown" ));
-  if( cm.isFromAutoresponder() )
+  // WeChat-like centered gray time separator: first shown message, >= 5 min
+  // gap from the previous one or day change (PRD 4.1 "时间戳居中灰字").
+  QString html_message = "";
+  bool day_changed = last_message_timestamp.isValid() && last_message_timestamp.date() != cm.timestamp().date();
+  if( show_timestamp && ( !last_message_timestamp.isValid() || day_changed || last_message_timestamp.secsTo( cm.timestamp() ) >= 300 ) )
   {
-    append_message_to_previous = false;
-    user_name = QString( "%1 from %2" ).arg( Settings::instance().autoresponderName(), user_name );
+    QString date_time_stamp = datetimestampToString( cm, true, show_datestamp || day_changed );
+    if( !date_time_stamp.isEmpty() )
+      html_message += centeredInfoLine( date_time_stamp );
   }
 
-  QString html_user_name = "";
-  if( !user_name.isEmpty() )
+  // Sender name line (peers only, hidden when grouped with the previous
+  // message of the same author; own bubbles carry no name like WeChat).
+  QString name_line = "";
+  if( !own_message && !append_message_to_previous )
   {
-    if( Settings::instance().chatUseColoredUserNames() )
-    {
-      if( Bee::isColorVisibleInChat( QColor( u.color() ) ) )
-        html_user_name = QString( "<font color=%1><b>%2</b></font>" ).arg( u.color(), user_name );
-      else
-        html_user_name = QString( "<font color=%1><b>%2</b></font>" ).arg( Settings::instance().chatDefaultUserNameColor(), user_name );
-    }
+    QString user_name = u.isValid() ? Bee::userNameToShow( u, true ) : QObject::tr( "Unknown" );
+    if( cm.isFromAutoresponder() )
+      user_name = QString( "%1 (%2)" ).arg( user_name, Settings::instance().autoresponderName() );
+    if( Settings::instance().chatUseColoredUserNames() && Bee::isColorVisibleInChat( QColor( u.color() ) ) )
+      name_line = QString( "<font color=%1 size=2>%2</font><br>" ).arg( u.color(), user_name );
     else
-      html_user_name = QString( "<b>%1</b>" ).arg( user_name );
-
-    if( !Settings::instance().showTextInModeRTL() )
-      html_user_name.append( QString( ":%1" ).arg( use_chat_compact ? QString( " " ) : QLatin1String( "<br>" ) ) );
+      name_line = QString( "<font color=%1 size=2>%2</font><br>" ).arg( Settings::instance().chatSystemTextColor(), user_name );
   }
 
-  if( Settings::instance().showTextInModeRTL() )
-    html_message += QString( "%1 %2 %3" ).arg( html_user_name, html_date_time_stamp, text_formatted );
-  else if( use_chat_compact )
-    html_message += QString( "%1 %2 %3" ).arg( html_date_time_stamp, (html_user_name.isEmpty() ? QLatin1String( "&nbsp;&nbsp;" ) : html_user_name), text_formatted );
+  QString bubble = QString( "<span style=\"%1\">&nbsp;%2%3&nbsp;</span>" )
+                     .arg( own_message ? ownBubbleStyle() : peerBubbleStyle(),
+                           cm.isImportant() ? textImportantPrefix() : QString(),
+                           text_formatted );
+
+  // Outer positioning table: avatar column on the outer edge, empty spacer
+  // column (~30%) capping the bubble width, content cell with the span block.
+  if( own_message )
+  {
+    html_message += QString( "<table width=100% cellspacing=0 cellpadding=0 border=0><tr>"
+                             "<td width=30%></td>"
+                             "<td align=right valign=top>%1</td>"
+                             "<td width=8></td>"
+                             "<td width=24 valign=top>%2</td>"
+                             "</tr></table><br>" ).arg( bubble, avatarHtml( u ) );
+  }
   else
-    html_message += QString( "%1 %2 %3" ).arg( html_user_name, html_date_time_stamp, text_formatted );
+  {
+    html_message += QString( "<table width=100% cellspacing=0 cellpadding=0 border=0><tr>"
+                             "<td width=24 valign=top>%2</td>"
+                             "<td width=8></td>"
+                             "<td align=left valign=top>%1</td>"
+                             "<td width=30%></td>"
+                             "</tr></table><br>" ).arg( name_line + bubble, avatarHtml( u ) );
+  }
 
   if( cm.isImportant() )
     html_message.append( textImportantSuffix() );
-
-  if( !use_chat_compact )
-  {
-    if( last_user_id == ID_SYSTEM_MESSAGE )
-    {
-      if( !skip_system_message )
-        html_message.prepend( QLatin1String( "<br>" ) );
-    }
-    else if( last_user_id == ID_IMPORTANT_MESSAGE || cm.isImportant() )
-    {
-      html_message.prepend( QLatin1String( "<br>" ) );
-    }
-    else
-    {
-      if( !append_message_to_previous )
-        html_message.prepend( QLatin1String( "<br>" ) );
-    }
-  }
-
-  html_message += QLatin1String( "<br>" );
 
   return html_message;
 }
 
 QString GuiChatMessage::formatSystemMessage( const ChatMessage& cm, VNumber last_user_id, bool show_timestamp, bool show_datestamp, bool use_chat_compact )
 {
+  Q_UNUSED( last_user_id );
+  Q_UNUSED( use_chat_compact );
+
   if( cm.message().isEmpty() )
     return QString( "" );
 
-  QString date_time_stamp = cm.type() != ChatMessage::ImagePreview ? datetimestampToString( cm, show_timestamp, show_datestamp ) : QString( "" );
+  // File transfer / voice lines: keep the clickable links and add a paperclip
+  // row inside a light color block (PRD 4.1 file bubble).
+  if( cm.type() == ChatMessage::FileTransfer || cm.type() == ChatMessage::Voice )
+  {
+    return QString( "<div align=center><span style=\"%1\">&nbsp;&#128206;&nbsp;%2%3&nbsp;</span></div><br>" )
+             .arg( peerBubbleStyle(), cm.isImportant() ? textImportantPrefix() : QString(), cm.message() );
+  }
 
-  QString html_message = QString( "<font color=%1>%2%3</font>" )
-                           .arg( Settings::instance().chatSystemTextColor(),
-                                 date_time_stamp.isEmpty() ? date_time_stamp : QString( "(%1) " ).arg( date_time_stamp ),
-                                 cm.message() );
+  // Image previews arrive already wrapped in <div align=center><a><img></a></div>
+  if( cm.type() == ChatMessage::ImagePreview )
+    return cm.message() + QLatin1String( "<br>" );
 
+  // Plain system messages: centered gray line (PRD 4.1)
+  QString date_time_stamp = datetimestampToString( cm, show_timestamp, show_datestamp );
+  QString text = QString( "%1%2" ).arg( date_time_stamp.isEmpty() ? QString() : QString( "(%1) " ).arg( date_time_stamp ), cm.message() );
   if( cm.isImportant() )
-  {
-    html_message.prepend( textImportantPrefix() );
-    html_message.append( textImportantSuffix() );
-  }
-
-  html_message.append( QLatin1String( "<br>" ) );
-
-  if( !use_chat_compact )
-  {
-    if( cm.type() != ChatMessage::Other && last_user_id != ID_SYSTEM_MESSAGE )
-    {
-      html_message.prepend( QLatin1String( "<br>" ) );
-    }
-    else
-    {
-      if( cm.isImportant() )
-        html_message.prepend( QLatin1String( "<br>" ) );
-    }
-  }
-
-  return html_message;
+    text.prepend( textImportantPrefix() );
+  return centeredInfoLine( text ) + QLatin1String( "<br>" );
 }
 
 QString GuiChatMessage::chatToHtml( const Chat& c, bool skip_file_transfers, bool skip_system_message, bool force_timestamp, bool force_datestamp, bool use_chat_compact, bool skip_cannot_be_saved_messages )
@@ -205,6 +247,7 @@ QString GuiChatMessage::chatToHtml( const Chat& c, bool skip_file_transfers, boo
   UserList chat_users;
   QString html_text = "";
   VNumber last_message_user_id = skip_system_message ? 0 : ID_SYSTEM_MESSAGE;
+  QDateTime last_message_timestamp;
 
   if( c.isDefault() )
     chat_users = UserManager::instance().userList();
@@ -243,7 +286,8 @@ QString GuiChatMessage::chatToHtml( const Chat& c, bool skip_file_transfers, boo
         if( u.isValid() )
           chat_users.set( u );
       }
-      html_text += formatMessage( u, cm, last_message_user_id, force_timestamp || Settings::instance().chatShowMessageTimestamp(), force_datestamp || Settings::instance().chatShowMessageDatestamp(), skip_system_message, false, true, use_chat_compact );
+      html_text += formatMessage( u, cm, last_message_user_id, force_timestamp || Settings::instance().chatShowMessageTimestamp(), force_datestamp || Settings::instance().chatShowMessageDatestamp(), skip_system_message, false, true, use_chat_compact, last_message_timestamp );
+      last_message_timestamp = cm.timestamp();
     }
     last_message_user_id = cm.isImportant() ? ID_IMPORTANT_MESSAGE : cm.userId();
   }
