@@ -43,7 +43,9 @@ QT += network xml widgets printsupport
 
 win32|unix {
   QT += multimedia
-  DEFINES += BEEBEEP_USE_VOICE_CHAT
+  # YongBEEP: voice chat disabled for Qt6 (QAudioEncoderSettings/QAudioDeviceInfo removed
+  # in Qt6 Multimedia); feature is on the removal list per docs/01-产品设计.md §3.4.
+  # DEFINES += BEEBEEP_USE_VOICE_CHAT
 }
 
 unix:!macx:!android: {
