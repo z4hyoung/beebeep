@@ -45,8 +45,9 @@ NetworkMonitor::NetworkMonitor( QObject* parent )
 #endif
       connect( net_info, &QNetworkInformation::reachabilityChanged,
                this, &NetworkMonitor::checkNetworkStatus );
-      connect( net_info, &QNetworkInformation::isOnlineChanged,
-               this, &NetworkMonitor::checkNetworkStatus );
+      // YongBEEP: removed second connect to isOnlineChanged — the signal does not
+      // exist in Qt 6.12 (only reachability/isBehindCaptivePortal/transportMedium/
+      // isMetered notifications); reachabilityChanged above already covers it.
     }
   }
   else
