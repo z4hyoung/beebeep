@@ -3,9 +3,12 @@ INCLUDEPATH += $$PWD
 
 HEADERS += gui/AudioManager.h \
   gui/Avatar.h \
+  gui/ChatListItemDelegate.h \
+  gui/ChatListModel.h \
   gui/ColorManager.h \
   gui/Emoticon.h \
   gui/EmoticonManager.h \
+  gui/GuiMainWindow.h \
   gui/IconManager.h \
   gui/ImageOptimizer.h \
   gui/GuiSelectItems.h \
@@ -14,10 +17,13 @@ HEADERS += gui/AudioManager.h \
 
 SOURCES += gui/AudioManager.cpp \
   gui/Avatar.cpp \
+  gui/ChatListItemDelegate.cpp \
+  gui/ChatListModel.cpp \
   gui/ColorManager.cpp \
   gui/Emojis.cpp \
   gui/Emoticon.cpp \
   gui/EmoticonManager.cpp \
+  gui/GuiMainWindow.cpp \
   gui/IconManager.cpp \
   gui/ImageOptimizer.cpp \
   gui/GuiSelectItems.cpp \

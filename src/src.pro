@@ -88,7 +88,9 @@ include(override/override.pri)
 include(utils/utils.pri)
 win32|unix {
   include(qxt/qxt.pri)
-  include(sharedesktop/sharedesktop.pri)
+  # YongBEEP: desktop sharing + screenshot tool removed per PRD 3.4 cut list
+  # (BEEBEEP_USE_SHAREDESKTOP no longer defined; all references are #ifdef-guarded).
+  # include(sharedesktop/sharedesktop.pri)
   contains(DEFINES, BEEBEEP_USE_VOICE_CHAT) {
     include(voicechat/voicechat.pri)
   }

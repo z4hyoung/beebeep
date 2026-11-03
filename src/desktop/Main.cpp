@@ -30,7 +30,7 @@
 #include "EmoticonManager.h"
 #include "FileShare.h"
 #include "GuiIconProvider.h"
-#include "GuiMain.h"
+#include "GuiMainWindow.h"
 #include "HistoryManager.h"
 #include "Hive.h"
 #include "IconManager.h"
@@ -49,6 +49,7 @@
 #ifdef BEEBEEP_USE_HUNSPELL
   #include "SpellChecker.h"
 #endif
+#include <QTimer>
 
 
 bool SetTranslator( QTranslator* translator, QString language_folder, QString lang )
@@ -256,21 +257,32 @@ int main( int argc, char *argv[] )
   if( !QSystemTrayIcon::isSystemTrayAvailable() )
     qWarning() << "System tray icon is not available in this OS";
 
-  /* Init Main Window */
-  GuiMain mw;
-  QObject::connect( &bee_app, SIGNAL( enteringInIdle() ), &mw, SLOT( setInIdle() ) );
-  QObject::connect( &bee_app, SIGNAL( exitingFromIdle() ), &mw, SLOT( exitFromIdle() ) );
+  /* Init Main Window (YongBEEP S3-4a: WeChat-style window replaces GuiMain) */
+  QString screenshot_path;
+  for( int i = 1; i < argc - 1; i++ )
+  {
+    if( QString::fromLocal8Bit( argv[i] ) == QLatin1String( "--screenshot" ) )
+      screenshot_path = QString::fromLocal8Bit( argv[i+1] );
+  }
+
+  GuiMainWindow mw;
   QObject::connect( &bee_app, SIGNAL( showUp() ), &mw, SLOT( raiseOnTop() ) );
   QObject::connect( &bee_app, SIGNAL( tickEvent( int ) ), &mw, SLOT( onTickEvent( int ) ) );
   QObject::connect( &bee_app, SIGNAL( commitDataRequest( QSessionManager& ) ), &mw, SLOT( saveSession( QSessionManager& ) ), Qt::DirectConnection );
   QObject::connect( &bee_app, SIGNAL( shutdownRequest() ), &mw, SLOT( forceShutdown() ), Qt::DirectConnection );
   QObject::connect( &bee_app, SIGNAL( sleepRequest() ), &mw, SLOT( onSleepRequest() ) );
   QObject::connect( &bee_app, SIGNAL( wakeUpRequest() ), &mw, SLOT( onWakeUpRequest() ) );
-  QObject::connect( &bee_app, SIGNAL( focusChanged( QWidget*, QWidget* ) ), &mw, SLOT( onApplicationFocusChanged( QWidget*, QWidget* ) ) );
   mw.loadStyle();
   QMetaObject::invokeMethod( &mw, "checkWindowFlagsAndShow", Qt::QueuedConnection );
   qDebug() << "Loading saved session";
   mw.loadSession();
+
+  if( !screenshot_path.isEmpty() )
+  {
+    // Debug helper: grab the main window with QWidget::grab() (no screen-recording
+    // permission needed) a few seconds after startup, then quit.
+    QTimer::singleShot( 3000, &mw, [ &mw, screenshot_path ]() { mw.takeScreenshot( screenshot_path ); } );
+  }
 
   /* Event Loop */
   qDebug() << "Enter in the main event loop";

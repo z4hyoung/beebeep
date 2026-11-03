@@ -15,7 +15,9 @@ contains(QMAKE_TARGET.arch, x86) {
 
 TEMPLATE = subdirs
 
-SUBDIRS += src plugins
+# YongBEEP: game/textmarker plugins removed per PRD 3.4 cut list
+SUBDIRS += src
+#SUBDIRS += plugins
 
 CONFIG += ordered
 

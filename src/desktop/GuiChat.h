@@ -52,6 +52,8 @@ public:
   void updateActionsOnFocusChanged();
   void setChatFont( const QFont& );
   bool appendChatMessage( const Chat&, const ChatMessage& );
+  // YongBEEP hook: hide floating-window leftovers when embedded in the main window (S3-4a)
+  void setCompactInputMode();
 
   inline QSplitter* chatSplitter() const;
   void editChatMembers();

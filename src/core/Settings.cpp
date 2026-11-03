@@ -57,7 +57,7 @@ Settings::Settings()
   // In windows native dialogs are application modal and the connection goes in timeout...
   // In MacOSX instead it seems to work... I have changed the connection timeout...
   m_useNativeDialogs = true;
-  m_useFontEmoticons = false;
+  m_useFontEmoticons = true; // YongBEEP: system emoji font emoticons by default (PRD 3.2)
 #if !defined( BEEBEEP_FOR_RASPBERRY_PI ) && !defined( Q_OS_OS2 )
   m_useHiResEmoticons = true;
 #else

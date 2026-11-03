@@ -3,3 +3,10 @@ test/
 *.o
 Makefile*
 .qmake.stash
+
+# qmake generated sources (in-tree on macOS)
+src/moc_*.cpp
+src/moc_predefs.h
+src/qrc_*.cpp
+src/ui_*.h
+src/yongbeep_plugin_import.cpp
