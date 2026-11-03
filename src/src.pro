@@ -74,7 +74,9 @@ message( Arch: $$QMAKE_HOST.arch )
 message( Qt modules: $$QT )
 
 include(../locale/locale.pri)
-include(hunspell/hunspell.pri)
+# YongBEEP: spell check disabled — QTextCodec-based SpellChecker requires Qt5Compat,
+# feature is on the removal list per docs/01-产品设计.md §3.4.
+# include(hunspell/hunspell.pri)
 include(core/core.pri)
 include(ecdh/ecdh.pri)
 include(gui/gui.pri)

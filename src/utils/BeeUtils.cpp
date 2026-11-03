@@ -899,7 +899,7 @@ bool Bee::areStringListEqual( const QStringList& sl1, const QStringList& sl2, Qt
 
 QString Bee::dateTimeToString( const QDateTime& dt )
 {
-  return dt.date() == QDate::currentDate() ? dt.time().toString( Qt::SystemLocaleShortDate ) : dt.toString( Qt::SystemLocaleShortDate );
+  return dt.date() == QDate::currentDate() ? QLocale::system().toString( dt.time(), QLocale::ShortFormat ) : QLocale::system().toString( dt, QLocale::ShortFormat );
 }
 
 void Bee::setBackgroundColor( QWidget* w, const QColor& c )

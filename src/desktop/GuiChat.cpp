@@ -485,7 +485,7 @@ void GuiChat::setLastMessageTimestamp( const QDateTime& dt )
     if( dt.date() == QDate::currentDate() )
       last_msg_timestamp = last_msg_timestamp.arg( dt.toString( "hh:mm" ) );
     else
-      last_msg_timestamp = last_msg_timestamp.arg( dt.toString( Qt::SystemLocaleLongDate ) );
+      last_msg_timestamp = last_msg_timestamp.arg( QLocale::system().toString( dt, QLocale::LongFormat ) );
     mp_teChat->setToolTip( last_msg_timestamp );
   }
   else
@@ -1325,7 +1325,7 @@ void GuiChat::quoteSelectedText()
   QTextCursor tc = mp_teChat->textCursor();
   if( !tc.hasSelection() )
     return;
-  QString selected_text = tc.selection().toHtml( "UTF-8" );
+  QString selected_text = tc.selection().toHtml();
   selected_text.replace( "</p>", "</p>\n" );
   selected_text.replace( "<br>", "\n" );
   selected_text = Bee::removeHtmlTags( selected_text );
@@ -1343,7 +1343,7 @@ void GuiChat::changeBackgroundColorInSelectedText()
   if( !tc.hasSelection() )
     return;
 
-  QString selected_text = tc.selection().toHtml( "UTF-8" );
+  QString selected_text = tc.selection().toHtml();
   selected_text.replace( "</p>", "</p>\n" );
   selected_text.replace( "<br>", "\n" );
   selected_text = Bee::removeHtmlTags( selected_text );
