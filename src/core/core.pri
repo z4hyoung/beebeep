@@ -39,6 +39,8 @@ HEADERS += core/Broadcaster.h \
   core/Rijndael.h \
   core/SaveChatList.h \
   core/Settings.h \
+  core/StreamDevice.h \
+  core/StreamDeviceTcp.h \
   core/TickManager.h \
   core/User.h \
   core/UserList.h \
@@ -91,6 +93,7 @@ SOURCES +=  core/Broadcaster.cpp \
   core/Rijndael.cpp \
   core/SaveChatList.cpp \
   core/Settings.cpp \
+  core/StreamDeviceTcp.cpp \
   core/TickManager.cpp \
   core/User.cpp \
   core/UserList.cpp \

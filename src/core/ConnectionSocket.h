@@ -3,9 +3,9 @@
 // BeeBEEP Copyright (C) 2010-2026 Marco Mastroddi
 //
 // BeeBEEP is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published
-// by the Free Software Foundation, either version 3 of the License,
-// or (at your option) any later version.
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
 // BeeBEEP is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -26,16 +26,32 @@
 
 #include "ECDH.h"
 #include "NetworkAddress.h"
+#include "StreamDevice.h"
 
 class Message;
 
 
-class ConnectionSocket : public QTcpSocket
+/*! \brief Protocol socket (HELLO handshake, ECDH, compression, framing)
+ *
+ * Formerly a QTcpSocket subclass, now it composes a StreamDevice
+ * (StreamDeviceTcp in this step) and keeps the exact public API and
+ * signal contract that Core, Connection, FileTransferPeer and
+ * GuiNetworkTest rely on. The TCP behavior is unchanged byte for byte.
+ */
+class ConnectionSocket : public QObject
 {
   Q_OBJECT
 
 public:
   explicit ConnectionSocket( QObject* parent = Q_NULLPTR );
+
+  // Transport forwards (same names of the old QTcpSocket base)
+  inline QHostAddress peerAddress() const;
+  inline quint16 peerPort() const;
+  inline QString errorString() const;
+  inline bool isOpen() const;
+  inline bool isValid() const;
+  inline qintptr socketDescriptor() const;
 
   void connectToNetworkAddress( const NetworkAddress& );
   void initSocket( qintptr, quint16 server_port );
@@ -70,6 +86,15 @@ public:
   inline bool isCompressed() const;
 
 signals:
+  // Transport signals forwarded from the StreamDevice: external code
+  // (CoreConnection.cpp, FileTransferPeer.cpp, GuiNetworkTest.cpp)
+  // connects to them by signature and must keep resolving.
+  void connected();
+  void readyRead();
+  void bytesWritten( qint64 bytes );
+  void error( QAbstractSocket::SocketError socket_error );
+  void disconnected();
+
   void dataReceived( const QByteArray& );
   void authenticationRequested( const QByteArray& );
   void abortRequest();
@@ -97,6 +122,8 @@ protected:
   void useCompression( bool );
 
 private:
+  StreamDevice* mp_stream;
+
   // max block size contains lowers
   DATA_BLOCK_SIZE_32 m_blockSize;
   bool m_isHelloSent;
@@ -129,12 +156,18 @@ private:
 
 
 // Inline Functions
+inline QHostAddress ConnectionSocket::peerAddress() const { return mp_stream->peerAddress(); }
+inline quint16 ConnectionSocket::peerPort() const { return mp_stream->peerPort(); }
+inline QString ConnectionSocket::errorString() const { return mp_stream->errorString(); }
+inline bool ConnectionSocket::isOpen() const { return mp_stream->isOpen(); }
+inline bool ConnectionSocket::isValid() const { return mp_stream->isValid(); }
+inline qintptr ConnectionSocket::socketDescriptor() const { return mp_stream->socketDescriptor(); }
 inline VNumber ConnectionSocket::userId() const { return m_userId; }
 inline void ConnectionSocket::setUserId( VNumber new_value ) { m_userId = new_value; }
 inline int ConnectionSocket::protocolVersion() const { return m_protocolVersion; }
 inline bool ConnectionSocket::isNewGenerationPeer() const { return m_isNewGenerationPeer; }
-inline bool ConnectionSocket::isConnected() const { return isOpen() && (state() == QAbstractSocket::ConnectedState || state() == QAbstractSocket::BoundState); }
-inline bool ConnectionSocket::isConnecting() const { return isOpen() && (state() == QAbstractSocket::HostLookupState || state() == QAbstractSocket::ConnectingState); }
+inline bool ConnectionSocket::isConnected() const { return mp_stream->isOpen() && mp_stream->isConnectedState(); }
+inline bool ConnectionSocket::isConnecting() const { return mp_stream->isOpen() && mp_stream->isConnectingState(); }
 inline const QDateTime& ConnectionSocket::latestActivityDateTime() const { return m_latestActivityDateTime; }
 inline const NetworkAddress& ConnectionSocket::networkAddress() const { return m_networkAddress; }
 inline bool ConnectionSocket::isTestConnection() const { return m_isTestConnection; }
