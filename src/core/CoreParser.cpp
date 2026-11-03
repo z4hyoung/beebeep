@@ -69,6 +69,9 @@ void Core::parseMessage( const User& u, const Message& m )
   case Message::File:
     parseFileMessage( u, m );
     break;
+  case Message::FileChunk:
+    parseFileChunkMessage( u, m );
+    break;
   case Message::Folder:
     parseFolderMessage( u, m );
     break;
@@ -163,6 +166,14 @@ void Core::parseFileMessage( const User& u, const Message& m )
     return;
   }
 
+  if( m.hasFlag( Message::InlineFile ) )
+  {
+    // File offered, accepted (GO) or canceled through the encrypted message
+    // channel (Bluetooth path): handled by the inline transfer peers.
+    parseInlineFileMessage( u, m, fi );
+    return;
+  }
+
   Chat chat_to_show_message = ChatManager::instance().findChatByPrivateId( fi.chatPrivateId(), false, u.id() );
 
   if( m.hasFlag( Message::Refused ) )
@@ -237,6 +248,116 @@ void Core::parseFileMessage( const User& u, const Message& m )
   }
   else
     emit fileDownloadRequest( u, fi );
+}
+
+void Core::parseInlineFileMessage( const User& u, const Message& m, const FileInfo& fi )
+{
+  Chat chat_to_show_message = ChatManager::instance().findChatByPrivateId( fi.chatPrivateId(), false, u.id() );
+
+  if( m.hasFlag( Message::Refused ) )
+  {
+    // The remote peer has refused the offer or has canceled the transfer in
+    // progress: the refused BEE-FILE message carries the FileInfo, so stop
+    // our side by file id. The remote is already aware, so it is not notified
+    // again (the refusal must not bounce back).
+    mp_fileTransfer->cancelInlineTransfer( u.id(), fi, false );
+    dispatchSystemMessage( chat_to_show_message.id(), u.id(), tr( "%1 %2 has refused or canceled the transfer of the file: %3" )
+                           .arg( IconManager::instance().toHtml( "red-ball.png", "*F*" ), Bee::userNameToShow( u, true ), fi.name() ),
+                           chat_to_show_message.isValid() ? DispatchToChat : DispatchToAllChatsWithUser, ChatMessage::FileTransfer, false );
+    return;
+  }
+
+  if( m.hasFlag( Message::Request ) )
+  {
+    // GO message: the remote peer has accepted the offer and it is ready to
+    // receive the chunks (the equivalent of connecting to the 6476 port)
+#ifdef BEEBEEP_DEBUG
+    qDebug() << "User" << qPrintable( u.path() ) << "has accepted the inline transfer of file" << qPrintable( fi.name() );
+#endif
+    mp_fileTransfer->readyForInlineUpload( u.id(), fi );
+    return;
+  }
+
+  /* Offer path: same checks and default behavior of the 6476 channel */
+  FileInfo inline_fi = fi;
+  if( !Settings::instance().enableFileTransfer() )
+  {
+    refuseToDownloadFile( u.id(), fi, QString( FILE_REFUSE_REASON_POLICY ) );
+    return;
+  }
+
+  if( !fi.name().endsWith( fi.suffix(), Qt::CaseInsensitive ) )
+  {
+    qWarning() << "Invalid inline file transfer request received from user" << qPrintable( u.path() ) << ": file extension is" << fi.suffix() << "but the file name is" << fi.name();
+    return;
+  }
+
+  if( fi.isInShareBox() )
+  {
+    if( !Settings::instance().useShareBox() || Settings::instance().disableFileSharing() )
+    {
+      refuseToDownloadFile( u.id(), fi, QString( FILE_REFUSE_REASON_POLICY ) );
+      return;
+    }
+  }
+
+  QString sys_msg;
+  if( m.hasFlag( Message::VoiceMessage ) )
+    sys_msg = tr( "%1 %2 is sending to you the voice message: %3" ).arg( IconManager::instance().toHtml( "download.png", "*F*" ), Bee::userNameToShow( u, true ), fi.name() );
+  else
+    sys_msg = tr( "%1 %2 is sending to you the file: %3" ).arg( IconManager::instance().toHtml( "download.png", "*F*" ), Bee::userNameToShow( u, true ), fi.name() );
+  dispatchSystemMessage( chat_to_show_message.id(), u.id(), sys_msg, chat_to_show_message.isValid() ? DispatchToChat : DispatchToAllChatsWithUser, ChatMessage::FileTransfer, false );
+
+  if( !Settings::instance().isFileExtensionAllowedInFileTransfer( fi.suffix() ) )
+  {
+    qWarning() << "User" << qPrintable( u.path() ) << "is sending to you the file" << fi.name() << "but you are not allowed to download this file extension";
+    refuseToDownloadFile( u.id(), fi, QString( FILE_REFUSE_REASON_POLICY ) );
+    return;
+  }
+
+  inline_fi.setHostAddress( u.networkAddress().hostAddress() );
+
+  if( fi.isInShareBox() )
+  {
+    QString to_path;
+    if( !fi.shareFolder().isEmpty() )
+      to_path = Bee::convertToNativeFolderSeparator( QString( "%1/%2/%3" ).arg( Settings::instance().shareBoxPath() )
+                                                                          .arg( fi.shareFolder() )
+                                                                          .arg( fi.name() ) );
+    else
+      to_path = Bee::convertToNativeFolderSeparator( QString( "%1/%2" ).arg( Settings::instance().shareBoxPath() )
+                                                                       .arg( fi.name() ) );
+
+    QFileInfo file_info( to_path );
+    if( file_info.exists() && file_info.isDir() && Settings::instance().onExistingFileAction() == Settings::GenerateNewFileName )
+      to_path = Bee::uniqueFilePath( to_path, false );
+
+    qDebug() << "Inline transfer downloads from user" << qPrintable( u.path() ) << "the file" << qPrintable( fi.name() ) << "in path" << qPrintable( to_path );
+    inline_fi.setPath( to_path );
+
+    startInlineFileDownload( u.id(), inline_fi );
+  }
+  else if( fi.isVoiceMessage() )
+  {
+    QString file_path = Bee::uniqueFilePath( QString( "%1/%2" ).arg( Settings::instance().cacheFolder(), fi.name() ), false );
+    inline_fi.setPath( file_path );
+    startInlineFileDownload( u.id(), inline_fi );
+  }
+  else
+  {
+    // Remember that this offer travels on the message channel: when the user
+    // accepts it Core::downloadFile() routes it to the inline peer
+    m_inlineFileOffers.insert( inline_fi.id(), u.id() );
+    emit fileDownloadRequest( u, inline_fi );
+  }
+}
+
+void Core::parseFileChunkMessage( const User& u, const Message& m )
+{
+#ifdef BEEBEEP_DEBUG
+  qDebug() << "User" << qPrintable( u.path() ) << "has sent an inline file chunk message";
+#endif
+  mp_fileTransfer->parseInlineFileChunk( u.id(), m );
 }
 
 void Core::parseChatMessage( const User& u, const Message& m )

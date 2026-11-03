@@ -129,9 +129,37 @@ bool Core::downloadFile( VNumber user_id, const FileInfo& fi, bool show_message 
                          chat_to_show_message.isValid() ? DispatchToChat : DispatchToDefaultAndPrivateChat, ChatMessage::FileTransfer, false );
   }
 
+  if( m_inlineFileOffers.contains( fi.id() ) )
+  {
+    // The file was offered through the inline (message channel) path used on
+    // Bluetooth connections: no 6476 TCP channel is involved
+    m_inlineFileOffers.remove( fi.id() );
+    if( startInlineFileDownload( u.id(), fi ) )
+      return true;
+
+    icon_html = IconManager::instance().toHtml( "red-ball.png", "*F*" );
+    dispatchSystemMessage( chat_to_show_message.isValid() ? chat_to_show_message.id() : ID_DEFAULT_CHAT, u.id(), tr( "%1 Unable to download %2 from %3: connection is not available." )
+                           .arg( icon_html, fi.name(), Bee::userNameToShow( u, true ) ),
+                           chat_to_show_message.isValid() ? DispatchToChat : DispatchToDefaultAndPrivateChat, ChatMessage::FileTransfer, false );
+    return false;
+  }
+
   qDebug() << "Downloading file" << qPrintable( fi.path() ) << "from user" << qPrintable( u.path() );
   mp_fileTransfer->downloadFile( u.id(), fi );
   return true;
+}
+
+bool Core::startInlineFileDownload( VNumber from_user_id, const FileInfo& fi )
+{
+  Connection* c = connection( from_user_id );
+  if( !c || !c->isConnected() )
+  {
+    qWarning() << "Unable to start the inline download of" << qPrintable( fi.name() ) << "because user" << from_user_id << "is not connected anymore";
+    return false;
+  }
+
+  qDebug() << "Downloading inline file" << qPrintable( fi.path() ) << "from user" << qPrintable( c->networkAddress().toString() );
+  return mp_fileTransfer->startInlineDownload( from_user_id, fi, c );
 }
 
 void Core::checkFileTransferMessage( VNumber peer_id, VNumber user_id, const FileInfo& fi, const QString& msg, FileTransferPeer::TransferState ft_state )
@@ -410,11 +438,34 @@ bool Core::sendFileToUser( const User& u, const QString& file_path, const QStrin
     Connection* c = connection( u.id() );
     if( c )
     {
+      const bool inline_transfer = c->isBluetoothTransport();
+      if( inline_transfer && file.size() > Settings::instance().maxInlineFileSizeBytes() )
+      {
+        // Bluetooth RFCOMM path with no IP network: the 6476 TCP channel is
+        // unavailable and only files up to the inline threshold can travel in
+        // the encrypted message channel (docs/02-技术设计.md section 2.3)
+        dispatchSystemMessage( chat_selected.isValid() ? chat_selected.id() : ID_DEFAULT_CHAT, u.id(),
+                               tr( "%1 Unable to send %2 to %3: file is bigger than %4 and the connection is Bluetooth." )
+                               .arg( icon_html, file_path, Bee::userNameToShow( u, true ), Bee::bytesToString( Settings::instance().maxInlineFileSizeBytes() ) ),
+                               chat_selected.isValid() ? DispatchToChat : DispatchToDefaultAndPrivateChat, ChatMessage::FileTransfer, false );
+        return false;
+      }
+
       icon_html = IconManager::instance().toHtml( "upload.png", "*F*" );
       Message m = Protocol::instance().fileInfoToMessage( fi, c->protocolVersion() );
+      if( inline_transfer )
+        m.addFlag( Message::InlineFile );
       if( c->sendMessage( m ) )
       {
-        qDebug() << "Sending file" << fi.path() << "to" << qPrintable( u.path() );
+        if( inline_transfer )
+        {
+          // Inline path: the peer queues and waits for the GO message of the
+          // remote peer before starting the stop-and-wait chunk loop
+          mp_fileTransfer->startInlineUpload( u.id(), fi, c );
+          qDebug() << "Sending inline file" << fi.path() << "to" << qPrintable( u.path() );
+        }
+        else
+          qDebug() << "Sending file" << fi.path() << "to" << qPrintable( u.path() );
         file_sent = true;
         QUrl file_url = QUrl::fromLocalFile( fi.path() );
         QString msg = tr( "%1 Sending %2 to %3." ).arg( icon_html, QString( "<a href=\"%1\">%2</a>" ).arg( file_url.toString(), fi.name() ), Bee::userNameToShow( u, true ) );
@@ -459,6 +510,9 @@ void Core::refuseToDownloadFile( VNumber user_id, const FileInfo& fi, const QStr
     return;
   }
 
+  const bool was_inline_offer = m_inlineFileOffers.contains( fi.id() );
+  m_inlineFileOffers.remove( fi.id() );
+
   qDebug() << "Download refused:" << qPrintable( fi.name() ) << "from" << qPrintable( u.path() );
 
   Chat chat_to_show_message = ChatManager::instance().findChatByPrivateId( fi.chatPrivateId(), false, user_id );
@@ -476,6 +530,8 @@ void Core::refuseToDownloadFile( VNumber user_id, const FileInfo& fi, const QStr
   if( c->protocolVersion() > 1 )
   {
     Message m = Protocol::instance().fileInfoRefusedToMessage( fi, c->protocolVersion(), c->isNewGenerationPeer(), refuse_reason );
+    if( was_inline_offer )
+      m.addFlag( Message::InlineFile ); // so the sender stops its waiting inline upload peer
     c->sendMessage( m );
   }
 }

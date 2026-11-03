@@ -269,6 +269,8 @@ protected:
   void parseUserMessage( const User&, const Message& );
   void parseChatMessage( const User&, const Message& );
   void parseFileMessage( const User&, const Message& );
+  void parseInlineFileMessage( const User&, const Message&, const FileInfo& );
+  void parseFileChunkMessage( const User&, const Message& );
   void parseFileShareMessage( const User&, const Message& );
   void parseGroupMessage( const User&, const Message& );
   void parseFolderMessage( const User&, const Message& );
@@ -320,6 +322,7 @@ protected:
   bool sendFileToUser( const User&, const QString& file_path, const QString& share_folder, bool to_share_box, const Chat& );
   bool showFilesUploadPreviewInChat( const Chat&, const QStringList& file_paths );
   bool showFileUploadPreviewInChat( const Chat&, const QString& file_path );
+  bool startInlineFileDownload( VNumber from_user_id, const FileInfo& );
   void sendFileShareListTo( VNumber user_id );
   void sendFileShareListToAll();
   bool sendFolder( const User&, const QFileInfo&, const QString& chat_private_id );
@@ -328,6 +331,7 @@ protected:
 private:
   static Core* mp_instance;
   QList<Connection*> m_connections;
+  QHash<VNumber, VNumber> m_inlineFileOffers; // file info id -> remote user id of pending inline (message channel) offers
   Listener* mp_listener;
   Broadcaster* mp_broadcaster;
   BtManager* mp_btManager;

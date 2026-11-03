@@ -171,6 +171,7 @@ public:
   inline int writingTimeout() const;
   inline int fileTransferConfirmTimeout() const;
   inline int fileTransferBufferSize() const;
+  inline FileSizeType maxInlineFileSizeBytes() const;
   inline int trayMessageTimeout() const;
   inline int tickIntervalConnectionTimeout() const;
   inline int tickIntervalCheckIdle() const;
@@ -787,6 +788,7 @@ private:
   int m_writingTimeout;
   int m_fileTransferConfirmTimeout;
   int m_fileTransferBufferSize;
+  FileSizeType m_maxInlineFileSizeBytes;
   int m_trayMessageTimeout;
   int m_userAwayTimeout;
   int m_tickIntervalConnectionTimeout;
@@ -1062,6 +1064,7 @@ inline int Settings::messageNotReceivedTimeout() const { return m_messageNotRece
 inline int Settings::writingTimeout() const { return m_writingTimeout; }
 inline int Settings::fileTransferConfirmTimeout() const { return m_fileTransferConfirmTimeout; }
 inline int Settings::fileTransferBufferSize() const { return m_fileTransferBufferSize; }
+inline FileSizeType Settings::maxInlineFileSizeBytes() const { return m_maxInlineFileSizeBytes; }
 inline int Settings::trayMessageTimeout() const  { return m_trayMessageTimeout; }
 inline int Settings::userAwayTimeout() const { return m_userAwayTimeout; }
 inline void Settings::setUserAwayTimeout( int new_value ) { m_userAwayTimeout = new_value; }

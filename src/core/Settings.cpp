@@ -167,6 +167,7 @@ Settings::Settings()
   m_resetMinimumWidthForStyle = true;
   m_onExistingFileAction = GenerateNewFileName;
   m_resumeFileTransfer = true;
+  m_maxInlineFileSizeBytes = 5242880; // 5 MB: inline transfer threshold for the message-channel (Bluetooth) path
   m_promptOnCloseEvent = true;
   m_saveUserList = true;
   m_saveGroupList = true;
@@ -1661,6 +1662,7 @@ void Settings::loadCommonSettings( QSettings* user_ini )
     m_fileTransferBufferSize -= mod_buffer_size;
   if( m_fileTransferBufferSize < 2048 )
     m_fileTransferBufferSize = 2048;
+  m_maxInlineFileSizeBytes = qMax( (FileSizeType)1024, commonValue( system_rc, user_ini, "MaxInlineFileSizeBytes", (qint64)m_maxInlineFileSizeBytes ).toLongLong() );
   bool automatic_file_name = commonValue( system_rc, user_ini, "SetAutomaticFileNameOnSave", m_useClassroomConfiguration ).toBool();
   if( automatic_file_name )
     m_onExistingFileAction = GenerateNewFileName;
@@ -2006,6 +2008,7 @@ void Settings::save()
   sets->setValue( "ResumeFileTransfer", m_resumeFileTransfer );
   sets->setValue( "FileTransferConfirmTimeout", m_fileTransferConfirmTimeout );
   sets->setValue( "FileTransferBufferSize", m_fileTransferBufferSize );
+  sets->setValue( "MaxInlineFileSizeBytes", (qint64)m_maxInlineFileSizeBytes );
   sets->setValue( "MaxSimultaneousDownloads", m_maxSimultaneousDownloads );
   sets->setValue( "MaxQueuedDownloads", m_maxQueuedDownloads );
   sets->setValue( "ConfirmOnDownloadFile", m_confirmOnDownloadFile );
