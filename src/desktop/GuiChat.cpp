@@ -190,6 +190,14 @@ GuiChat::GuiChat( QWidget *parent )
   connect( mp_pbSend, SIGNAL( clicked() ), this, SLOT( sendMessage() ) );
 }
 
+// YongBEEP S3-4a: hide floating-window leftovers when embedded in the main window
+void GuiChat::setCompactInputMode()
+{
+  mp_cbSendAndClose->setChecked( false );
+  mp_cbSendAndClose->hide();
+  mp_pbRecordVoiceMessage->hide();
+}
+
 void GuiChat::setupToolBar( QToolBar* chat_bar )
 {
   // Chat toolbar

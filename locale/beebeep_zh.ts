@@ -6902,4 +6902,94 @@ Please select a different name.</source>
         <translation>状态错误</translation>
     </message>
 </context>
+<context>
+    <name>ChatListModel</name>
+    <message>
+        <source>All users</source>
+        <translation>所有用户</translation>
+    </message>
+    <message>
+        <source>Yesterday</source>
+        <translation>昨天</translation>
+    </message>
+</context>
+<context>
+    <name>GuiMainWindow</name>
+    <message>
+        <source>Search chat</source>
+        <translation>搜索会话</translation>
+    </message>
+    <message>
+        <source>Select a chat to start messaging</source>
+        <translation>选择一个会话开始聊天</translation>
+    </message>
+    <message>
+        <source>Show/Hide</source>
+        <translation>显示/隐藏</translation>
+    </message>
+    <message>
+        <source>Quit</source>
+        <translation>退出</translation>
+    </message>
+    <message>
+        <source>All users</source>
+        <translation>所有用户</translation>
+    </message>
+    <message>
+        <source>Connected</source>
+        <translation>已连接</translation>
+    </message>
+    <message>
+        <source>Offline</source>
+        <translation>未连接</translation>
+    </message>
+    <message>
+        <source>New message from %1</source>
+        <translation>来自 %1 的新消息</translation>
+    </message>
+    <message>
+        <source>New message arrived</source>
+        <translation>收到新消息</translation>
+    </message>
+    <message>
+        <source>%1 - Select a file</source>
+        <translation>%1 - 选择文件</translation>
+    </message>
+    <message>
+        <source>or more</source>
+        <translation>或多个</translation>
+    </message>
+    <message>
+        <source>Do you want to clear messages with %1?</source>
+        <translation>要清空与 %1 的聊天记录吗？</translation>
+    </message>
+    <message>
+        <source>Yes</source>
+        <translation>是</translation>
+    </message>
+    <message>
+        <source>No</source>
+        <translation>否</translation>
+    </message>
+    <message>
+        <source>There are no messages saved in the chat.</source>
+        <translation>该会话没有已保存的消息。</translation>
+    </message>
+    <message>
+        <source>Ok</source>
+        <translation>确定</translation>
+    </message>
+    <message>
+        <source>Do you want to download %1 from %2?</source>
+        <translation>要从 %2 接收 %1 吗？</translation>
+    </message>
+    <message>
+        <source>Yes, and don't ask anymore</source>
+        <translation>是，且不再询问</translation>
+    </message>
+    <message>
+        <source>%1: no such file or directory.</source>
+        <translation>%1：文件或目录不存在。</translation>
+    </message>
+</context>
 </TS>
