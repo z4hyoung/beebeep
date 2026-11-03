@@ -459,7 +459,6 @@ void GuiMessageEdit::setCompleter( QCompleter* completer )
   connect( mp_completer, SIGNAL( activated( const QString& ) ), this, SLOT( insertCompletion( const QString& ) ) );
 }
 
-#ifdef BEEBEEP_USE_HUNSPELL
 void GuiMessageEdit::insertCompletion( const QString& completion )
 {
   if( mp_completer->widget() != this )
@@ -468,13 +467,14 @@ void GuiMessageEdit::insertCompletion( const QString& completion )
   QTextCursor tc = textCursor();
   tc.movePosition( Settings::instance().showTextInModeRTL() ? QTextCursor::Right : QTextCursor::Left );
   tc.movePosition( QTextCursor::EndOfWord );
+#ifdef BEEBEEP_USE_HUNSPELL
   for( int i = 0; i < SpellChecker::instance().completerPrefix().size(); i++ )
     tc.deletePreviousChar();
+#endif
   tc.insertText( completion );
   tc.insertText( " " );
   setTextCursor( tc );
 }
-#endif
 
 QString GuiMessageEdit::textUnderCursor() const
 {

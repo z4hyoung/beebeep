@@ -23,6 +23,7 @@
 
 #include "GAnalytics.h"
 #include "Settings.h"
+#include <QRegularExpression>
 
 
 GAnalytics::GAnalytics( QObject* parent )
@@ -83,8 +84,7 @@ void GAnalytics::doPost()
   QJsonObject mainPayload;
   QString app_uuid = Settings::instance().applicationUuid();
   // remove {} from uuid if needed
-  QRegExp rx( "[{}]" );
-  app_uuid.remove( rx );
+  app_uuid.remove( QRegularExpression( "[{}]" ) );
   mainPayload.insert( "client_id", app_uuid );
   mainPayload.insert( "events", eventsArray );
 

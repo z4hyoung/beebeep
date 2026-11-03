@@ -23,6 +23,7 @@
 
 #include "SpellCheckerHighlighter.h"
 #include "Settings.h"
+#include <QRegularExpression>
 #ifdef BEEBEEP_USE_HUNSPELL
   #include "SpellChecker.h"
 #endif
@@ -41,13 +42,15 @@ SpellCheckerHighlighter::SpellCheckerHighlighter( QTextDocument* text_document )
 
 void SpellCheckerHighlighter::highlightWord( const QString& all_text, const QString& word )
 {
-  QRegExp re( QString( "\\b%1\\b" ).arg( word ) );
-  int index = all_text.indexOf( re );
+  QRegularExpression re( QString( "\\b%1\\b" ).arg( QRegularExpression::escape( word ) ) );
+  QRegularExpressionMatch match = re.match( all_text );
+  int index = match.capturedStart();
   while( index >= 0 )
   {
-    int length = re.matchedLength();
+    int length = match.capturedLength();
     setFormat( index, length, m_format );
-    index = all_text.indexOf( re, index + length );
+    match = re.match( all_text, index + length );
+    index = match.capturedStart();
   }
 }
 

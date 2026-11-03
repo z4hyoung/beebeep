@@ -30,6 +30,7 @@
 #include "Protocol.h"
 #include "User.h"
 #include "Settings.h"
+#include <QRegularExpression>
 #ifndef Q_OS_WIN
   #include <utime.h>
   #include <errno.h>
@@ -477,8 +478,8 @@ bool Bee::setLastModifiedToFile( const QString& to_path, const QDateTime& dt_las
     return false;
   }
 
-  uint mod_time = dt_last_modified.toTime_t();
-  uint ac_time = dt_last_modified.toTime_t();
+  uint mod_time = static_cast<uint>( dt_last_modified.toSecsSinceEpoch() );
+  uint ac_time = static_cast<uint>( dt_last_modified.toSecsSinceEpoch() );
 
   if( mod_time == (uint)-1 || ac_time == (uint)-1 )
   {
@@ -928,7 +929,8 @@ QString Bee::pluginFileExtension()
 QString Bee::removeInvalidCharactersForFilePath( const QString& s )
 {
   QString valid_path = s.simplified();
-  valid_path.replace( QRegExp( "[" + QRegExp::escape( "\\/:*?\"<>|$[]+,;=" ) + "]" ), QString( "_" ) );
+  static const QRegularExpression invalid_chars_re( "[" + QRegularExpression::escape( "\\/:*?\"<>|$[]+,;=" ) + "]" );
+  valid_path.replace( invalid_chars_re, QStringLiteral( "_" ) );
   return valid_path;
 }
 
