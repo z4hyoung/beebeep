@@ -80,6 +80,7 @@ public:
 
   inline int protocolVersion() const;
   inline bool isNewGenerationPeer() const;
+  inline bool isBluetoothTransport() const;
   int fileTransferBufferSize() const;
 
   inline bool isConnected() const;
@@ -182,6 +183,7 @@ inline VNumber ConnectionSocket::userId() const { return m_userId; }
 inline void ConnectionSocket::setUserId( VNumber new_value ) { m_userId = new_value; }
 inline int ConnectionSocket::protocolVersion() const { return m_protocolVersion; }
 inline bool ConnectionSocket::isNewGenerationPeer() const { return m_isNewGenerationPeer; }
+inline bool ConnectionSocket::isBluetoothTransport() const { return m_isBluetoothTransport; }
 inline bool ConnectionSocket::isConnected() const { return mp_stream->isOpen() && mp_stream->isConnectedState(); }
 inline bool ConnectionSocket::isConnecting() const { return mp_stream->isOpen() && mp_stream->isConnectingState(); }
 inline const QDateTime& ConnectionSocket::latestActivityDateTime() const { return m_latestActivityDateTime; }

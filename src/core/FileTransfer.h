@@ -27,7 +27,9 @@
 #include "Config.h"
 #include "FileInfo.h"
 #include "FileTransferPeer.h"
+#include "InlineFileTransferPeer.h"
 #include "User.h"
+class Connection;
 class Message;
 
 
@@ -52,6 +54,13 @@ public:
   bool cancelTransfer( VNumber peer_id );
   bool pauseTransfer( VNumber peer_id );
 
+  /* Inline file transfer peers (encrypted message channel, Bluetooth path) */
+  void startInlineUpload( VNumber to_user_id, const FileInfo&, Connection* );
+  bool startInlineDownload( VNumber from_user_id, const FileInfo&, Connection* );
+  void readyForInlineUpload( VNumber from_user_id, const FileInfo& );
+  void parseInlineFileChunk( VNumber from_user_id, const Message& );
+  void cancelInlineTransfer( VNumber user_id, const FileInfo& fi, bool notify_remote = true );
+
   void removeFilesToUser( VNumber user_id );
 
   inline void clearFiles();
@@ -69,6 +78,9 @@ protected:
   int activeDownloads() const;
 
   FileTransferPeer* peer( VNumber ) const;
+  InlineFileTransferPeer* inlinePeer( VNumber remote_user_id, VNumber file_info_id ) const;
+  InlineFileTransferPeer* createInlinePeer( VNumber remote_user_id, FileInfo::TransferType, const FileInfo& );
+  void cancelPeerTransfer( FileTransferPeer* );
 
   FileInfo fileInfo( VNumber ) const;
   FileInfo fileInfo( const QString& file_absolute_path, const QString chat_private_id ) const;

@@ -77,6 +77,9 @@ public:
   Message fileInfoToMessage( const FileInfo&, int proto_version, bool new_generation_peer = false );
   Message fileInfoRefusedToMessage( const FileInfo&, int proto_version, bool new_generation_peer = false, const QString& refuse_reason = QString() );
   FileInfo fileInfoFromMessage( const Message&, int proto_version );
+  Message fileChunkDataToMessage( VNumber file_info_id, quint32 chunk_index, quint32 total_chunks, FileSizeType byte_offset, const QByteArray& chunk_bytes );
+  Message fileChunkAckToMessage( VNumber file_info_id, quint32 chunk_index, quint32 total_chunks, FileSizeType byte_offset, FileSizeType chunk_size );
+  bool fileChunkFromMessage( const Message&, VNumber* file_info_id, quint32* chunk_index, quint32* total_chunks, FileSizeType* byte_offset, FileSizeType* chunk_size, QByteArray* chunk_bytes );
   FileInfo fileInfo( const QFileInfo&, const QString& share_folder, bool to_share_box, const QString& chat_private_id, FileInfo::ContentType );
   QString fileInfoHash( const QFileInfo& ) const;
   QString fileInfoHashTmp( VNumber, const QString&, FileSizeType ) const;

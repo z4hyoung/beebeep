@@ -70,6 +70,7 @@ QString Protocol::messageHeader( Message::Type mt ) const
   case Message::Buzz:      return "BEE-BUZZ";
   case Message::Test:      return "BEE-TEST";
   case Message::Help:      return "BEE-HELP";
+  case Message::FileChunk: return "BEE-FCHU";
   default:                 return "BEE-BOOH";
   }
 }
@@ -114,6 +115,8 @@ Message::Type Protocol::messageType( const QString& msg_type ) const
     return Message::Test;
   else if( msg_type == "BEE-HELP" )
     return Message::Help;
+  else if( msg_type == "BEE-FCHU" )
+    return Message::FileChunk;
   else
     return Message::Undefined;
 }
@@ -2083,6 +2086,80 @@ QString Protocol::fileInfoHash( const QFileInfo& file_info ) const
   sl << QString::number( file_info.size() );
   sl << file_info.lastModified().toString( "dd.MM.yyyy-hh:mm:ss" );
   return Settings::instance().simpleHash( sl.join( "-" ) );
+}
+
+/* Inline file transfer over the encrypted message channel (Bluetooth path).
+ *
+ * Wire format of a Message::FileChunk ("BEE-FCHU"):
+ *   message text : base64 of the raw chunk bytes (empty in an ACK)
+ *   message data : fileId <U+2028> chunkIndex <U+2028> totalChunks <U+2028> byteOffset <U+2028> chunkSize
+ *                  (same DATA_FIELD_SEPARATOR convention of fileInfoToMessage)
+ *   message flags: Private (+ Request on the stop-and-wait ACK sent by the receiver)
+ *
+ * The message framework is a QString text protocol joined/split on U+2029 by
+ * fromMessage()/toMessage(): raw binary chunk data MUST be base64 encoded or
+ * the separators would corrupt it (core-transport.md section E.2 item 2).
+ */
+Message Protocol::fileChunkDataToMessage( VNumber file_info_id, quint32 chunk_index, quint32 total_chunks, FileSizeType byte_offset, const QByteArray& chunk_bytes )
+{
+  Message m( Message::FileChunk, ID_FILECHUNK_MESSAGE, QString::fromLatin1( chunk_bytes.toBase64() ) );
+  QStringList sl;
+  sl << QString::number( file_info_id );
+  sl << QString::number( chunk_index );
+  sl << QString::number( total_chunks );
+  sl << QString::number( byte_offset );
+  sl << QString::number( chunk_bytes.size() );
+  m.setData( sl.join( DATA_FIELD_SEPARATOR ) );
+  m.addFlag( Message::Private );
+  return m;
+}
+
+Message Protocol::fileChunkAckToMessage( VNumber file_info_id, quint32 chunk_index, quint32 total_chunks, FileSizeType byte_offset, FileSizeType chunk_size )
+{
+  // Stop-and-wait flow control: the receiver acknowledges every single chunk
+  // echoing its coordinates; the sender sends the next chunk only after the
+  // matching ACK (same pattern of the 6476 channel, see checkUploading()).
+  Message m( Message::FileChunk, ID_FILECHUNK_MESSAGE, QString() );
+  QStringList sl;
+  sl << QString::number( file_info_id );
+  sl << QString::number( chunk_index );
+  sl << QString::number( total_chunks );
+  sl << QString::number( byte_offset );
+  sl << QString::number( chunk_size );
+  m.setData( sl.join( DATA_FIELD_SEPARATOR ) );
+  m.addFlag( Message::Private );
+  m.addFlag( Message::Request );
+  return m;
+}
+
+bool Protocol::fileChunkFromMessage( const Message& m, VNumber* file_info_id, quint32* chunk_index, quint32* total_chunks, FileSizeType* byte_offset, FileSizeType* chunk_size, QByteArray* chunk_bytes )
+{
+  if( m.type() != Message::FileChunk )
+    return false;
+
+  QStringList sl = m.data().split( DATA_FIELD_SEPARATOR );
+  if( sl.size() != 5 )
+    return false;
+
+  bool ok = false;
+  *file_info_id = sl.at( 0 ).toULongLong( &ok );
+  if( !ok || *file_info_id == ID_INVALID )
+    return false;
+  *chunk_index = sl.at( 1 ).toUInt( &ok );
+  if( !ok )
+    return false;
+  *total_chunks = sl.at( 2 ).toUInt( &ok );
+  if( !ok || *total_chunks == 0 )
+    return false;
+  *byte_offset = sl.at( 3 ).toLongLong( &ok );
+  if( !ok || *byte_offset < 0 )
+    return false;
+  *chunk_size = sl.at( 4 ).toLongLong( &ok );
+  if( !ok || *chunk_size < 0 )
+    return false;
+
+  *chunk_bytes = QByteArray::fromBase64( m.text().toLatin1() );
+  return true;
 }
 
 QString Protocol::fileInfoHashTmp( VNumber file_info_id, const QString& file_info_name, FileSizeType file_info_size ) const

@@ -18,6 +18,7 @@ HEADERS += core/Broadcaster.h \
   core/FileShare.h \
   core/FileTransfer.h \
   core/FileTransferPeer.h \
+  core/InlineFileTransferPeer.h \
   core/FirewallManager.h \
   core/Group.h \
   core/HistoryManager.h \
@@ -74,6 +75,7 @@ SOURCES +=  core/Broadcaster.cpp \
   core/FileTransferDownload.cpp \
   core/FileTransferPeer.cpp \
   core/FileTransferUpload.cpp \
+  core/InlineFileTransferPeer.cpp \
   core/FirewallManager.cpp \
   core/Group.cpp \
   core/HistoryManager.cpp \

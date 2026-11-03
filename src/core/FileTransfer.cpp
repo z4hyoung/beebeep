@@ -21,6 +21,7 @@
 //
 //////////////////////////////////////////////////////////////////////
 
+#include "Connection.h"
 #include "FileShare.h"
 #include "FileTransfer.h"
 #include "Random.h"
@@ -66,10 +67,11 @@ void FileTransfer::stopListener()
     qDebug() << "File Transfer server closed";
     foreach( FileTransferPeer* transfer_peer, m_peers )
     {
-      if( Settings::instance().resumeFileTransfer() )
+      // Inline transfers have no resume support yet: they can only be canceled
+      if( Settings::instance().resumeFileTransfer() && qobject_cast<InlineFileTransferPeer*>( transfer_peer ) == Q_NULLPTR )
         transfer_peer->pauseTransfer( true );
       else
-        transfer_peer->cancelTransfer();
+        cancelPeerTransfer( transfer_peer );
     }
   }
   else
@@ -99,13 +101,116 @@ void FileTransfer::removeFilesToUser( VNumber user_id )
   {
     if( transfer_peer->isDownload() && transfer_peer->remoteUserId() == user_id )
     {
-      transfer_peer->cancelTransfer();
+      cancelPeerTransfer( transfer_peer );
       peer_counter++;
     }
   }
 
   if( peer_counter > 0 )
     qDebug() << peer_counter << "file transfer peers removed for user" << user_id;
+}
+
+/* Inline file transfer peers (encrypted message channel, Bluetooth path):
+ * they live in the same m_peers list of the 6476 peers so the progress and
+ * cancel routing from Core and GuiFileTransfer needs no changes at all. */
+
+InlineFileTransferPeer* FileTransfer::createInlinePeer( VNumber remote_user_id, FileInfo::TransferType transfer_type, const FileInfo& fi )
+{
+  InlineFileTransferPeer* inline_peer = new InlineFileTransferPeer( this );
+  inline_peer->setTransferType( transfer_type );
+  inline_peer->setId( Protocol::instance().newId() );
+  inline_peer->setRemoteUserId( remote_user_id );
+  inline_peer->setFileInfo( transfer_type, fi );
+
+  connect( inline_peer, SIGNAL( message( VNumber, VNumber, const FileInfo&, const QString&, FileTransferPeer::TransferState ) ), this, SIGNAL( message( VNumber, VNumber, const FileInfo&, const QString&, FileTransferPeer::TransferState ) ) );
+  connect( inline_peer, SIGNAL( progress( VNumber, VNumber, const FileInfo&, FileSizeType, qint64 ) ), this, SIGNAL( progress( VNumber, VNumber, const FileInfo&, FileSizeType, qint64 ) ) );
+  connect( inline_peer, SIGNAL( operationCompleted() ), this, SLOT( deletePeer() ) );
+
+  m_peers.append( inline_peer );
+  return inline_peer;
+}
+
+void FileTransfer::startInlineUpload( VNumber to_user_id, const FileInfo& fi, Connection* message_connection )
+{
+  InlineFileTransferPeer* inline_peer = createInlinePeer( to_user_id, FileInfo::Upload, fi );
+  // The offer (BEE-FILE + InlineFile) has already been sent on the message
+  // connection by Core::sendFileToUser(): the peer queues and waits for GO.
+  inline_peer->setupInlineUpload( to_user_id, fi, message_connection );
+}
+
+bool FileTransfer::startInlineDownload( VNumber from_user_id, const FileInfo& fi, Connection* message_connection )
+{
+  InlineFileTransferPeer* inline_peer = createInlinePeer( from_user_id, FileInfo::Download, fi );
+  return inline_peer->startInlineDownload( from_user_id, fi, message_connection );
+}
+
+void FileTransfer::readyForInlineUpload( VNumber from_user_id, const FileInfo& fi )
+{
+  InlineFileTransferPeer* inline_peer = inlinePeer( from_user_id, fi.id() );
+  if( !inline_peer )
+  {
+    qWarning() << "File Transfer has no inline upload peer for file id" << fi.id() << "of user" << from_user_id;
+    return;
+  }
+  inline_peer->onUploadAccepted();
+}
+
+void FileTransfer::parseInlineFileChunk( VNumber from_user_id, const Message& m )
+{
+  VNumber file_info_id = ID_INVALID;
+  quint32 chunk_index = 0;
+  quint32 total_chunks = 0;
+  FileSizeType byte_offset = 0;
+  FileSizeType chunk_size = 0;
+  QByteArray chunk_bytes;
+
+  if( !Protocol::instance().fileChunkFromMessage( m, &file_info_id, &chunk_index, &total_chunks, &byte_offset, &chunk_size, &chunk_bytes ) )
+  {
+    qWarning() << "File Transfer has received an invalid inline file chunk from user" << from_user_id << "and drops it";
+    return;
+  }
+
+  InlineFileTransferPeer* inline_peer = inlinePeer( from_user_id, file_info_id );
+  if( !inline_peer )
+  {
+#ifdef BEEBEEP_DEBUG
+    qDebug() << "File Transfer has no inline peer for chunk of file id" << file_info_id << "from user" << from_user_id << "(stale or canceled transfer)";
+#endif
+    return;
+  }
+
+  inline_peer->parseFileChunk( m );
+}
+
+void FileTransfer::cancelInlineTransfer( VNumber user_id, const FileInfo& fi, bool notify_remote )
+{
+  InlineFileTransferPeer* inline_peer = inlinePeer( user_id, fi.id() );
+  if( !inline_peer )
+    return;
+
+  inline_peer->cancelInlineTransfer( notify_remote );
+  if( inline_peer->isDownload() )
+    inline_peer->removePartiallyDownloadedFile();
+}
+
+InlineFileTransferPeer* FileTransfer::inlinePeer( VNumber remote_user_id, VNumber file_info_id ) const
+{
+  foreach( FileTransferPeer* transfer_peer, m_peers )
+  {
+    InlineFileTransferPeer* inline_peer = qobject_cast<InlineFileTransferPeer*>( transfer_peer );
+    if( inline_peer && inline_peer->remoteUserId() == remote_user_id && inline_peer->fileInfo().id() == file_info_id )
+      return inline_peer;
+  }
+  return Q_NULLPTR;
+}
+
+void FileTransfer::cancelPeerTransfer( FileTransferPeer* transfer_peer )
+{
+  InlineFileTransferPeer* inline_peer = qobject_cast<InlineFileTransferPeer*>( transfer_peer );
+  if( inline_peer )
+    inline_peer->cancelInlineTransfer();
+  else
+    transfer_peer->cancelTransfer();
 }
 
 FileInfo FileTransfer::fileInfo( VNumber file_id ) const
@@ -386,7 +491,7 @@ bool FileTransfer::cancelTransfer( VNumber peer_id )
   FileTransferPeer* transfer_peer = peer( peer_id );
   if( transfer_peer )
   {
-    transfer_peer->cancelTransfer();
+    cancelPeerTransfer( transfer_peer );
     if( transfer_peer->isDownload() )
       transfer_peer->removePartiallyDownloadedFile();
     return true;

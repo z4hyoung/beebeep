@@ -142,5 +142,13 @@ const VNumber ID_IMPORTANT_MESSAGE      = 23;
 const VNumber ID_TEST_MESSAGE           = 24;
 const VNumber ID_HELP_MESSAGE           = 25;
 const VNumber ID_RECEIVED_MESSAGE       = 26;
+const VNumber ID_FILECHUNK_MESSAGE      = 27;
+
+// Inline file transfer over the encrypted message channel (Bluetooth path).
+// A 64 KiB chunk becomes ~87.4 KB of base64 text: it stays far below both the
+// 512 KB "VERY VERY BIG" warning of Connection::sendMessage and the 2 GB
+// DATA_BLOCK_SIZE_32_LIMIT, and it is a natural multiple of the 16 byte
+// encryption block used by Protocol::fromMessage padding.
+const FileSizeType INLINE_FILE_CHUNK_SIZE = 65536;
 
 #endif // BEEBEEP_CONFIG_H

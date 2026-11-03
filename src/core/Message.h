@@ -33,10 +33,10 @@ public:
   // For backward compatibility do not change the order
   enum Type { Undefined, Beep, Hello, Ping, Pong, Chat, System, User, File, Share, Group,
               Folder, Read, Hive, ShareBox, ShareDesktop, Buzz, Test, Help, Received,
-              NumTypes };
+              FileChunk, NumTypes };
   enum Flag { Private, UserWriting, UserStatus, Create /* it was UserName in 3.0.9 */, UserVCard,
               Refused, List, Request, GroupChat, Delete, Auto, Important, VoiceMessage,
-              EncryptionDisabled, Compressed, Delayed, SourceCode, NumFlags };
+              EncryptionDisabled, Compressed, Delayed, SourceCode, InlineFile, NumFlags };
 
   Message();
   Message( const Message& );
