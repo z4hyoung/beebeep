@@ -23,6 +23,7 @@
 
 #include "BeeUtils.h"
 #include "Broadcaster.h"
+#include "BtManager.h"
 #include "ChatManager.h"
 #include "ColorManager.h"
 #include "Connection.h"
@@ -33,6 +34,7 @@
 #include "NetworkManager.h"
 #include "Protocol.h"
 #include "Settings.h"
+#include "StreamDeviceBt.h"
 #include "UserManager.h"
 #ifdef BEEBEEP_USE_SHAREDESKTOP
   #include "ShareDesktop.h"
@@ -130,6 +132,72 @@ void Core::newPeerFound( const QHostAddress& sender_ip, int sender_port )
   Connection *c = createConnection();
   setupNewConnection( c );
   c->connectToNetworkAddress( na );
+}
+
+void Core::btPeerFound( const QBluetoothAddress& sender_address, const QString& device_name )
+{
+  if( !isConnected() )
+    return;
+
+  // Duplicate connection guards ported one by one from Core::newPeerFound()
+  // (docs/analysis/core-transport.md section D.2, plan 1): the Bluetooth
+  // transport has no IP, so every check is reworked on the BT keys.
+
+  // Loopback guard: the peer is this same adapter.
+  QBluetoothAddress local_bt_address = mp_btManager->localAddress();
+  if( !local_bt_address.isNull() && sender_address == local_bt_address )
+  {
+#ifdef BEEBEEP_DEBUG
+    qDebug() << "Skip bluetooth peer found" << qPrintable( sender_address.toString() ) << "because it is local user";
+#endif
+    return;
+  }
+
+  QHostAddress synthetic_address = StreamDeviceBt::syntheticAddressFromBtAddress( sender_address );
+
+  // HOSTS whitelist guard: not applicable, the synthetic fe80:: address is not
+  // a real interface address and the HOSTS file cannot express it (this is why
+  // the BT discovery runs on its own signal instead of newPeerFound()).
+
+  // One connection per device (preventMultipleConnectionsFromSingleHostAddress).
+  if( Settings::instance().preventMultipleConnectionsFromSingleHostAddress() )
+  {
+    if( hasConnection( synthetic_address, -1 ) )
+    {
+      qDebug() << "New bluetooth peer found" << qPrintable( sender_address.toString() ) << "is already connected and blocked by prevent multiple connections option";
+      return;
+    }
+  }
+
+  NetworkAddress na( synthetic_address, BLUETOOTH_FAKE_PEER_PORT );
+  if( isUserConnected( na ) )
+  {
+    User u = UserManager::instance().findUserByNetworkAddress( na );
+    if( u.isValid() )
+      qDebug() << "Skip new bluetooth peer found" << qPrintable( sender_address.toString() ) << "from connected user" << qPrintable( u.name() );
+    else
+      qWarning() << "New bluetooth peer found" << qPrintable( sender_address.toString() ) << "is already connected (but user is not authorized yet)";
+    return;
+  }
+
+  qDebug() << "Connecting to new bluetooth peer found" << qPrintable( sender_address.toString() ) << qPrintable( device_name );
+
+  Connection *c = createConnection();
+  setupNewConnection( c );
+  c->connectToBluetoothService( new StreamDeviceBt(), sender_address );
+}
+
+void Core::checkNewBtConnection( QBluetoothSocket* bt_socket )
+{
+  if( bt_socket == Q_NULLPTR )
+    return;
+
+  Connection *c = createConnection();
+  c->adoptBluetoothSocket( new StreamDeviceBt(), bt_socket, mp_btManager->listenerPort() );
+  qDebug() << "New bluetooth connection on channel" << mp_btManager->listenerPort() << "from" << qPrintable( c->networkAddress().toString() );
+  // HOSTS whitelist check deliberately skipped: the synthetic fe80:: address is
+  // not covered by the HOSTS file (core-transport.md section D.2, plan 1).
+  setupNewConnection( c );
 }
 
 void Core::checkNewConnection( qintptr socket_descriptor )

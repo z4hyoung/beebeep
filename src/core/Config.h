@@ -59,6 +59,15 @@ const char DEFAULT_IPV4_MULTICAST_ADDRESS[] = "224.0.64.75";
 const char DEFAULT_IPV6_MULTICAST_ADDRESS[] = "FF05::6475";
 const int DEFAULT_IPV4_MULTICAST_TTL_OPTION = 4;
 
+// Bluetooth classic (RFCOMM) transport
+const char BLUETOOTH_SERVICE_UUID[] = "84be0454-3170-438d-8803-2a851b241fad";
+const char BLUETOOTH_SERVICE_NAME[] = "YongBEEP";
+// The RFCOMM server channel is assigned by the OS and is not stable across
+// SDP queries/platforms, so the synthetic peer identity uses a fixed pseudo
+// port (the BT MAC is the real key, see core-transport.md section G.2 item 5).
+const quint16 BLUETOOTH_FAKE_PEER_PORT = 64750;
+const int BLUETOOTH_SCAN_INTERVAL_MS = 10000;
+
 // Connection I/O
 typedef quint16 DATA_BLOCK_SIZE_16;
 // set the limit to 65535 - sizeof( quint16 ) ... or a value near it
@@ -106,6 +115,9 @@ const int PING_INTERVAL_IDLE = 4700;
 const int PING_INTERVAL_TICK = 7;
 const int PONG_DEFAULT_TIMEOUT = 21000;
 const int TICK_INTERVAL_CONNECTION_TIMEOUT = 16;
+// SDP discovery + pairing can take much longer than a plain TCP connect, so the
+// connection timeout is relaxed for the Bluetooth transport (core-transport.md section C.4 item 2).
+const int TICK_INTERVAL_BT_CONNECTION_TIMEOUT = 40;
 const int DELAY_CONTACT_USERS = 9000;
 
 // Protocol

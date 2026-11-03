@@ -144,6 +144,12 @@ public:
   inline bool useMulticastDns() const;
   inline void setUseMulticastDns( bool );
 
+  /* Bluetooth transport (docs/analysis/core-transport.md section F.2) */
+  inline bool useBluetooth() const;
+  inline void setUseBluetooth( bool );
+  inline const QString& bluetoothDeviceName() const;
+  inline void setBluetoothDeviceName( const QString& );
+
   inline const User& localUser() const;
   inline void setLocalUser( const User& );
   void setLocalUserHost( const QHostAddress&, quint16 );
@@ -741,6 +747,10 @@ private:
   bool m_useOnlyMulticast;
   bool m_useKeepAliveOptionInSocket;
 
+  /* Bluetooth transport */
+  bool m_useBluetooth;
+  QString m_bluetoothDeviceName;
+
   bool m_canAddMembersToGroup;
   bool m_canRemoveMembersFromGroup;
   bool m_allowEditNickname;
@@ -1274,6 +1284,10 @@ inline void Settings::setUseDefaultMulticastGroupAddress( bool new_value ) { m_u
 inline bool Settings::useDefaultMulticastGroupAddress() const { return m_useDefaultMulticastGroupAddress; }
 inline bool Settings::useIPv6() const { return m_useIPv6; }
 inline bool Settings::useKeepAliveOptionInSocket() const { return m_useKeepAliveOptionInSocket; }
+inline bool Settings::useBluetooth() const { return m_useBluetooth; }
+inline void Settings::setUseBluetooth( bool new_value ) { m_useBluetooth = new_value; }
+inline const QString& Settings::bluetoothDeviceName() const { return m_bluetoothDeviceName; }
+inline void Settings::setBluetoothDeviceName( const QString& new_value ) { m_bluetoothDeviceName = new_value; }
 inline const QHostAddress& Settings::multicastGroupAddress() const { return m_multicastGroupAddress; }
 inline void Settings::setIpMulticastTtl( int new_value ) { m_ipMulticastTtl = new_value; }
 inline int Settings::ipMulticastTtl() const { return m_ipMulticastTtl; }

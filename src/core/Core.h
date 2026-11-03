@@ -28,7 +28,10 @@
 #include "Listener.h"
 #include "FileTransfer.h"
 class Broadcaster;
+class BtManager;
 class Group;
+class QBluetoothAddress;
+class QBluetoothSocket;
 class UserList;
 class UserRecord;
 #ifdef BEEBEEP_USE_MULTICAST_DNS
@@ -220,6 +223,8 @@ protected slots:
   /* CoreConnection */
   void checkNewConnection( qintptr );
   void newPeerFound( const QHostAddress&, int );
+  void btPeerFound( const QBluetoothAddress&, const QString& device_name );
+  void checkNewBtConnection( QBluetoothSocket* );
   void setConnectionError( QAbstractSocket::SocketError );
   void setConnectionClosed();
   void checkUserAuthentication( const QByteArray& );
@@ -325,6 +330,7 @@ private:
   QList<Connection*> m_connections;
   Listener* mp_listener;
   Broadcaster* mp_broadcaster;
+  BtManager* mp_btManager;
   FileTransfer* mp_fileTransfer;
   int m_shareListToBuild;
   bool m_newGenerationMessageShown;
