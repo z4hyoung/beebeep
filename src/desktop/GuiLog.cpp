@@ -147,7 +147,7 @@ void GuiLog::saveLogAs()
   refreshLog();
 
   QTextStream log_stream( &log_file );
-  log_stream.setCodec( "UTF-8" );
+  log_stream.setEncoding( QStringConverter::Utf8 );
 
   QString log_txt = QString( "BeeBEEP log saved in %1" ).arg( QDateTime::currentDateTime().toString( "dd.MM.yyyy-hh:mm:ss.zzz" ) );
   log_txt += QLatin1String( "\n" );

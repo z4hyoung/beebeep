@@ -459,6 +459,7 @@ void GuiMessageEdit::setCompleter( QCompleter* completer )
   connect( mp_completer, SIGNAL( activated( const QString& ) ), this, SLOT( insertCompletion( const QString& ) ) );
 }
 
+#ifdef BEEBEEP_USE_HUNSPELL
 void GuiMessageEdit::insertCompletion( const QString& completion )
 {
   if( mp_completer->widget() != this )
@@ -473,6 +474,7 @@ void GuiMessageEdit::insertCompletion( const QString& completion )
   tc.insertText( " " );
   setTextCursor( tc );
 }
+#endif
 
 QString GuiMessageEdit::textUnderCursor() const
 {
