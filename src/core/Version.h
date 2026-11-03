@@ -24,9 +24,9 @@
 #ifndef BEEBEEP_VERSION_H
 #define BEEBEEP_VERSION_H
 
-const char BEEBEEP_NAME[] = "BeeBEEP";
-const char BEEBEEP_ORGANIZATION[] = "MarcoMastroddiSW";
-const char BEEBEEP_ORGANIZATION_DOMAIN[] = "beebeep.net";
+const char BEEBEEP_NAME[] = "YongBEEP";
+const char BEEBEEP_ORGANIZATION[] = "YongBEEP";
+const char BEEBEEP_ORGANIZATION_DOMAIN[] = "yongbeep.local";
 const char BEEBEEP_DNS_RECORD[] = "_beebeep._tcp";
 const char BEEBEEP_WEBSITE[] = "https://www.beebeep.net/";
 const char BEEBEEP_DOWNLOAD_WEBSITE[] = "download";

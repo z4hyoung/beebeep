@@ -23,7 +23,7 @@ BEEBEEP_TRANSLATIONS = $$BEEBEEP_LOCALE_FOLDER/beebeep_xx.ts \
                 $$BEEBEEP_LOCALE_FOLDER/beebeep_ua.ts \
                 $$BEEBEEP_LOCALE_FOLDER/beebeep_tr.ts \
                 $$BEEBEEP_LOCALE_FOLDER/beebeep_tw.ts \
-                $$BEEBEEP_LOCALE_FOLDER/beebeep_cn.ts \
+                $$BEEBEEP_LOCALE_FOLDER/beebeep_zh.ts \
                 $$BEEBEEP_LOCALE_FOLDER/beebeep_ar.ts \
                 $$BEEBEEP_LOCALE_FOLDER/beebeep_ja.ts \
                 $$BEEBEEP_LOCALE_FOLDER/beebeep_sk.ts \

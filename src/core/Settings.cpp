@@ -90,8 +90,9 @@ Settings::Settings()
   m_ipMulticastTtl = DEFAULT_IPV4_MULTICAST_TTL_OPTION;
   m_useIPv6 = false;
   m_useHive = false;
-  m_checkNewVersionAtStartup = true;
-  m_postUsageStatistics = true;
+  // YongBEEP: private fork — do not phone home to upstream website/analytics by default
+  m_checkNewVersionAtStartup = false;
+  m_postUsageStatistics = false;
   m_useHostnameForDefaultUsername = false;
   m_useEasyConnection = false;
   m_useClassroomConfiguration = false;
@@ -1007,7 +1008,8 @@ QString Settings::checkVersionWebSite() const
 
 QString Settings::languageFilePath( const QString& language_folder, const QString& language_selected ) const
 {
-  return Bee::convertToNativeFolderSeparator( QString( "%1/%2_%3.qm" ).arg( language_folder, Settings::instance().programName().toLower(), language_selected ) );
+  // YongBEEP: app renamed but upstream translation files keep the "beebeep_" prefix
+  return Bee::convertToNativeFolderSeparator( QString( "%1/beebeep_%2.qm" ).arg( language_folder, language_selected ) );
 }
 
 QString Settings::dnsRecord() const

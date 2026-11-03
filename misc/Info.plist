@@ -11,27 +11,27 @@
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleExecutable</key>
-  <string>beebeep</string>
+  <string>yongbeep</string>
   <key>CFBundleIdentifier</key>
-  <string>net.beebeep.app</string>
+  <string>local.yongbeep.app</string>
   <key>CFBundleName</key>
-  <string>BeeBEEP</string>
+  <string>YongBEEP</string>
   <key>CFBundleDisplayName</key>
-  <string>BeeBEEP (Free Office Messenger)</string>
+  <string>YongBEEP</string>
   <key>CFBundleVersion</key>
-  <string>5.9.1-1585</string>
+  <string>5.9.2-1608</string>
   <key>CFBundleSignature</key>
   <string>bbip</string>
   <key>LSMinimumSystemVersion</key>
-  <string>10.14.5</string>
+  <string>14.4</string>
   <key>NSHumanReadableCopyright</key>
-  <string>Copyright © 2021 Marco Mastroddi, All Rights Reserved</string>
+  <string>YongBEEP is based on BeeBEEP, Copyright © 2010-2026 Marco Mastroddi (GPLv3)</string>
   <key>CFBundleShortVersionString</key>
-  <string>5.9.1</string>
-  <key>NSMicrophoneUsageDescription</key>
-  <string>BeeBEEP requires the use of the microphone to record voice messages.</string>
+  <string>5.9.2</string>
+  <key>NSBluetoothAlwaysUsageDescription</key>
+  <string>YongBEEP uses Bluetooth to chat and transfer files with nearby devices.</string>
   <key>NSLocalNetworkUsageDescription</key>
-  <string>BeeBEEP needs access to your local network to find other users and to send them messages and files.</string>
+  <string>YongBEEP needs access to your local network to find other users and to send them messages and files.</string>
   <key>NSBonjourServices</key>
   <array>
     <string>_beebeep._tcp</string>

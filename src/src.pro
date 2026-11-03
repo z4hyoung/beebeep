@@ -37,7 +37,7 @@ TEMPLATE = app
 #DEFINES += BEEBEEP_DISABLE_VIDEO_CALL
 #DEFINES += BEEBEEP_USE_WEBENGINE
 
-TARGET = beebeep
+TARGET = yongbeep
 
 QT += network xml widgets printsupport
 
