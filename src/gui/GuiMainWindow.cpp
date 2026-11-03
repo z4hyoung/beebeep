@@ -8,17 +8,20 @@
 #include "AudioManager.h"
 #include "BeeApplication.h"
 #include "BeeUtils.h"
+#include "BtManager.h"
 #include "Chat.h"
 #include "ChatListModel.h"
 #include "ChatListItemDelegate.h"
 #include "ChatManager.h"
 #include "ChatMessage.h"
 #include "Core.h"
+#include "DockBadge.h"
 #include "FileDialog.h"
 #include "FileInfo.h"
 #include "GuiAskPassword.h"
 #include "GuiChat.h"
 #include "GuiSavedChat.h"
+#include "GuiScanDevices.h"
 #include "GuiSystemTray.h"
 #include "GuiWizard.h"
 #include "IconManager.h"
@@ -55,6 +58,7 @@ GuiMainWindow::GuiMainWindow( QWidget* parent )
   setWindowIcon( IconManager::instance().icon( "beebeep.png" ) );
   m_forceShutdown = false;
   m_coreIsConnecting = false;
+  mp_scanDevices = Q_NULLPTR;
 
   createGui();
   setupCoreConnections();
@@ -91,6 +95,11 @@ void GuiMainWindow::createGui()
   left_layout->setSpacing( 6 );
   left_layout->addWidget( mp_searchBox );
   left_layout->addWidget( mp_chatListView, 1 );
+
+  // Bottom of the left panel: bluetooth scan entry (PRD 4.1 "[＋ 扫描设备]")
+  mp_scanDevicesButton = new QPushButton( tr( "+ Scan devices" ), left_panel );
+  mp_scanDevicesButton->setObjectName( "GuiWeChatScanDevicesButton" );
+  left_layout->addWidget( mp_scanDevicesButton );
 
   // ---------- Right panel: chat header + embedded GuiChat ----------
   mp_headerName = new QLabel( this );
@@ -151,6 +160,7 @@ void GuiMainWindow::createGui()
   connect( mp_searchBox, SIGNAL( textChanged( const QString& ) ), this, SLOT( filterTextChanged( const QString& ) ) );
   connect( mp_chatListView, SIGNAL( clicked( const QModelIndex& ) ), this, SLOT( chatActivated( const QModelIndex& ) ) );
   connect( mp_chatListView, SIGNAL( activated( const QModelIndex& ) ), this, SLOT( chatActivated( const QModelIndex& ) ) );
+  connect( mp_scanDevicesButton, SIGNAL( clicked() ), this, SLOT( openScanDevicesDialog() ) );
   connect( mp_trayIcon, SIGNAL( activated( QSystemTrayIcon::ActivationReason ) ), this, SLOT( trayIconActivated( QSystemTrayIcon::ActivationReason ) ) );
   connect( qApp, SIGNAL( focusChanged( QWidget*, QWidget* ) ), this, SLOT( onApplicationFocusChanged( QWidget*, QWidget* ) ) );
 
@@ -173,6 +183,10 @@ void GuiMainWindow::setupCoreConnections()
   connect( beeCore, SIGNAL( fileDownloadRequest( const User&, const FileInfo& ) ), this, SLOT( onFileDownloadRequest( const User&, const FileInfo& ) ) );
   connect( beeCore, SIGNAL( folderDownloadRequest( const User&, const QString&, const QList<FileInfo>& ) ), this, SLOT( onFolderDownloadRequest( const User&, const QString&, const QList<FileInfo>& ) ) );
   connect( beeCore, SIGNAL( newSystemStatusMessage( const QString&, int ) ), this, SLOT( showMessage( const QString&, int ) ) );
+
+  // Bluetooth manager (read-only use of its existing signals, S3-4b)
+  if( beeCore->btManager() )
+    connect( beeCore->btManager(), SIGNAL( bluetoothPermissionDenied() ), this, SLOT( onBtPermissionDenied() ) );
 }
 
 
@@ -264,6 +278,8 @@ void GuiMainWindow::refreshChatList( bool restore_selection )
     QModelIndex index = mp_chatListModel->index( row, 0 );
     mp_chatListView->setCurrentIndex( index );
   }
+
+  updateDockBadge();
 }
 
 
@@ -302,7 +318,8 @@ void GuiMainWindow::updateChatHeader()
   }
   mp_headerName->setText( chat_name );
 
-  // Connection indicator: placeholder dot until the bluetooth state lands (S3-4b)
+  // Connection indicator driven by the Core user signals (S3-4b):
+  // green when the peer is connected, yellow while connecting, red offline.
   bool peer_online = false;
   if( c.isDefault() )
     peer_online = beeCore->isConnected() && beeCore->connectedUsers() > 0;
@@ -317,12 +334,20 @@ void GuiMainWindow::updateChatHeader()
 
   if( peer_online )
   {
-    mp_headerStatus->setText( tr( "Connected" ) );
+    // U+1F7E2 large green circle
+    mp_headerStatus->setText( QString::fromUtf8( "\xF0\x9F\x9F\xA2 " ) + tr( "Connected" ) );
     mp_headerStatus->setStyleSheet( "color: #1dad5a; font-weight: bold;" );
+  }
+  else if( m_coreIsConnecting || (beeCore->btManager() && beeCore->btManager()->isActive()) )
+  {
+    // U+1F7E1 large yellow circle
+    mp_headerStatus->setText( QString::fromUtf8( "\xF0\x9F\x9F\xA1 " ) + tr( "Connecting" ) );
+    mp_headerStatus->setStyleSheet( "color: #d99b00; font-weight: bold;" );
   }
   else
   {
-    mp_headerStatus->setText( tr( "Offline" ) );
+    // U+1F534 large red circle
+    mp_headerStatus->setText( QString::fromUtf8( "\xF0\x9F\x94\xB4 " ) + tr( "Disconnected" ) );
     mp_headerStatus->setStyleSheet( "color: #aaaaaa; font-weight: bold;" );
   }
 }
@@ -330,9 +355,58 @@ void GuiMainWindow::updateChatHeader()
 
 void GuiMainWindow::updateWindowTitle()
 {
-  // Connection placeholder in the title (bluetooth state arrives in S3-4b)
-  QString connection_dot = beeCore->isConnected() ? QStringLiteral( "\xE2\x97\x8F" ) : QStringLiteral( "\xE2\x97\x8B" );
-  setWindowTitle( QString( "%1 %2" ).arg( connection_dot, Settings::instance().programName() ) );
+  // Title status dot (PRD 4.1, S3-4b): green with connected peers, yellow
+  // while the core is starting or the bluetooth discovery/listener runs,
+  // red when disconnected. Refreshed on userConnectionStatusChanged and on
+  // Core connected/disconnected.
+  QString status_glyph;
+  if( beeCore->isConnected() && beeCore->connectedUsers() > 0 )
+    status_glyph = QString::fromUtf8( "\xF0\x9F\x9F\xA2" ); // green circle
+  else if( m_coreIsConnecting || (beeCore->btManager() && beeCore->btManager()->isActive()) )
+    status_glyph = QString::fromUtf8( "\xF0\x9F\x9F\xA1" ); // yellow circle
+  else
+    status_glyph = QString::fromUtf8( "\xF0\x9F\x94\xB4" ); // red circle
+  setWindowTitle( QString( "%1 %2" ).arg( status_glyph, Settings::instance().programName() ) );
+}
+
+
+void GuiMainWindow::updateDockBadge()
+{
+  // Sum of every chat unread counter (docs/analysis/gui-redesign.md section H.2);
+  // macOS shows it on the dock icon, other platforms no-op.
+  DockBadge::setUnreadCount( ChatManager::instance().unreadMessages() );
+}
+
+
+void GuiMainWindow::openScanDevicesDialog()
+{
+  if( !mp_scanDevices )
+  {
+    mp_scanDevices = new GuiScanDevices( this );
+    connect( mp_scanDevices, SIGNAL( finished() ), this, SLOT( updateWindowTitle() ) );
+  }
+
+  if( !mp_scanDevices->isVisible() )
+  {
+    mp_scanDevices->adjustSize();
+    mp_scanDevices->move( geometry().center() - QPoint( mp_scanDevices->width() / 2, mp_scanDevices->height() / 2 ) );
+    mp_scanDevices->show();
+  }
+  else
+  {
+    mp_scanDevices->raise();
+    mp_scanDevices->activateWindow();
+  }
+}
+
+
+void GuiMainWindow::onBtPermissionDenied()
+{
+  QMessageBox::warning( this, Settings::instance().programName(),
+                        tr( "Bluetooth permission was denied. Enable it for %1 in the system privacy settings to chat over bluetooth." )
+                          .arg( Settings::instance().programName() ) );
+  updateWindowTitle();
+  updateChatHeader();
 }
 
 
@@ -437,8 +511,9 @@ void GuiMainWindow::onUserConnectionStatusChanged( const User& u )
 {
   refreshChatList( true );
   updateChatHeader();
-  if( u.isLocal() )
-    updateWindowTitle();
+  // Any user going online/offline changes the connection status dot (S3-4b)
+  Q_UNUSED( u );
+  updateWindowTitle();
 }
 
 
@@ -827,7 +902,23 @@ void GuiMainWindow::takeScreenshot( const QString& file_path )
 {
   const QPixmap screenshot = grab();
   const bool saved = screenshot.save( file_path );
-  qDebug() << "Screenshot" << ( saved ? "saved to" : "FAILED for" ) << file_path << "size" << screenshot.size();
+  qDebug() << "Screenshot" << ( saved ? "saved to" : "FAILED for" ) << file_path << "size" << screenshot.size() << "window title:" << windowTitle();
+
+  // If the scan-devices dialog is open (debug --demo-scan), grab it too as
+  // <path>-scan.<ext> so the dialog can be verified headlessly.
+  if( mp_scanDevices && mp_scanDevices->isVisible() )
+  {
+    QString scan_path = file_path;
+    int dot_pos = scan_path.lastIndexOf( QLatin1Char( '.' ) );
+    if( dot_pos > 0 )
+      scan_path.insert( dot_pos, QStringLiteral( "-scan" ) );
+    else
+      scan_path += QStringLiteral( "-scan.png" );
+    const QPixmap scan_screenshot = mp_scanDevices->grab();
+    const bool scan_saved = scan_screenshot.save( scan_path );
+    qDebug() << "Scan dialog screenshot" << ( scan_saved ? "saved to" : "FAILED for" ) << scan_path << "size" << scan_screenshot.size();
+  }
+
   forceShutdown();
 }
 

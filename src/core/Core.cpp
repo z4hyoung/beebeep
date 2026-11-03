@@ -191,6 +191,14 @@ bool Core::checkSavingPaths()
   return settings_can_be_saved && chats_can_be_saved && unsent_messages_can_be_saved && download_folder_can_be_used;
 }
 
+// YongBEEP S3-4b: manual connection attempt from the scan-devices dialog.
+// Forwards to the protected slot used by the automatic bluetooth discovery
+// path, so all duplicate-connection guards apply unchanged.
+void Core::connectToBluetoothPeer( const QBluetoothAddress& bt_address, const QString& device_name )
+{
+  btPeerFound( bt_address, device_name );
+}
+
 bool Core::start()
 {
   if( isConnected() )

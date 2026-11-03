@@ -75,6 +75,15 @@ public:
 
   bool checkSavingPaths();
 
+  /* YongBEEP S3-4b: minimal read-only bluetooth exposure for the GUI.
+   * The scan-devices dialog listens to BtManager::btPeerFound (device list)
+   * and reads isActive()/localAddress(); the connect button goes through
+   * connectToBluetoothPeer() which reuses the very same Core::btPeerFound
+   * slot the automatic discovery path uses (duplicate-connection guards
+   * included). No transport logic is duplicated in the GUI. */
+  inline BtManager* btManager() const;
+  void connectToBluetoothPeer( const QBluetoothAddress&, const QString& device_name );
+
   void updateUsersAddedManually();
 
   /* CoreUser */
@@ -354,6 +363,7 @@ private:
 // Inline Functions
 inline bool Core::hasFileTransferInProgress() const { return isConnected() && mp_fileTransfer->hasActivePeers(); }
 inline bool Core::isFileTransferActive() const { return isConnected() && mp_fileTransfer->isActive(); }
+inline BtManager* Core::btManager() const { return mp_btManager; }
 #ifdef BEEBEEP_USE_VOICE_CHAT
 inline VoicePlayer* Core::voicePlayer() { return mp_voicePlayer; }
 #endif

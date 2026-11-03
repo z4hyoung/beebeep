@@ -1288,7 +1288,21 @@ void Settings::load()
 
   m_lastDirectorySelected = Bee::convertToNativeFolderSeparator( sets->value( "LastDirectorySelected", QStandardPaths::writableLocation( QStandardPaths::DocumentsLocation ) ).toString() );
   m_downloadDirectory = Bee::convertToNativeFolderSeparator( sets->value( "DownloadDirectory", QStandardPaths::writableLocation( QStandardPaths::DownloadLocation ) ).toString() );
-  m_downloadDirectory = checkFolderPath( m_downloadDirectory, defaultDownloadFolderPath(), true );
+  // YongBEEP S3-4b: the old writability probe wrote beetestfile.txt directly
+  // into the download folder (~/Downloads) at startup, which triggers the
+  // macOS TCC consent dialog on first run (hang or confusing prompt, see the
+  // S3-4a report environment pitfalls). Probe the AppDataLocation data folder
+  // with the same temp file instead - semantically equivalent (do we have a
+  // writable working directory?) - and keep the download directory when it
+  // merely exists. The eager defaultDownloadFolderPath() call (which probes
+  // Downloads too) is avoided unless the stored folder is really missing.
+  if( !Bee::folderIsWriteable( dataFolder(), false ) )
+    qWarning() << "Data folder" << dataFolder() << "is not writable";
+  if( !QFile::exists( m_downloadDirectory ) )
+  {
+    m_downloadDirectory = defaultDownloadFolderPath();
+    qWarning() << "Download folder in settings is missing: default" << m_downloadDirectory << "is used";
+  }
   m_lastDirectorySelected = checkFolderPath( m_lastDirectorySelected, dataFolder(), false );
   m_logPath = checkFolderPath( Bee::convertToNativeFolderSeparator( sets->value( "LogFolderPath", dataFolder() ).toString() ), dataFolder(), true );
   QString plugin_folder_path = defaultPluginFolderPath();

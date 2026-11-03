@@ -29,6 +29,7 @@
 #include "GuiChat.h"
 #include "GuiChatMessage.h"
 #include "GuiCreateTextFile.h"
+#include "GuiEmoticons.h"
 #ifdef BEEBEEP_USE_VOICE_CHAT
 #include "GuiVoicePlayer.h"
 #endif
@@ -47,6 +48,12 @@ GuiChat::GuiChat( QWidget *parent )
   setupUi( this );
   setObjectName( "GuiChat" );
   setAcceptDrops( true );
+
+  mp_inputToolbar = Q_NULLPTR;
+  mp_tbEmoticons = Q_NULLPTR;
+  mp_tbAttach = Q_NULLPTR;
+  mp_emoticonsPopup = Q_NULLPTR;
+  mp_emoticonsWidget = Q_NULLPTR;
 
 #ifdef BEEBEEP_USE_VOICE_CHAT
   mp_guiVoicePlayer = new GuiVoicePlayer( mp_frameVoicePlayer );
@@ -67,7 +74,15 @@ GuiChat::GuiChat( QWidget *parent )
   mp_splitter->setOrientation( Qt::Vertical );
   mp_splitter->setChildrenCollapsible( false );
   mp_splitter->addWidget( mp_frameChat );
-  mp_splitter->addWidget( mp_frameMessage );
+  setupInputToolbar();
+  QWidget* input_panel = new QWidget( this );
+  input_panel->setObjectName( "GuiChatInputPanel" );
+  QVBoxLayout* input_panel_layout = new QVBoxLayout( input_panel );
+  input_panel_layout->setContentsMargins( 0, 0, 0, 0 );
+  input_panel_layout->setSpacing( 0 );
+  input_panel_layout->addWidget( mp_inputToolbar );
+  input_panel_layout->addWidget( mp_frameMessage );
+  mp_splitter->addWidget( input_panel );
 
   grid_layout->addWidget( mp_splitter, 1, 0, 1, 1 );
   QList<int> widget_sizes;
@@ -104,6 +119,7 @@ GuiChat::GuiChat( QWidget *parent )
 
   m_chatId = ID_DEFAULT_CHAT;
   m_lastMessageUserId = ID_SYSTEM_MESSAGE;
+  m_lastMessageTimestamp = QDateTime();
   m_lastTextFound = "";
 
   mp_menuContext = new QMenu( this );
@@ -196,6 +212,74 @@ void GuiChat::setCompactInputMode()
   mp_cbSendAndClose->setChecked( false );
   mp_cbSendAndClose->hide();
   mp_pbRecordVoiceMessage->hide();
+}
+
+// YongBEEP S3-4b: WeChat-style input toolbar row [emoji][attach] above the
+// message edit (PRD 4.1). The emoji button opens the existing GuiEmoticons
+// picker embedded in a lightweight popup frame; the attach button reuses the
+// GuiChat::sendFile() chain (file dialog -> sendFileFromChatRequest ->
+// Core::sendFilesFromChat, inline over bluetooth when needed).
+void GuiChat::setupInputToolbar()
+{
+  mp_inputToolbar = new QWidget( this );
+  mp_inputToolbar->setObjectName( "GuiChatInputToolbar" );
+  QHBoxLayout* toolbar_layout = new QHBoxLayout( mp_inputToolbar );
+  toolbar_layout->setContentsMargins( 6, 2, 6, 0 );
+  toolbar_layout->setSpacing( 2 );
+
+  mp_tbEmoticons = new QToolButton( mp_inputToolbar );
+  mp_tbEmoticons->setObjectName( "GuiChatEmoticonsButton" );
+  mp_tbEmoticons->setText( QString::fromUtf8( "\xF0\x9F\x98\x80" ) );
+  mp_tbEmoticons->setToolTip( tr( "Insert an emoticon" ) );
+  mp_tbEmoticons->setAutoRaise( true );
+  QFont emoticon_font = mp_tbEmoticons->font();
+  emoticon_font.setPointSizeF( emoticon_font.pointSizeF() * 1.2 );
+  mp_tbEmoticons->setFont( emoticon_font );
+
+  mp_tbAttach = new QToolButton( mp_inputToolbar );
+  mp_tbAttach->setObjectName( "GuiChatAttachButton" );
+  mp_tbAttach->setText( QString::fromUtf8( "\xF0\x9F\x93\x8E" ) );
+  mp_tbAttach->setToolTip( tr( "Send a file" ) );
+  mp_tbAttach->setAutoRaise( true );
+  QFont attach_font = mp_tbAttach->font();
+  attach_font.setPointSizeF( attach_font.pointSizeF() * 1.2 );
+  mp_tbAttach->setFont( attach_font );
+
+  toolbar_layout->addWidget( mp_tbEmoticons );
+  toolbar_layout->addWidget( mp_tbAttach );
+  toolbar_layout->addStretch( 1 );
+
+  connect( mp_tbEmoticons, SIGNAL( clicked() ), this, SLOT( showEmoticonsPopup() ) );
+  connect( mp_tbAttach, SIGNAL( clicked() ), this, SLOT( sendFile() ) );
+}
+
+void GuiChat::showEmoticonsPopup()
+{
+  if( !mp_emoticonsPopup )
+  {
+    mp_emoticonsPopup = new QFrame( this, Qt::Popup );
+    mp_emoticonsPopup->setObjectName( "GuiChatEmoticonsPopup" );
+    mp_emoticonsPopup->setFrameShape( QFrame::StyledPanel );
+    mp_emoticonsPopup->setAttribute( Qt::WA_DeleteOnClose, false );
+    QVBoxLayout* popup_layout = new QVBoxLayout( mp_emoticonsPopup );
+    popup_layout->setContentsMargins( 2, 2, 2, 2 );
+    mp_emoticonsWidget = new GuiEmoticons( mp_emoticonsPopup );
+    QMetaObject::invokeMethod( mp_emoticonsWidget, "updateEmoticons", Qt::QueuedConnection );
+    connect( mp_emoticonsWidget, SIGNAL( emoticonSelected( const Emoticon& ) ), this, SLOT( emoticonSelectedInPopup( const Emoticon& ) ) );
+    popup_layout->addWidget( mp_emoticonsWidget );
+    mp_emoticonsPopup->setLayout( popup_layout );
+    mp_emoticonsPopup->setFixedSize( 336, 264 );
+  }
+
+  mp_emoticonsPopup->move( mp_tbEmoticons->mapToGlobal( QPoint( 0, mp_tbEmoticons->height() + 2 ) ) );
+  mp_emoticonsPopup->show();
+}
+
+void GuiChat::emoticonSelectedInPopup( const Emoticon& e )
+{
+  addEmoticon( e );
+  if( mp_emoticonsPopup && mp_emoticonsPopup->isVisible() )
+    mp_emoticonsPopup->hide();
 }
 
 void GuiChat::setupToolBar( QToolBar* chat_bar )
@@ -551,7 +635,8 @@ QString GuiChat::chatMessageToText( const ChatMessage& cm )
     }
     s = GuiChatMessage::formatMessage( u, cm, m_lastMessageUserId, Settings::instance().chatShowMessageTimestamp(), Settings::instance().chatShowMessageDatestamp(), false,
                                        Settings::instance().showMessagesGroupByUser(), m_chatId == ID_DEFAULT_CHAT ? true : Settings::instance().chatUseYourNameInsteadOfYou(),
-                                       Settings::instance().chatCompact() );
+                                       Settings::instance().chatCompact(), m_lastMessageTimestamp );
+    m_lastMessageTimestamp = cm.timestamp();
   }
   else
     s = GuiChatMessage::formatSystemMessage( cm, m_lastMessageUserId, Settings::instance().chatShowMessageTimestamp(), Settings::instance().chatShowMessageDatestamp(), Settings::instance().chatCompact() );
@@ -619,6 +704,7 @@ bool GuiChat::setChat( const Chat& c )
   int msg_lines = Settings::instance().chatMessagesToShow() >= 0 ? qMin( num_messages, Settings::instance().chatMessagesToShow() ) : num_messages;
   int history_lines = Settings::instance().chatMessagesToShow() >= 0 ? qMax( 0, Settings::instance().chatMessagesToShow() - msg_lines ) : -1;
   m_lastMessageUserId = ID_SYSTEM_MESSAGE;
+  m_lastMessageTimestamp = QDateTime();
 
   QString html_text = "";
   if( ChatManager::instance().isLoadHistoryCompleted() && historyCanBeShowed() && history_lines != 0 )

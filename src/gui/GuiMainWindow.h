@@ -22,11 +22,13 @@ class Chat;
 class ChatListModel;
 class ChatMessage;
 class GuiChat;
+class GuiScanDevices;
 class GuiSystemTray;
 class QLabel;
 class QLineEdit;
 class QListView;
 class QMenu;
+class QPushButton;
 class QSessionManager;
 class QStackedWidget;
 class User;
@@ -40,6 +42,7 @@ public:
   GuiMainWindow( QWidget* parent = Q_NULLPTR );
 
   void takeScreenshot( const QString& file_path );
+  inline GuiScanDevices* scanDevicesDialog() const;
 
 public slots:
   void loadSession();
@@ -82,6 +85,8 @@ private slots:
   void hideToTrayIcon();
   void showMessage( const QString&, int );
   void onApplicationFocusChanged( QWidget*, QWidget* );
+  void openScanDevicesDialog();
+  void onBtPermissionDenied();
 
 private:
   void createGui();
@@ -92,6 +97,7 @@ private:
   void refreshChatList( bool restore_selection );
   void updateChatHeader();
   void updateWindowTitle();
+  void updateDockBadge();
   void showAlertForMessage( const Chat&, const ChatMessage& );
   bool showWizard();
 
@@ -99,10 +105,12 @@ private:
   QLineEdit* mp_searchBox;
   QListView* mp_chatListView;
   ChatListModel* mp_chatListModel;
+  QPushButton* mp_scanDevicesButton;
   QLabel* mp_headerName;
   QLabel* mp_headerStatus;
   QStackedWidget* mp_chatStack;
   QLabel* mp_chatPlaceholder;
+  GuiScanDevices* mp_scanDevices;
 
   QMap<VNumber, GuiChat*> m_chatWidgets;
   VNumber m_currentChatId;
@@ -114,5 +122,8 @@ private:
   bool m_coreIsConnecting;
 
 };
+
+// Inline Functions
+inline GuiScanDevices* GuiMainWindow::scanDevicesDialog() const { return mp_scanDevices; }
 
 #endif // BEEBEEP_GUIMAINWINDOW_H

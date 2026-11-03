@@ -1161,6 +1161,14 @@
 <context>
     <name>GuiChat</name>
     <message>
+        <source>Insert an emoticon</source>
+        <translation>插入表情</translation>
+    </message>
+    <message>
+        <source>Send a file</source>
+        <translation>发送文件</translation>
+    </message>
+    <message>
         <location filename="../src/desktop/GuiChat.cpp" line="196"/>
         <source>Change font style</source>
         <translation>修改字体</translation>
@@ -6551,6 +6559,10 @@ Please select a different name.</source>
 <context>
     <name>QObject</name>
     <message>
+        <source>%1 is connected</source>
+        <translation>%1 已连接</translation>
+    </message>
+    <message>
         <location filename="../src/desktop/GuiChatItem.cpp" line="78"/>
         <location filename="../src/desktop/GuiMain.cpp" line="3722"/>
         <source>All users</source>
@@ -6940,6 +6952,22 @@ Please select a different name.</source>
         <translation>已连接</translation>
     </message>
     <message>
+        <source>Connecting</source>
+        <translation>连接中</translation>
+    </message>
+    <message>
+        <source>Disconnected</source>
+        <translation>已断开</translation>
+    </message>
+    <message>
+        <source>+ Scan devices</source>
+        <translation>＋ 扫描设备</translation>
+    </message>
+    <message>
+        <source>Bluetooth permission was denied. Enable it for %1 in the system privacy settings to chat over bluetooth.</source>
+        <translation>蓝牙权限被拒绝。请在系统隐私设置中允许 %1 使用蓝牙，才能通过蓝牙聊天。</translation>
+    </message>
+    <message>
         <source>Offline</source>
         <translation>未连接</translation>
     </message>
@@ -6990,6 +7018,53 @@ Please select a different name.</source>
     <message>
         <source>%1: no such file or directory.</source>
         <translation>%1：文件或目录不存在。</translation>
+    </message>
+</context>
+<context>
+    <name>GuiScanDevices</name>
+    <message>
+        <source>%1 - Scan devices</source>
+        <translation>%1 - 扫描设备</translation>
+    </message>
+    <message>
+        <source>Unknown device</source>
+        <translation>未知设备</translation>
+    </message>
+    <message>
+        <source>%1  (%2)</source>
+        <translation>%1  (%2)</translation>
+    </message>
+    <message>
+        <source>Scanning for nearby %1 devices...</source>
+        <translation>正在扫描附近的 %1 设备…</translation>
+    </message>
+    <message>
+        <source>Bluetooth discovery is not active. Start the connection or enable bluetooth in the system settings.</source>
+        <translation>蓝牙发现未启动。请先启动连接，或在系统设置中开启蓝牙。</translation>
+    </message>
+    <message>
+        <source>If a device appears in the list but the connection does not start, pair it first in the system bluetooth settings (one time only).</source>
+        <translation>如果设备已出现在列表中但无法开始连接，请先在系统蓝牙设置中完成配对（只需一次）。</translation>
+    </message>
+    <message>
+        <source>macOS: open System Settings &gt; Bluetooth, select the device and press Pair, then confirm the pairing code.</source>
+        <translation>macOS：打开 系统设置 &gt; 蓝牙，选择设备并点按“配对”，然后确认配对码。</translation>
+    </message>
+    <message>
+        <source>Windows: open Settings &gt; Devices &gt; Bluetooth, click Add device, choose the device and accept the pairing code.</source>
+        <translation>Windows：打开 设置 &gt; 设备 &gt; 蓝牙，点击“添加设备”，选择设备并确认配对码。</translation>
+    </message>
+    <message>
+        <source>Open system bluetooth settings</source>
+        <translation>打开系统蓝牙设置</translation>
+    </message>
+    <message>
+        <source>Connect</source>
+        <translation>连接</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>关闭</translation>
     </message>
 </context>
 </TS>

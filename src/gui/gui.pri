@@ -9,6 +9,7 @@ HEADERS += gui/AudioManager.h \
   gui/Emoticon.h \
   gui/EmoticonManager.h \
   gui/GuiMainWindow.h \
+  gui/GuiScanDevices.h \
   gui/IconManager.h \
   gui/ImageOptimizer.h \
   gui/GuiSelectItems.h \
@@ -24,6 +25,7 @@ SOURCES += gui/AudioManager.cpp \
   gui/Emoticon.cpp \
   gui/EmoticonManager.cpp \
   gui/GuiMainWindow.cpp \
+  gui/GuiScanDevices.cpp \
   gui/IconManager.cpp \
   gui/ImageOptimizer.cpp \
   gui/GuiSelectItems.cpp \

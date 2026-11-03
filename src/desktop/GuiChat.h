@@ -33,6 +33,9 @@ class ChatMessage;
 #include "GuiVoicePlayer.h"
 #endif
 class Emoticon;
+class GuiEmoticons;
+class QFrame;
+class QToolButton;
 
 
 class GuiChat : public QWidget, private Ui::GuiChatWidget
@@ -118,6 +121,8 @@ protected:
 private slots:
   void sendMessage();
   void checkWriting();
+  void showEmoticonsPopup();
+  void emoticonSelectedInPopup( const Emoticon& );
   void customContextMenu( const QPoint& );
   void showChatMessageFilterMenu();
   void changeChatMessageFilter();
@@ -162,8 +167,12 @@ protected:
   void updateFilterMessagesButton();
 
 private:
+  void setupInputToolbar();
+
+private:
   VNumber m_chatId;
   VNumber m_lastMessageUserId;
+  QDateTime m_lastMessageTimestamp;
 
   QMenu* mp_menuContext;
   QMenu* mp_menuFilters;
@@ -189,6 +198,13 @@ private:
   QAction* mp_actFilterMessages;
 
   QSplitter* mp_splitter;
+
+  // YongBEEP S3-4b: WeChat input toolbar [emoji][attach] + emoticon popup
+  QWidget* mp_inputToolbar;
+  QToolButton* mp_tbEmoticons;
+  QToolButton* mp_tbAttach;
+  QFrame* mp_emoticonsPopup;
+  GuiEmoticons* mp_emoticonsWidget;
 
   QPalette m_defaultChatPalette;
 

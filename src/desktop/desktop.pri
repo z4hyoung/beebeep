@@ -2,6 +2,7 @@
 INCLUDEPATH += $$PWD
 
 HEADERS += desktop/BeeApplication.h \
+  desktop/DockBadge.h \
   desktop/GuiAddUser.h \
   desktop/GuiAskPassword.h \
   desktop/GuiChat.h \
@@ -52,6 +53,7 @@ HEADERS += desktop/BeeApplication.h \
 
 
 SOURCES +=  desktop/BeeApplication.cpp \
+  desktop/DockBadge.cpp \
   desktop/GuiAddUser.cpp \
   desktop/GuiAskPassword.cpp \
   desktop/GuiChat.cpp \
@@ -103,6 +105,7 @@ SOURCES +=  desktop/BeeApplication.cpp \
 win32: SOURCES += desktop/BeeApplication_win.cpp
 win32: LIBS += -lwtsapi32
 macx: SOURCES += desktop/BeeApplication_mac.cpp
+macx: SOURCES += desktop/DockBadge_mac.mm
 
 FORMS += desktop/GuiAddUser.ui \
   desktop/GuiAskPassword.ui \
