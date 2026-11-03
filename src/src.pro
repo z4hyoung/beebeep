@@ -40,6 +40,8 @@ TEMPLATE = app
 TARGET = yongbeep
 
 QT += network xml widgets printsupport
+# YongBEEP: classic bluetooth RFCOMM transport (docs/02-技术设计.md §2.6).
+QT += bluetooth
 
 win32|unix {
   QT += multimedia
@@ -78,6 +80,7 @@ include(../locale/locale.pri)
 # feature is on the removal list per docs/01-产品设计.md §3.4.
 # include(hunspell/hunspell.pri)
 include(core/core.pri)
+include(bluetooth/bluetooth.pri)
 include(ecdh/ecdh.pri)
 include(gui/gui.pri)
 include(desktop/desktop.pri)

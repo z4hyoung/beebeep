@@ -25,6 +25,7 @@
 #include "NetworkManager.h"
 #include "Protocol.h"
 #include "Settings.h"
+#include "StreamDeviceBt.h"
 #include "StreamDeviceTcp.h"
 
 #undef CONNECTION_SOCKET_IO_DEBUG
@@ -32,14 +33,19 @@
 
 
 ConnectionSocket::ConnectionSocket( QObject* parent )
-  : QObject( parent ), mp_stream( new StreamDeviceTcp( this ) ), m_blockSize( 0 ), m_isHelloSent( false ), m_userId( ID_INVALID ),
-    m_protocolVersion( 1 ), m_publicKey1(), m_publicKey2(), m_ecdhKeys(), m_cipherKey(), m_networkAddress(), m_latestActivityDateTime(),
-    m_checkConnectionTimeout( false ), m_tickCounter( 0 ), m_isAborted( false ), m_datastreamVersion( 0 ),
+  : QObject( parent ), mp_stream( new StreamDeviceTcp( this ) ), m_isBluetoothTransport( false ), m_blockSize( 0 ), m_isHelloSent( false ),
+    m_userId( ID_INVALID ), m_protocolVersion( 1 ), m_publicKey1(), m_publicKey2(), m_ecdhKeys(), m_cipherKey(), m_networkAddress(),
+    m_latestActivityDateTime(), m_checkConnectionTimeout( false ), m_tickCounter( 0 ), m_isAborted( false ), m_datastreamVersion( 0 ),
     m_isTestConnection( false ), m_serverPort( 0 ), m_isEncrypted( true ), m_isCompressed( false ),
     m_isNewGenerationPeer( false )
 {
   m_pingByteArraySize = Protocol::instance().pingMessage().size() + 10;
 
+  connectStreamSignals();
+}
+
+void ConnectionSocket::connectStreamSignals()
+{
   connect( mp_stream, SIGNAL( connected() ), this, SLOT( sendQuestionHello() ) );
   connect( mp_stream, SIGNAL( readyRead() ), this, SLOT( readBlock() ) );
   connect( mp_stream, SIGNAL( bytesWritten(qint64) ), this, SLOT( onBytesWritten(qint64) ) );
@@ -51,6 +57,63 @@ ConnectionSocket::ConnectionSocket( QObject* parent )
   connect( mp_stream, SIGNAL( bytesWritten(qint64) ), this, SIGNAL( bytesWritten(qint64) ) );
   connect( mp_stream, SIGNAL( errorOccurred(QAbstractSocket::SocketError) ), this, SIGNAL( error(QAbstractSocket::SocketError) ) );
   connect( mp_stream, SIGNAL( disconnected() ), this, SIGNAL( disconnected() ) );
+}
+
+void ConnectionSocket::setStreamDevice( StreamDevice* new_stream )
+{
+  if( new_stream == Q_NULLPTR || new_stream == mp_stream )
+    return;
+
+  StreamDevice* old_stream = mp_stream;
+  mp_stream = new_stream;
+  mp_stream->setParent( this );
+  m_isBluetoothTransport = mp_stream->isBluetoothTransport();
+  connectStreamSignals();
+
+  // The injection happens before the handshake starts, so the default TCP
+  // stream is still pristine (never connected, no pending I/O) and can be
+  // deleted directly (core-transport.md section C.2, step two).
+  delete old_stream;
+}
+
+void ConnectionSocket::connectToBluetoothService( StreamDeviceBt* bt_stream, const QBluetoothAddress& bt_peer_address )
+{
+  // Client side entry point over RFCOMM: same state setup of
+  // connectToNetworkAddress(), with the synthetic address of the BT peer.
+  m_isAborted = false;
+  m_networkAddress.setHostAddress( StreamDeviceBt::syntheticAddressFromBtAddress( bt_peer_address ) );
+  m_networkAddress.setHostPort( bt_stream->peerPort() );
+  m_tickCounter = 0;
+  m_checkConnectionTimeout = true;
+  m_serverPort = 0;
+  m_isEncrypted = true;
+  m_isCompressed = false;
+  m_ecdhKeys.create();
+  setStreamDevice( bt_stream );
+  bt_stream->connectToService( bt_peer_address );
+}
+
+void ConnectionSocket::adoptBluetoothSocket( StreamDeviceBt* bt_stream, QBluetoothSocket* bt_socket, quint16 bt_server_channel )
+{
+  // Server side entry point over RFCOMM: same state setup of initSocket().
+  // StreamDeviceBt::adoptSocket() does not emit connected(), so this socket
+  // waits for the question HELLO of the peer and answers it
+  // (core-transport.md section C.4 item 1).
+  m_isAborted = false;
+  setStreamDevice( bt_stream );
+  bt_stream->adoptSocket( bt_socket );
+  m_networkAddress.setHostAddress( peerAddress() );
+  m_networkAddress.setHostPort( peerPort() );
+  m_serverPort = bt_server_channel;
+  m_tickCounter = 0;
+  m_checkConnectionTimeout = false;
+  m_isEncrypted = true;
+  m_isCompressed = false;
+  m_ecdhKeys.create();
+#ifdef BEEBEEP_DEBUG
+  qDebug() << "Connection socket adopts bluetooth peer with network address" << qPrintable( m_networkAddress.toString() )
+           << "and server channel" << m_serverPort;
+#endif
 }
 
 void ConnectionSocket::initSocket( qintptr socket_descriptor, quint16 server_port )
@@ -637,7 +700,15 @@ int ConnectionSocket::fileTransferBufferSize() const
 
 bool ConnectionSocket::checkConnectionTimeout( int ticks )
 {
-  if( ticks < Settings::instance().tickIntervalConnectionTimeout() )
+  int connection_timeout_ticks = Settings::instance().tickIntervalConnectionTimeout();
+
+  // The Bluetooth transport runs an SDP query and possibly a pairing before
+  // the stream is established: the timeout is relaxed accordingly
+  // (core-transport.md section C.4 item 2). The TCP path is unchanged.
+  if( m_isBluetoothTransport )
+    connection_timeout_ticks = qMax( connection_timeout_ticks, TICK_INTERVAL_BT_CONNECTION_TIMEOUT );
+
+  if( ticks < connection_timeout_ticks )
     return false;
 
   if( m_isTestConnection )

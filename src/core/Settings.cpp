@@ -153,6 +153,9 @@ Settings::Settings()
   m_connectionKeyExchangeMethod = ConnectionKeyExchangeAuto;
   m_useKeepAliveOptionInSocket = false;
 
+  m_useBluetooth = true;
+  m_bluetoothDeviceName = "";
+
   m_backupFolder = "";
   /* Default RC end */
 
@@ -548,6 +551,8 @@ bool Settings::createDefaultRcFile()
     sets->setValue( "TickIntervalChatAutoSave", m_tickIntervalChatAutoSave );
     sets->setValue( "EnableReceivingHelpMessages", m_enableReceivingHelpMessages );
     sets->setValue( "UseKeepAliveOptionInSocket", m_useKeepAliveOptionInSocket );
+    sets->setValue( "UseBluetooth", m_useBluetooth );
+    sets->setValue( "BluetoothDeviceName", m_bluetoothDeviceName );
     sets->endGroup();
     sets->sync();
     qDebug() << "RC default configuration file created in" << qPrintable( Bee::convertToNativeFolderSeparator( sets->fileName() ) );
@@ -613,6 +618,8 @@ void Settings::loadRcFile()
   m_preferredSubnets = sets->value( "PreferredSubnets", m_preferredSubnets ).toString();
   m_useIPv6 = sets->value( "UseIPv6", m_useIPv6 ).toBool();
   m_useKeepAliveOptionInSocket = sets->value( "UseKeepAliveOptionInSocket", m_useKeepAliveOptionInSocket ).toBool();
+  m_useBluetooth = sets->value( "UseBluetooth", m_useBluetooth ).toBool();
+  m_bluetoothDeviceName = sets->value( "BluetoothDeviceName", m_bluetoothDeviceName ).toString();
   QString multicast_group_address = sets->value( "MulticastGroupAddress", "" ).toString();
   if( multicast_group_address.isEmpty() )
     m_multicastGroupAddress = QHostAddress();
@@ -1615,6 +1622,8 @@ void Settings::loadCommonSettings( QSettings* user_ini )
   m_broadcastToOfflineUsers = commonValue( system_rc, user_ini, "BroadcastToOfflineUsers", m_broadcastToOfflineUsers ).toBool();
   m_broadcastToLocalSubnetAlways = commonValue( system_rc, user_ini, "BroadcastToLocalSubnet", m_broadcastToLocalSubnetAlways ).toBool();
   m_ipMulticastTtl = commonValue( system_rc, user_ini, "IpMulticastTtl", m_ipMulticastTtl ).toInt();
+  m_useBluetooth = commonValue( system_rc, user_ini, "UseBluetooth", m_useBluetooth ).toBool();
+  m_bluetoothDeviceName = commonValue( system_rc, user_ini, "BluetoothDeviceName", m_bluetoothDeviceName ).toString();
   endCommonGroup( system_rc, user_ini );
 
   beginCommonGroup( system_rc, user_ini, "FileShare" );
@@ -1984,6 +1993,8 @@ void Settings::save()
   sets->setValue( "BroadcastToOfflineUsers", m_broadcastToOfflineUsers );
   sets->setValue( "BroadcastToLocalSubnet", m_broadcastToLocalSubnetAlways );
   sets->setValue( "IpMulticastTtl", m_ipMulticastTtl );
+  sets->setValue( "UseBluetooth", m_useBluetooth );
+  sets->setValue( "BluetoothDeviceName", m_bluetoothDeviceName );
   sets->endGroup();
   sets->beginGroup( "FileShare" );
   sets->setValue( "EnableFileTransfer", m_enableFileTransfer );

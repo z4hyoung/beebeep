@@ -79,6 +79,10 @@ public:
   /*! True while the transport is resolving or connecting (QAbstractSocket::HostLookupState or ConnectingState). */
   virtual bool isConnectingState() const = 0;
 
+  /*! True if this transport is the Bluetooth RFCOMM one: ConnectionSocket uses
+   * it to relax the connection timeout (SDP discovery + pairing are slow). */
+  virtual bool isBluetoothTransport() const { return false; }
+
   /*! True when the transport is connected or bound (QAbstractSocket::ConnectedState or BoundState). */
   virtual bool isConnectedState() const = 0;
 

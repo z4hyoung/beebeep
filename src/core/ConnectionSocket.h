@@ -29,6 +29,9 @@
 #include "StreamDevice.h"
 
 class Message;
+class QBluetoothAddress;
+class QBluetoothSocket;
+class StreamDeviceBt;
 
 
 /*! \brief Protocol socket (HELLO handshake, ECDH, compression, framing)
@@ -55,6 +58,16 @@ public:
 
   void connectToNetworkAddress( const NetworkAddress& );
   void initSocket( qintptr, quint16 server_port );
+
+  // Bluetooth RFCOMM transport injection (docs/02-技术设计.md §2.1/§2.2).
+  // Both entry points must be used before the handshake starts: they replace
+  // the default TCP stream and keep its exact semantics (client = question
+  // HELLO on connected(), server = wait for the peer and sendAnswerHello()).
+  void connectToBluetoothService( StreamDeviceBt* bt_stream, const QBluetoothAddress& bt_peer_address );
+  void adoptBluetoothSocket( StreamDeviceBt* bt_stream, QBluetoothSocket* bt_socket, quint16 bt_server_channel );
+
+  /*! Generic injection point: replaces the default TCP stream before the handshake (the old one is deleted). */
+  void setStreamDevice( StreamDevice* new_stream );
 
   bool sendData( const QByteArray& );
 
@@ -122,7 +135,10 @@ protected:
   void useCompression( bool );
 
 private:
+  void connectStreamSignals();
+
   StreamDevice* mp_stream;
+  bool m_isBluetoothTransport;
 
   // max block size contains lowers
   DATA_BLOCK_SIZE_32 m_blockSize;

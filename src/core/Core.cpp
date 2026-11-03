@@ -26,6 +26,7 @@
 #include "Connection.h"
 #include "Core.h"
 #include "Broadcaster.h"
+#include "BtManager.h"
 #include "FileShare.h"
 #include "IconManager.h"
 #include "Settings.h"
@@ -57,6 +58,7 @@ Core::Core( QObject* parent )
 
   mp_listener = new Listener( this );
   mp_broadcaster = new Broadcaster( this );
+  mp_btManager = new BtManager( this );
   mp_fileTransfer = new FileTransfer( this );
   m_shareListToBuild = 0;
   m_newGenerationMessageShown = false;
@@ -80,6 +82,8 @@ Core::Core( QObject* parent )
   connect( mp_broadcaster, SIGNAL( newPeerFound( const QHostAddress&, int ) ), this, SLOT( newPeerFound( const QHostAddress&, int ) ) );
   connect( mp_broadcaster, SIGNAL( newGenerationPeerFound() ), this, SLOT( showNewGenerationMessage() ) );
   connect( mp_listener, SIGNAL( newConnection( qintptr ) ), this, SLOT( checkNewConnection( qintptr ) ) );
+  connect( mp_btManager, &BtManager::btPeerFound, this, &Core::btPeerFound );
+  connect( mp_btManager, &BtManager::newBtConnection, this, &Core::checkNewBtConnection );
   connect( mp_fileTransfer, SIGNAL( listening() ), this, SLOT( onFileTransferServerListening() ) );
   connect( mp_fileTransfer, SIGNAL( progress( VNumber, VNumber, const FileInfo&, FileSizeType, qint64 ) ), this, SLOT( checkFileTransferProgress( VNumber, VNumber, const FileInfo&, FileSizeType, qint64 ) ) );
   connect( mp_fileTransfer, SIGNAL( message( VNumber, VNumber, const FileInfo&, const QString&, FileTransferPeer::TransferState ) ), this, SLOT( checkFileTransferMessage( VNumber, VNumber, const FileInfo&, const QString&, FileTransferPeer::TransferState ) ) );
@@ -337,6 +341,12 @@ bool Core::start()
   QTimer::singleShot( 12000, this, SLOT( startDnsMulticasting() ) );
 #endif
 
+  // Bluetooth transport: started after listener and broadcaster are up
+  // (docs/analysis/core-transport.md section F.2 item 4). BtManager owns the
+  // QBluetoothPermission gate and degrades to inactive (TCP only) if the
+  // permission is denied or the adapter is off.
+  mp_btManager->start();
+
   emit connected();
   return true;
 }
@@ -394,6 +404,7 @@ void Core::stop()
   qDebug() << "Stopping network core...";
   UserManager::instance().clearNewConnectedUserIdList();
   mp_broadcaster->stopBroadcasting();
+  mp_btManager->stop();
 
 #ifdef BEEBEEP_USE_MULTICAST_DNS
   stopDnsMulticasting();
@@ -438,6 +449,7 @@ void Core::restart()
   showMessage( tr( "Disconnecting" ), 3000 );
   qDebug() << "Restarting network core...";
   mp_broadcaster->stopBroadcasting();
+  mp_btManager->stop();
 #ifdef BEEBEEP_USE_MULTICAST_DNS
   stopDnsMulticasting();
 #endif
