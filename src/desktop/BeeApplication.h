@@ -66,7 +66,7 @@ public:
   inline void setCheckSettingsFilePath( bool );
 
 #ifdef Q_OS_WIN
-  bool winEventFilter( MSG*, long* );
+  bool winEventFilter( MSG*, qintptr* );
   bool setSessionNotificationForWindow( HWND );
   bool resetSessionNotificationForWindow();
 #endif

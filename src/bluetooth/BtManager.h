@@ -23,6 +23,8 @@
 class BtDiscoverer;
 class BtListener;
 class QBluetoothSocket;
+class BtWinWorker;
+class QThread;
 
 
 /*! \brief Bluetooth transport controller: permission, listener and discoverer
@@ -41,6 +43,7 @@ class BtManager : public QObject
 
 public:
   explicit BtManager( QObject* parent = Q_NULLPTR );
+  ~BtManager() override;
 
   bool start();
   void stop();
@@ -54,17 +57,25 @@ public:
 
 signals:
   void btPeerFound( const QBluetoothAddress& bt_address, const QString& device_name );
-  void newBtConnection( QBluetoothSocket* bt_socket );
+  void newBtConnection( QObject* bt_socket );
   void bluetoothPermissionDenied();
 
 private:
   void startComponents();
+#if defined( Q_OS_WIN )
+  void onWinLocalAddress( quint64 bt_address );
+#endif
 
   BtListener* mp_listener;
   BtDiscoverer* mp_discoverer;
   QBluetoothAddress m_localAddress;
   bool m_active;
   bool m_stopRequested;
+#if defined( Q_OS_WIN )
+  /*! Native win32 stack worker thread (MinGW Qt builds have no bluetooth backend). */
+  QThread* mp_winThread;
+  BtWinWorker* mp_winWorker;
+#endif
 
 };
 

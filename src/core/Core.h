@@ -31,7 +31,7 @@ class Broadcaster;
 class BtManager;
 class Group;
 class QBluetoothAddress;
-class QBluetoothSocket;
+class QObject;
 class UserList;
 class UserRecord;
 #ifdef BEEBEEP_USE_MULTICAST_DNS
@@ -233,7 +233,7 @@ protected slots:
   void checkNewConnection( qintptr );
   void newPeerFound( const QHostAddress&, int );
   void btPeerFound( const QBluetoothAddress&, const QString& device_name );
-  void checkNewBtConnection( QBluetoothSocket* );
+  void checkNewBtConnection( QObject* bt_socket );
   void setConnectionError( QAbstractSocket::SocketError );
   void setConnectionClosed();
   void checkUserAuthentication( const QByteArray& );

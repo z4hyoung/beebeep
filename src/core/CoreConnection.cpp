@@ -187,7 +187,7 @@ void Core::btPeerFound( const QBluetoothAddress& sender_address, const QString& 
   c->connectToBluetoothService( new StreamDeviceBt(), sender_address );
 }
 
-void Core::checkNewBtConnection( QBluetoothSocket* bt_socket )
+void Core::checkNewBtConnection( QObject* bt_socket )
 {
   if( bt_socket == Q_NULLPTR )
     return;

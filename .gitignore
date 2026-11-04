@@ -3,6 +3,8 @@ test/
 *.o
 Makefile*
 .qmake.stash
+src/debug/
+src/release/
 
 # qmake generated sources (in-tree on macOS)
 src/moc_*.cpp

@@ -18,6 +18,12 @@
 #include "Config.h"
 #include <QtBluetooth/QBluetoothServiceInfo>
 
+#if defined( Q_OS_WIN )
+  #include "BtWinWorker.h"
+  #include <QtCore/QMetaObject>
+  #include <winsock2.h>
+#endif
+
 
 QBluetoothUuid StreamDeviceBt::serviceUuid()
 {
@@ -50,6 +56,8 @@ QHostAddress StreamDeviceBt::syntheticAddressFromBtAddress( const QBluetoothAddr
 
   return QHostAddress( ipv6_bytes );
 }
+
+#if !defined( Q_OS_WIN )
 
 StreamDeviceBt::StreamDeviceBt( QObject* parent )
   : StreamDevice( parent ), mp_socket( new QBluetoothSocket( QBluetoothServiceInfo::RfcommProtocol, this ) )
@@ -231,3 +239,228 @@ void StreamDeviceBt::onSocketError( QBluetoothSocket::SocketError socket_error )
 
   emit errorOccurred( mapped_error );
 }
+
+#else // Q_OS_WIN
+
+StreamDeviceBt::StreamDeviceBt( QObject* parent )
+  : StreamDevice( parent ), mp_native( Q_NULLPTR ), m_pendingAddress( 0 )
+{
+  connectSocketSignals();
+}
+
+void StreamDeviceBt::connectSocketSignals()
+{
+  // The socket object exists only after the worker thread hands over a
+  // connected native handle (client side) or after adoptSocket() (server
+  // side); see onWinConnectFinished() and adoptSocket().
+}
+
+void StreamDeviceBt::connectToService( const QBluetoothAddress& bt_address )
+{
+  BtWinWorker* worker = BtWinWorker::instance();
+  if( worker == Q_NULLPTR )
+  {
+    qWarning() << "StreamDeviceBt cannot connect: the native bluetooth worker is not running";
+    emit errorOccurred( QAbstractSocket::UnknownSocketError );
+    return;
+  }
+
+  // The SDP channel lookup plus the RFCOMM connect run in the worker thread;
+  // onWinConnectFinished() adopts the socket and emits connected() when the
+  // relaxed connection timeout of ConnectionSocket is still running.
+  m_pendingAddress = bt_address.toUInt64();
+  QMetaObject::invokeMethod( worker, "connectToPeer", Qt::QueuedConnection,
+                             Q_ARG( quint64, m_pendingAddress ) );
+}
+
+void StreamDeviceBt::connectToHost( const QHostAddress&, quint16 )
+{
+  qWarning() << "StreamDeviceBt cannot connect to a host address: use connectToService() with a bluetooth address";
+}
+
+bool StreamDeviceBt::setSocketDescriptor( qintptr )
+{
+  qWarning() << "StreamDeviceBt does not support socket descriptors: use adoptSocket()";
+  return false;
+}
+
+void StreamDeviceBt::adoptSocket( QObject* socket_object )
+{
+  NativeBtSocket* bt_socket = qobject_cast<NativeBtSocket*>( socket_object );
+  if( bt_socket == Q_NULLPTR )
+  {
+    qWarning() << "StreamDeviceBt cannot adopt an object that is not a NativeBtSocket";
+    return;
+  }
+
+  if( mp_native )
+    mp_native->deleteLater(); // pristine client side socket, never used
+
+  mp_native = bt_socket;
+  mp_native->setParent( this );
+  connectNativeSignals();
+
+  // Asymmetric handshake semantics copied from the TCP server side
+  // (StreamDeviceTcp::setSocketDescriptor, core-transport.md section C.4
+  // item 1): adopting an already connected socket does NOT emit connected(),
+  // so ConnectionSocket does not send a question HELLO but waits for the
+  // remote peer and answers with sendAnswerHello().
+}
+
+void StreamDeviceBt::connectNativeSignals()
+{
+  connect( mp_native, &NativeBtSocket::readyRead, this, &StreamDeviceBt::readyRead );
+  connect( mp_native, &QIODevice::bytesWritten, this, &StreamDeviceBt::bytesWritten );
+  connect( mp_native, &NativeBtSocket::errorOccurred, this, &StreamDeviceBt::onNativeError );
+  connect( mp_native, &NativeBtSocket::disconnected, this, &StreamDeviceBt::disconnected );
+}
+
+void StreamDeviceBt::onWinConnectFinished( quint64 bt_address, quintptr socket_handle, int wsa_error )
+{
+  if( bt_address != m_pendingAddress )
+    return; // result of another StreamDeviceBt instance
+
+  m_pendingAddress = 0;
+
+  if( wsa_error != 0 )
+  {
+    onNativeError( wsa_error );
+    return;
+  }
+
+  mp_native = new NativeBtSocket( this );
+  if( !mp_native->adoptConnectedSocket( static_cast<qintptr>( socket_handle ), bt_address ) )
+  {
+    mp_native->deleteLater();
+    mp_native = Q_NULLPTR;
+    emit errorOccurred( QAbstractSocket::UnknownSocketError );
+    return;
+  }
+
+  connectNativeSignals();
+  emit connected();
+}
+
+void StreamDeviceBt::onNativeError( int wsa_error )
+{
+  // WSA error codes mapped onto the QAbstractSocket set used by Core.
+  QAbstractSocket::SocketError mapped_error = QAbstractSocket::UnknownSocketError;
+
+  switch( wsa_error )
+  {
+  case WSAECONNRESET:
+  case WSAESHUTDOWN:
+    mapped_error = QAbstractSocket::RemoteHostClosedError;
+    break;
+  case WSAETIMEDOUT:
+    mapped_error = QAbstractSocket::NetworkError;
+    break;
+  case WSAEHOSTUNREACH:
+  case WSAENETUNREACH:
+  case WSAENETDOWN:
+    mapped_error = QAbstractSocket::NetworkError;
+    break;
+  case WSAECONNREFUSED:
+  case WSASERVICE_NOT_FOUND:
+    mapped_error = QAbstractSocket::ConnectionRefusedError;
+    break;
+  case WSAEACCES:
+    mapped_error = QAbstractSocket::SocketAccessError;
+    break;
+  case WSAEOPNOTSUPP:
+    mapped_error = QAbstractSocket::UnsupportedSocketOperationError;
+    break;
+  case WSAEADDRINUSE:
+    mapped_error = QAbstractSocket::AddressInUseError;
+    break;
+  default:
+    break;
+  }
+
+  qDebug() << "StreamDeviceBt native socket error" << wsa_error << "mapped to" << static_cast<int>( mapped_error );
+
+  emit errorOccurred( mapped_error );
+}
+
+void StreamDeviceBt::abort()
+{
+  if( mp_native )
+    mp_native->closeSocket();
+}
+
+void StreamDeviceBt::close()
+{
+  if( mp_native )
+    mp_native->closeSocket();
+}
+
+void StreamDeviceBt::disconnectFromHost()
+{
+  if( mp_native )
+    mp_native->closeSocket();
+}
+
+bool StreamDeviceBt::flush()
+{
+  // Writes are handed to the stack directly by send(), nothing to flush.
+  return true;
+}
+
+QIODevice* StreamDeviceBt::ioDevice()
+{
+  return mp_native;
+}
+
+QHostAddress StreamDeviceBt::peerAddress() const
+{
+  return mp_native ? syntheticAddressFromBtAddress( QBluetoothAddress( mp_native->peerAddress() ) ) : QHostAddress();
+}
+
+quint16 StreamDeviceBt::peerPort() const
+{
+  return BLUETOOTH_FAKE_PEER_PORT;
+}
+
+QString StreamDeviceBt::errorString() const
+{
+  return mp_native ? mp_native->errorString() : QString();
+}
+
+bool StreamDeviceBt::isConnectingState() const
+{
+  // While the worker resolves the SDP channel and connects, no socket object
+  // exists yet: the pending address marks the SDP/connecting phase.
+  return m_pendingAddress != 0;
+}
+
+bool StreamDeviceBt::isConnectedState() const
+{
+  return mp_native && mp_native->state() == NativeBtSocket::ConnectedState;
+}
+
+bool StreamDeviceBt::isOpen() const
+{
+  return mp_native && mp_native->isOpen();
+}
+
+bool StreamDeviceBt::isValid() const
+{
+  return isConnectingState() || isConnectedState();
+}
+
+qint64 StreamDeviceBt::bytesAvailable() const
+{
+  return mp_native ? mp_native->bytesAvailable() : 0;
+}
+
+qint64 StreamDeviceBt::write( const QByteArray& byte_array )
+{
+  return mp_native ? mp_native->write( byte_array ) : qint64( -1 );
+}
+
+qintptr StreamDeviceBt::socketDescriptor() const
+{
+  return mp_native ? mp_native->nativeHandle() : qintptr( -1 );
+}
+
+#endif // Q_OS_WIN

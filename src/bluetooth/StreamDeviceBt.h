@@ -19,8 +19,13 @@
 
 #include "StreamDevice.h"
 #include <QtBluetooth/QBluetoothAddress>
-#include <QtBluetooth/QBluetoothSocket>
 #include <QtBluetooth/QBluetoothUuid>
+
+class QBluetoothSocket;
+
+#if defined( Q_OS_WIN )
+  #include "BtWinWorker.h"
+#endif
 
 
 /*! \brief Bluetooth RFCOMM implementation of StreamDevice
@@ -100,12 +105,26 @@ public:
   bool isBluetoothTransport() const { return true; }
 
 private slots:
+#if !defined( Q_OS_WIN )
   void onSocketError( QBluetoothSocket::SocketError socket_error );
+#else
+  void onWinConnectFinished( quint64 bt_address, quintptr socket_handle, int wsa_error );
+  void onNativeError( int wsa_error );
+#endif
 
 private:
   void connectSocketSignals();
+#if defined( Q_OS_WIN )
+  void connectNativeSignals();
+#endif
 
+#if !defined( Q_OS_WIN )
   QBluetoothSocket* mp_socket;
+#else
+  /*! Native AF_BTH socket (adopted from the worker thread after connect). */
+  NativeBtSocket* mp_native;
+  quint64 m_pendingAddress;
+#endif
 
 };
 
