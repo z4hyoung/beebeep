@@ -3,9 +3,9 @@
 // BeeBEEP Copyright (C) 2010-2026 Marco Mastroddi
 //
 // BeeBEEP is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published
-// by the Free Software Foundation, either version 3 of the License,
-// or (at your option) any later version.
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
 // BeeBEEP is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -27,6 +27,7 @@
 
 #include "ui_GuiChat.h"
 #include "UserList.h"
+#include <QPersistentModelIndex>
 class Chat;
 class ChatMessage;
 #ifdef BEEBEEP_USE_VOICE_CHAT
@@ -34,6 +35,8 @@ class ChatMessage;
 #endif
 class Emoticon;
 class GuiEmoticons;
+class ChatMessageModel;
+class ChatMessageDelegate;
 class QFrame;
 class QToolButton;
 
@@ -59,6 +62,9 @@ public:
   void setCompactInputMode();
   // YongBEEP S4c debug hook (--demo-chat): enable input + seed a draft line
   void setDemoInputDraft( const QString& draft );
+  // YongBEEP S4e debug hook (--demo-chat): pre-register raw markdown texts so
+  // the matching demo messages render with setMarkdown (see ChatMessageModel)
+  void registerDemoMarkdownTexts( const QStringList& raw_texts );
 
   inline QSplitter* chatSplitter() const;
   void editChatMembers();
@@ -74,7 +80,7 @@ public:
 #endif
 
 signals:
-  void newMessage( VNumber, const QString&, bool is_source_code );
+  void newMessage( VNumber, const QString&, bool is_source_code, bool is_markdown = false );
   void newSourceCodeMessage( VNumber, const QString& );
   void writing( VNumber );
   void nextChat();
@@ -110,11 +116,11 @@ public slots:
 
 protected:
   void setLastMessageTimestamp( const QDateTime& );
-  QString chatMessageToText( const ChatMessage& );
   bool messageCanBeShowed( const ChatMessage& );
   bool historyCanBeShowed();
   void dragEnterEvent( QDragEnterEvent* );
   void dropEvent( QDropEvent* );
+  bool eventFilter( QObject*, QEvent* );
   void updateSpellCheckerToolTip();
   void updateCompleterToolTip();
   void updateUseReturnKeyToSendMessageToolTip();
@@ -130,6 +136,10 @@ private slots:
   void showChatMessageFilterMenu();
   void changeChatMessageFilter();
   void checkAnchorClicked( const QUrl& );
+  void onMarkdownToggled( bool ); // S4e: MD input toggle
+  void copyMessageToClipboard(); // S4e: context menu on the message list
+  void quoteMessageToInput();    // S4e: context menu on the message list
+  void copyUrlToClipboard();
   void selectFontColor();
   void selectBackgroundColor();
   void selectForegroundColor();
@@ -148,14 +158,10 @@ private slots:
   void showFindTextInChatDialog();
   void findNextTextInChat();
   void findPreviousTextInChat();
-  void openSelectedTextAsUrl();
-  void quoteSelectedText();
-  void changeBackgroundColorInSelectedText();
   void resetChatFontToDefault();
   void operationCompleted();
   void clearSystemMessages();
   void sendTextCode();
-  void copyUrlToClipboard();
 #ifdef BEEBEEP_USE_SHAREDESKTOP
   void shareDesktopToChat();
   void sendScreenshotToChat();
@@ -166,11 +172,12 @@ private slots:
 protected:
   void findTextInChat( const QString&, bool search_forward = true );
   void updateChat();
-  void setChatStylesheet( QTextDocument* );
   void updateFilterMessagesButton();
+  bool isScrolledToBottom() const;
 
 private:
   void setupInputToolbar();
+  void setupMessageList();
 
 private:
   VNumber m_chatId;
@@ -207,10 +214,14 @@ private:
   QWidget* mp_inputToolbar;
   QToolButton* mp_tbEmoticons;
   QToolButton* mp_tbAttach;
+  QToolButton* mp_tbMarkdown; // S4e: checkable Markdown toggle
   QFrame* mp_emoticonsPopup;
   GuiEmoticons* mp_emoticonsWidget;
 
-  QPalette m_defaultChatPalette;
+  // YongBEEP S4e (chatview-v2): QListView + delegate message rendering
+  ChatMessageModel* mp_messageModel;
+  ChatMessageDelegate* mp_messageDelegate;
+  QPersistentModelIndex m_contextIndex; // message under the context menu
 
   QShortcut* mp_scFocusInChat;
   QShortcut* mp_scPrintChat;
@@ -219,6 +230,7 @@ private:
   QShortcut* mp_scFindPreviousTextInChat;
   QShortcut* mp_scViewEmoticons;
   QString m_lastTextFound;
+  int m_lastFindRow;
 
 #ifdef BEEBEEP_USE_VOICE_CHAT
   GuiVoicePlayer* mp_guiVoicePlayer;
