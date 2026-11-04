@@ -304,9 +304,17 @@ ChatMessageItem* ChatMessageModel::createItem( const Chat& c, const ChatMessage&
   item->ownMessage = u.isValid() && u.isLocal();
   item->avatar = roundedAvatar( u );
 
-  // Markdown: GUI-side registry match (local echo / same-session reload)
+  // Markdown: the wire flag is authoritative (works for remote peers, history
+  // reloads and cross-session); the GUI-side registry stays only as a fallback
+  // for messages sent before the flag existed.
   QString md_raw;
-  if( matchMarkdownRegistry( cm, &md_raw ) )
+  if( cm.isMarkdown() )
+  {
+    item->markdown = true;
+    item->markdownRaw = cm.message(); // raw text preserved by createFromMessage()
+    item->plainText = cm.message();
+  }
+  else if( matchMarkdownRegistry( cm, &md_raw ) )
   {
     item->markdown = true;
     item->markdownRaw = md_raw;

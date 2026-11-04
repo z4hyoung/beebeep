@@ -82,7 +82,7 @@ private slots:
   void showChat( VNumber chat_id );
   void chatActivated( const QModelIndex& );
   void filterTextChanged( const QString& );
-  void sendMessage( VNumber, const QString&, bool );
+  void sendMessage( VNumber, const QString&, bool, bool = false );
   void sendFileFromChat( VNumber, const QString& );
   void sendFilesFromChat( VNumber, const QStringList& );
   void clearChat( VNumber );

@@ -40,7 +40,7 @@ ChatMessage::ChatMessage( const ChatMessage& cm )
 
 ChatMessage::ChatMessage( VNumber user_id, const Message& m, ChatMessage::Type cmt, bool can_be_saved )
   : m_userId( user_id ), m_message( "" ), m_timestamp(), m_textColor(), m_type( cmt ),
-    m_isImportant( false ), m_canBeSaved( can_be_saved ), m_isSourceCode( false )
+    m_isImportant( false ), m_canBeSaved( can_be_saved ), m_isSourceCode( false ), m_isMarkdown( false )
 {
   createFromMessage( m );
 }
@@ -53,7 +53,7 @@ ChatMessage ChatMessage::createVoiceMessage( VNumber user_id, const QString& msg
 
 ChatMessage::ChatMessage( VNumber user_id, const QString& msg, ChatMessage::Type cmt, bool can_be_saved )
   : m_userId( user_id ), m_message( msg ), m_timestamp( QDateTime::currentDateTime() ), m_textColor(), m_type( cmt ),
-    m_isImportant( false ), m_canBeSaved( can_be_saved ), m_isSourceCode( false )
+    m_isImportant( false ), m_canBeSaved( can_be_saved ), m_isSourceCode( false ), m_isMarkdown( false )
 {
 }
 
@@ -69,6 +69,7 @@ ChatMessage& ChatMessage::operator=( const ChatMessage& cm )
     m_isImportant = cm.m_isImportant;
     m_canBeSaved = cm.m_canBeSaved;
     m_isSourceCode = cm.m_isSourceCode;
+    m_isMarkdown = cm.m_isMarkdown;
   }
   return *this;
 }
@@ -77,14 +78,17 @@ void ChatMessage::createFromMessage( const Message& m )
 {
   if( m.type() != Message::System )
   {
-    m_message = m.isSourceCode() ? m.text().trimmed() : Protocol::instance().formatHtmlText( m.text() );
+    // Markdown messages keep their raw text (the delegate renders it with
+    // QTextDocument::setMarkdown), exactly like source-code messages skip
+    // the HTML/emoticon pipeline.
+    m_message = ( m.isSourceCode() || m.isMarkdown() ) ? m.text().trimmed() : Protocol::instance().formatHtmlText( m.text() );
     if( m_message.endsWith( "<br>" ) )
       m_message.chop( 4 );
   }
   else
     m_message = m.text();
   m_timestamp = m.timestamp();
-  if( !m.isSourceCode() )
+  if( !m.isSourceCode() && !m.isMarkdown() )
   {
     ChatMessageData cm_data = Protocol::instance().dataFromChatMessage( m );
     if( cm_data.textColor().isValid() )
@@ -92,6 +96,7 @@ void ChatMessage::createFromMessage( const Message& m )
   }
   m_isImportant = m.hasFlag( Message::Important );
   m_isSourceCode = m.hasFlag( Message::SourceCode );
+  m_isMarkdown = m.hasFlag( Message::Markdown );
 }
 
 bool ChatMessage::isChatActivity() const

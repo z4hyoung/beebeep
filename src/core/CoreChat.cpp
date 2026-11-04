@@ -405,7 +405,7 @@ int Core::archiveAllChats()
   return chat_count;
 }
 
-int Core::sendChatMessage( VNumber chat_id, const QString& msg, bool is_important, bool can_be_delayed, bool is_source_code )
+int Core::sendChatMessage( VNumber chat_id, const QString& msg, bool is_important, bool can_be_delayed, bool is_source_code, bool is_markdown )
 {
   if( !isConnected() )
   {
@@ -430,7 +430,7 @@ int Core::sendChatMessage( VNumber chat_id, const QString& msg, bool is_importan
   }
 
   QString msg_to_send = msg;
-  if( !is_source_code )
+  if( !is_source_code && !is_markdown )
   {
     if( !Settings::instance().chatUseHtmlTags() )
     {
@@ -450,6 +450,9 @@ int Core::sendChatMessage( VNumber chat_id, const QString& msg, bool is_importan
 
   if( is_source_code )
     m.setSourceCode();
+
+  if( is_markdown )
+    m.setMarkdown();
 
   int messages_sent = 0;
 

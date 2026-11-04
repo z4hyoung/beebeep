@@ -80,7 +80,7 @@ public:
 #endif
 
 signals:
-  void newMessage( VNumber, const QString&, bool is_source_code );
+  void newMessage( VNumber, const QString&, bool is_source_code, bool is_markdown = false );
   void newSourceCodeMessage( VNumber, const QString& );
   void writing( VNumber );
   void nextChat();

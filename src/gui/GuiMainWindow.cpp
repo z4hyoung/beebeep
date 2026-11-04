@@ -239,7 +239,7 @@ void GuiMainWindow::setupCoreConnections()
 
 void GuiMainWindow::setupChatConnections( GuiChat* gui_chat )
 {
-  connect( gui_chat, SIGNAL( newMessage( VNumber, const QString&, bool ) ), this, SLOT( sendMessage( VNumber, const QString&, bool ) ) );
+  connect( gui_chat, SIGNAL( newMessage( VNumber, const QString&, bool, bool ) ), this, SLOT( sendMessage( VNumber, const QString&, bool, bool ) ) );
   connect( gui_chat, SIGNAL( writing( VNumber ) ), beeCore, SLOT( sendWritingMessage( VNumber ) ) );
   connect( gui_chat, SIGNAL( openUrl( const QUrl&, VNumber ) ), this, SLOT( openUrlFromChat( const QUrl&, VNumber ) ) );
   connect( gui_chat, SIGNAL( sendFileFromChatRequest( VNumber, const QString& ) ), this, SLOT( sendFileFromChat( VNumber, const QString& ) ) );
@@ -613,9 +613,9 @@ void GuiMainWindow::onApplicationFocusChanged( QWidget*, QWidget* now )
 }
 
 
-void GuiMainWindow::sendMessage( VNumber chat_id, const QString& msg, bool is_source_code )
+void GuiMainWindow::sendMessage( VNumber chat_id, const QString& msg, bool is_source_code, bool is_markdown )
 {
-  beeCore->sendChatMessage( chat_id, msg, false, false, is_source_code );
+  beeCore->sendChatMessage( chat_id, msg, false, false, is_source_code, is_markdown );
   refreshChatList( true );
 }
 

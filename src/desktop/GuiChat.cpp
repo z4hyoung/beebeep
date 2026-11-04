@@ -748,12 +748,13 @@ void GuiChat::sendMessage()
   if( msg.isEmpty() )
     return;
   mp_teMessage->addMessageToHistory();
-  // S4e: with the MD toggle on, register the raw text so the local echo
-  // (and same-session reloads) render it with setMarkdown. The wire flag
-  // is Message::Markdown - see ChatMessageModel for the plumbing notes.
-  if( mp_tbMarkdown && mp_tbMarkdown->isChecked() )
+  // S4e: the MD toggle now travels on the wire as Message::Markdown
+  // (sendChatMessage -> m.setMarkdown()); the model-side registry is kept
+  // only as a fallback for messages built before the flag existed.
+  const bool is_markdown = mp_tbMarkdown && mp_tbMarkdown->isChecked();
+  if( is_markdown )
     mp_messageModel->addMarkdownText( msg );
-  emit newMessage( m_chatId, msg, false );
+  emit newMessage( m_chatId, msg, false, is_markdown );
   mp_teMessage->clearMessage();
   if( mp_cbSendAndClose->isChecked() )
   {

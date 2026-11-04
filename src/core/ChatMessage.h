@@ -66,6 +66,8 @@ public:
 
   inline bool isSourceCode() const;
 
+  inline bool isMarkdown() const;
+
 protected:
   ChatMessage( VNumber user_id, const QString& msg, ChatMessage::Type, bool can_be_saved );
   void createFromMessage( const Message& );
@@ -79,6 +81,7 @@ private:
   bool m_isImportant;
   bool m_canBeSaved;
   bool m_isSourceCode;
+  bool m_isMarkdown;
 };
 
 
@@ -102,6 +105,7 @@ inline const QColor& ChatMessage::textColor() const { return m_textColor; }
 inline ChatMessage::Type ChatMessage::type() const { return m_type; }
 inline bool ChatMessage::canBeSaved() const { return m_canBeSaved; }
 inline bool ChatMessage::isSourceCode() const { return m_isSourceCode; }
+inline bool ChatMessage::isMarkdown() const { return m_isMarkdown; }
 
 #endif // BEEBEEP_CHATMESSAGE_H
 
