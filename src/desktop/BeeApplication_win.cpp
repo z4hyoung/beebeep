@@ -56,7 +56,7 @@ bool BeeApplication::resetSessionNotificationForWindow()
   return true;
 }
 
-bool BeeApplication::winEventFilter( MSG* event_message, long* event_result )
+bool BeeApplication::winEventFilter( MSG* event_message, qintptr* event_result )
 {
   Q_UNUSED( event_result )
   if( event_message->message == WM_POWERBROADCAST )
@@ -132,7 +132,7 @@ bool BeeApplication::isDesktopLocked()
 class BeeWindowsEventFilter : public QAbstractNativeEventFilter
 {
 public:
-  virtual bool nativeEventFilter( const QByteArray& event_type, void *event_msg, long* event_result ) Q_DECL_OVERRIDE
+  virtual bool nativeEventFilter( const QByteArray& event_type, void *event_msg, qintptr* event_result ) Q_DECL_OVERRIDE
   {
     if( event_type == "windows_generic_MSG" )
     {

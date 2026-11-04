@@ -79,6 +79,7 @@
 #endif
 #ifdef Q_OS_WIN
   #include <Windows.h>
+  #include <QOperatingSystemVersion>
 #endif
 
 
@@ -3438,7 +3439,9 @@ void GuiMain::checkAutoStartOnBoot( bool add_service )
     {
       QString alert_message = tr( "Now %1 will start on windows boot." ).arg( Settings::instance().programName() );
 #ifdef Q_OS_WIN
-      if( QSysInfo::windowsVersion() >= QSysInfo::WV_WINDOWS8_1 )
+      // QSysInfo::windowsVersion() was removed in Qt 6: QOperatingSystemVersion
+      // is the replacement (and works on Qt 5.9+ too).
+      if( QOperatingSystemVersion::current() >= QOperatingSystemVersion::Windows8_1 )
         alert_message += QString( "\n%1" ).arg( "Note: you have to disable the alert window for unsigned software." );
 #endif
       QMessageBox::information( this, Settings::instance().programName(), alert_message );
