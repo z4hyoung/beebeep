@@ -20,8 +20,9 @@
 #include "StreamDevice.h"
 #include <QtBluetooth/QBluetoothAddress>
 #include <QtBluetooth/QBluetoothUuid>
-
-class QBluetoothSocket;
+// the non-Win slot signature uses QBluetoothSocket::SocketError by value,
+// which needs the complete type (the Windows branch replaced this include)
+#include <QtBluetooth/QBluetoothSocket>
 
 #if defined( Q_OS_WIN )
   #include "BtWinWorker.h"

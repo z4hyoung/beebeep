@@ -1,0 +1,333 @@
+2026-11-04 22:04:56,452 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_x86_64/Updates.xml.sha256
+2026-11-04 22:04:57,909 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_x86_64/Updates.xml.sha256
+2026-11-04 22:04:59,178 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_x86_64/Updates.xml.sha256
+2026-11-04 22:05:00,410 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_x86_64/Updates.xml.sha256
+2026-11-04 22:05:01,669 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_x86_64/Updates.xml.sha256
+2026-11-04 22:05:02,944 - aqt.metadata - DEBUG - metadata 8404197760 Failed to download checksum for the file 'Updates.xml' from mirrors '['https://download.qt.io']
+2026-11-04 22:05:02,945 - aqt.metadata - DEBUG - metadata 8404197760 Failed to retrieve arches list with extension `x86_64`. Please check that this extension exists for this version of Qt: if not, code changes will be necessary.
+2026-11-04 22:05:02,945 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_x86/Updates.xml.sha256
+2026-11-04 22:05:04,236 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_x86/Updates.xml.sha256
+2026-11-04 22:05:06,506 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_x86/Updates.xml.sha256
+2026-11-04 22:05:07,733 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_x86/Updates.xml.sha256
+2026-11-04 22:05:08,995 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_x86/Updates.xml.sha256
+2026-11-04 22:05:10,907 - aqt.metadata - DEBUG - metadata 8404197760 Failed to download checksum for the file 'Updates.xml' from mirrors '['https://download.qt.io']
+2026-11-04 22:05:10,907 - aqt.metadata - DEBUG - metadata 8404197760 Failed to retrieve arches list with extension `x86`. Please check that this extension exists for this version of Qt: if not, code changes will be necessary.
+2026-11-04 22:05:10,907 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:05:12,132 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:05:14,478 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:05:15,830 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:05:17,058 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:05:18,527 - aqt.metadata - DEBUG - metadata 8404197760 Failed to download checksum for the file 'Updates.xml' from mirrors '['https://download.qt.io']
+2026-11-04 22:05:18,527 - aqt.metadata - DEBUG - metadata 8404197760 Failed to retrieve arches list with extension `arm64_v8a`. Please check that this extension exists for this version of Qt: if not, code changes will be necessary.
+2026-11-04 22:05:18,528 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_armv7/Updates.xml.sha256
+2026-11-04 22:05:19,796 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_armv7/Updates.xml.sha256
+2026-11-04 22:05:21,003 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_armv7/Updates.xml.sha256
+2026-11-04 22:05:22,252 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_armv7/Updates.xml.sha256
+2026-11-04 22:05:23,528 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_armv7/Updates.xml.sha256
+2026-11-04 22:05:24,800 - aqt.metadata - DEBUG - metadata 8404197760 Failed to download checksum for the file 'Updates.xml' from mirrors '['https://download.qt.io']
+2026-11-04 22:05:24,800 - aqt.metadata - DEBUG - metadata 8404197760 Failed to retrieve arches list with extension `armv7`. Please check that this extension exists for this version of Qt: if not, code changes will be necessary.
+2026-11-04 22:05:24,800 - aqt.main - ERROR - installer 8404197760 No architectures available for this request.
+==============================Suggested follow-up:==============================
+* Please use 'aqt list-qt mac android' to show versions of Qt available.
+2026-11-04 22:05:25,098 - aqt.main - INFO - installer 8404197760 aqtinstall(aqt) v3.3.0 on Python 3.14.5 [CPython Clang 17.0.0 (clang-1700.6.4.2)]
+2026-11-04 22:05:25,099 - aqt.main - WARNING - installer 8404197760 You are installing the android version of Qt, which requires that the desktop version of Qt is also installed. You can install it with the following command:
+          `aqt install-qt mac desktop 6.8.3 clang_64`
+2026-11-04 22:05:25,099 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:05:27,663 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:05:28,921 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:05:30,127 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:05:31,378 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:05:32,616 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:05:33,864 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:05:35,124 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:05:36,372 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:05:38,317 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:05:39,563 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:05:41,328 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_arm64_v8a/qt.qt6.683.android_arm64_v8a/6.8.3-0-202503201334qtsvg-MacOS-MacOS_13-Clang-Android-Android_ANY-ARM64.7z.sha256
+2026-11-04 22:05:41,328 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_arm64_v8a/qt.qt6.683.android_arm64_v8a/6.8.3-0-202503201334qtdeclarative-MacOS-MacOS_13-Clang-Android-Android_ANY-ARM64.7z.sha256
+2026-11-04 22:05:41,328 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_arm64_v8a/qt.qt6.683.android_arm64_v8a/6.8.3-0-202503201334qtbase-MacOS-MacOS_13-Clang-Android-Android_ANY-ARM64.7z.sha256
+2026-11-04 22:05:41,328 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_arm64_v8a/qt.qt6.683.android_arm64_v8a/6.8.3-0-202503201334qttools-MacOS-MacOS_13-Clang-Android-Android_ANY-ARM64.7z.sha256
+2026-11-04 22:05:42,543 - aqt.helper - INFO - helper 8404197760 Downloading qtdeclarative...
+2026-11-04 22:05:42,545 - aqt.installer - DEBUG - installer 8404197760 Download URL: https://download.qt.io/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_arm64_v8a/qt.qt6.683.android_arm64_v8a/6.8.3-0-202503201334qtdeclarative-MacOS-MacOS_13-Clang-Android-Android_ANY-ARM64.7z
+2026-11-04 22:05:42,561 - aqt.helper - INFO - helper 8404197760 Downloading qtbase...
+2026-11-04 22:05:42,561 - aqt.installer - DEBUG - installer 8404197760 Download URL: https://download.qt.io/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_arm64_v8a/qt.qt6.683.android_arm64_v8a/6.8.3-0-202503201334qtbase-MacOS-MacOS_13-Clang-Android-Android_ANY-ARM64.7z
+2026-11-04 22:05:42,712 - aqt.helper - INFO - helper 8404197760 Downloading qttools...
+2026-11-04 22:05:42,713 - aqt.installer - DEBUG - installer 8404197760 Download URL: https://download.qt.io/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_arm64_v8a/qt.qt6.683.android_arm64_v8a/6.8.3-0-202503201334qttools-MacOS-MacOS_13-Clang-Android-Android_ANY-ARM64.7z
+2026-11-04 22:05:42,774 - aqt.helper - INFO - helper 8404197760 Downloading qtsvg...
+2026-11-04 22:05:42,774 - aqt.installer - DEBUG - installer 8404197760 Download URL: https://download.qt.io/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_arm64_v8a/qt.qt6.683.android_arm64_v8a/6.8.3-0-202503201334qtsvg-MacOS-MacOS_13-Clang-Android-Android_ANY-ARM64.7z
+2026-11-04 22:05:43,763 - aqt.helper - DEBUG - helper 8404197760 Asked to redirect(302) to: https://qt.mirror.constant.com/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_arm64_v8a/qt.qt6.683.android_arm64_v8a/6.8.3-0-202503201334qtdeclarative-MacOS-MacOS_13-Clang-Android-Android_ANY-ARM64.7z
+2026-11-04 22:05:43,764 - aqt.helper - INFO - helper 8404197760 Redirected: qt.mirror.constant.com
+2026-11-04 22:05:43,891 - aqt.helper - DEBUG - helper 8404197760 Asked to redirect(302) to: https://qt.mirror.constant.com/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_arm64_v8a/qt.qt6.683.android_arm64_v8a/6.8.3-0-202503201334qtbase-MacOS-MacOS_13-Clang-Android-Android_ANY-ARM64.7z
+2026-11-04 22:05:43,891 - aqt.helper - INFO - helper 8404197760 Redirected: qt.mirror.constant.com
+2026-11-04 22:05:43,959 - aqt.helper - DEBUG - helper 8404197760 Asked to redirect(302) to: https://qt.mirror.constant.com/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_arm64_v8a/qt.qt6.683.android_arm64_v8a/6.8.3-0-202503201334qttools-MacOS-MacOS_13-Clang-Android-Android_ANY-ARM64.7z
+2026-11-04 22:05:43,960 - aqt.helper - INFO - helper 8404197760 Redirected: qt.mirror.constant.com
+2026-11-04 22:05:44,037 - aqt.helper - DEBUG - helper 8404197760 Asked to redirect(302) to: https://qt.mirror.constant.com/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_arm64_v8a/qt.qt6.683.android_arm64_v8a/6.8.3-0-202503201334qtsvg-MacOS-MacOS_13-Clang-Android-Android_ANY-ARM64.7z
+2026-11-04 22:05:44,037 - aqt.helper - INFO - helper 8404197760 Redirected: qt.mirror.constant.com
+2026-11-04 22:05:47,203 - aqt.installer - INFO - installer 8404197760 Finished installation of qtsvg-MacOS-MacOS_13-Clang-Android-Android_ANY-ARM64.7z in 5.87775471
+2026-11-04 22:05:47,213 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_arm64_v8a/qt.qt6.683.android_arm64_v8a/6.8.3-0-202503201334qttranslations-MacOS-MacOS_13-Clang-Android-Android_ANY-ARM64.7z.sha256
+2026-11-04 22:05:48,947 - aqt.helper - INFO - helper 8404197760 Downloading qttranslations...
+2026-11-04 22:05:48,947 - aqt.installer - DEBUG - installer 8404197760 Download URL: https://download.qt.io/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_arm64_v8a/qt.qt6.683.android_arm64_v8a/6.8.3-0-202503201334qttranslations-MacOS-MacOS_13-Clang-Android-Android_ANY-ARM64.7z
+2026-11-04 22:05:50,880 - aqt.helper - DEBUG - helper 8404197760 Asked to redirect(302) to: https://qt.mirror.constant.com/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_arm64_v8a/qt.qt6.683.android_arm64_v8a/6.8.3-0-202503201334qttranslations-MacOS-MacOS_13-Clang-Android-Android_ANY-ARM64.7z
+2026-11-04 22:05:50,880 - aqt.helper - INFO - helper 8404197760 Redirected: qt.mirror.constant.com
+2026-11-04 22:05:57,105 - aqt.installer - INFO - installer 8404197760 Finished installation of qttranslations-MacOS-MacOS_13-Clang-Android-Android_ANY-ARM64.7z in 9.89378917
+2026-11-04 22:06:01,763 - aqt.installer - INFO - installer 8404197760 Finished installation of qttools-MacOS-MacOS_13-Clang-Android-Android_ANY-ARM64.7z in 20.43712967
+2026-11-04 22:06:17,676 - aqt.installer - INFO - installer 8404197760 Finished installation of qtbase-MacOS-MacOS_13-Clang-Android-Android_ANY-ARM64.7z in 36.35000812
+2026-11-04 22:06:19,231 - aqt.installer - INFO - installer 8404197760 Finished installation of qtdeclarative-MacOS-MacOS_13-Clang-Android-Android_ANY-ARM64.7z in 37.90476508
+2026-11-04 22:06:19,339 - aqt.updater - INFO - updater 8404197760 Patching /Users/yonghu/Android/Qt/6.8.3/android_arm64_v8a/bin/qmake
+2026-11-04 22:06:19,340 - aqt.updater - INFO - updater 8404197760 Patching /Users/yonghu/Android/Qt/6.8.3/android_arm64_v8a/bin/qtpaths
+2026-11-04 22:06:19,340 - aqt.updater - INFO - updater 8404197760 Patching /Users/yonghu/Android/Qt/6.8.3/android_arm64_v8a/bin/qmake6
+2026-11-04 22:06:19,341 - aqt.updater - INFO - updater 8404197760 Patching /Users/yonghu/Android/Qt/6.8.3/android_arm64_v8a/bin/qtpaths6
+2026-11-04 22:06:19,341 - aqt.updater - INFO - updater 8404197760 Patching /Users/yonghu/Android/Qt/6.8.3/android_arm64_v8a/bin/target_qt.conf
+2026-11-04 22:06:19,342 - aqt.main - INFO - installer 8404197760 Finished installation
+2026-11-04 22:06:19,342 - aqt.main - INFO - installer 8404197760 Time elapsed: 54.24402921 second
+2026-11-04 22:06:19,629 - aqt.main - INFO - installer 8404197760 aqtinstall(aqt) v3.3.0 on Python 3.14.5 [CPython Clang 17.0.0 (clang-1700.6.4.2)]
+2026-11-04 22:06:19,629 - aqt.main - WARNING - installer 8404197760 You are installing the android version of Qt, which requires that the desktop version of Qt is also installed. You can install it with the following command:
+          `aqt install-qt mac desktop 6.8.3 clang_64`
+2026-11-04 22:06:19,629 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_x86_64/Updates.xml.sha256
+2026-11-04 22:06:22,275 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:06:23,526 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:06:24,789 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:06:26,028 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:06:27,287 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:06:28,545 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:06:29,840 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:06:31,102 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:06:32,352 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:06:33,586 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:06:35,307 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_x86_64/qt.qt6.683.android_x86_64/6.8.3-0-202503201334qtbase-Linux-RHEL_8_10-Clang-Android-Android_ANY-X86_64.7z.sha256
+2026-11-04 22:06:35,307 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_x86_64/qt.qt6.683.android_x86_64/6.8.3-0-202503201334qtsvg-Linux-RHEL_8_10-Clang-Android-Android_ANY-X86_64.7z.sha256
+2026-11-04 22:06:35,307 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_x86_64/qt.qt6.683.android_x86_64/6.8.3-0-202503201334qtdeclarative-Linux-RHEL_8_10-Clang-Android-Android_ANY-X86_64.7z.sha256
+2026-11-04 22:06:35,307 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_x86_64/qt.qt6.683.android_x86_64/6.8.3-0-202503201334qttools-Linux-RHEL_8_10-Clang-Android-Android_ANY-X86_64.7z.sha256
+2026-11-04 22:06:36,534 - aqt.helper - INFO - helper 8404197760 Downloading qtsvg...
+2026-11-04 22:06:36,534 - aqt.installer - DEBUG - installer 8404197760 Download URL: https://download.qt.io/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_x86_64/qt.qt6.683.android_x86_64/6.8.3-0-202503201334qtsvg-Linux-RHEL_8_10-Clang-Android-Android_ANY-X86_64.7z
+2026-11-04 22:06:36,557 - aqt.helper - INFO - helper 8404197760 Downloading qtdeclarative...
+2026-11-04 22:06:36,557 - aqt.installer - DEBUG - installer 8404197760 Download URL: https://download.qt.io/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_x86_64/qt.qt6.683.android_x86_64/6.8.3-0-202503201334qtdeclarative-Linux-RHEL_8_10-Clang-Android-Android_ANY-X86_64.7z
+2026-11-04 22:06:36,581 - aqt.helper - INFO - helper 8404197760 Downloading qttools...
+2026-11-04 22:06:36,582 - aqt.installer - DEBUG - installer 8404197760 Download URL: https://download.qt.io/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_x86_64/qt.qt6.683.android_x86_64/6.8.3-0-202503201334qttools-Linux-RHEL_8_10-Clang-Android-Android_ANY-X86_64.7z
+2026-11-04 22:06:36,725 - aqt.helper - INFO - helper 8404197760 Downloading qtbase...
+2026-11-04 22:06:36,725 - aqt.installer - DEBUG - installer 8404197760 Download URL: https://download.qt.io/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_x86_64/qt.qt6.683.android_x86_64/6.8.3-0-202503201334qtbase-Linux-RHEL_8_10-Clang-Android-Android_ANY-X86_64.7z
+2026-11-04 22:06:37,716 - aqt.helper - DEBUG - helper 8404197760 Asked to redirect(302) to: https://qt.mirror.constant.com/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_x86_64/qt.qt6.683.android_x86_64/6.8.3-0-202503201334qtsvg-Linux-RHEL_8_10-Clang-Android-Android_ANY-X86_64.7z
+2026-11-04 22:06:37,716 - aqt.helper - INFO - helper 8404197760 Redirected: qt.mirror.constant.com
+2026-11-04 22:06:37,724 - aqt.helper - DEBUG - helper 8404197760 Asked to redirect(302) to: https://qt.mirror.constant.com/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_x86_64/qt.qt6.683.android_x86_64/6.8.3-0-202503201334qtdeclarative-Linux-RHEL_8_10-Clang-Android-Android_ANY-X86_64.7z
+2026-11-04 22:06:37,724 - aqt.helper - INFO - helper 8404197760 Redirected: qt.mirror.constant.com
+2026-11-04 22:06:37,927 - aqt.helper - DEBUG - helper 8404197760 Asked to redirect(302) to: https://qt.mirror.constant.com/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_x86_64/qt.qt6.683.android_x86_64/6.8.3-0-202503201334qtbase-Linux-RHEL_8_10-Clang-Android-Android_ANY-X86_64.7z
+2026-11-04 22:06:37,927 - aqt.helper - INFO - helper 8404197760 Redirected: qt.mirror.constant.com
+2026-11-04 22:06:38,519 - aqt.helper - DEBUG - helper 8404197760 Asked to redirect(302) to: https://qt.mirror.constant.com/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_x86_64/qt.qt6.683.android_x86_64/6.8.3-0-202503201334qttools-Linux-RHEL_8_10-Clang-Android-Android_ANY-X86_64.7z
+2026-11-04 22:06:38,519 - aqt.helper - INFO - helper 8404197760 Redirected: qt.mirror.constant.com
+2026-11-04 22:06:39,753 - aqt.installer - INFO - installer 8404197760 Finished installation of qtsvg-Linux-RHEL_8_10-Clang-Android-Android_ANY-X86_64.7z in 4.44732275
+2026-11-04 22:06:39,760 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_x86_64/qt.qt6.683.android_x86_64/6.8.3-0-202503201334qttranslations-Linux-RHEL_8_10-Clang-Android-Android_ANY-X86_64.7z.sha256
+2026-11-04 22:06:41,935 - aqt.helper - INFO - helper 8404197760 Downloading qttranslations...
+2026-11-04 22:06:41,935 - aqt.installer - DEBUG - installer 8404197760 Download URL: https://download.qt.io/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_x86_64/qt.qt6.683.android_x86_64/6.8.3-0-202503201334qttranslations-Linux-RHEL_8_10-Clang-Android-Android_ANY-X86_64.7z
+2026-11-04 22:06:43,438 - aqt.helper - DEBUG - helper 8404197760 Asked to redirect(302) to: https://qt.mirror.constant.com/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_x86_64/qt.qt6.683.android_x86_64/6.8.3-0-202503201334qttranslations-Linux-RHEL_8_10-Clang-Android-Android_ANY-X86_64.7z
+2026-11-04 22:06:43,439 - aqt.helper - INFO - helper 8404197760 Redirected: qt.mirror.constant.com
+2026-11-04 22:06:45,248 - aqt.installer - INFO - installer 8404197760 Finished installation of qttools-Linux-RHEL_8_10-Clang-Android-Android_ANY-X86_64.7z in 9.94193275
+2026-11-04 22:06:46,865 - aqt.installer - INFO - installer 8404197760 Finished installation of qttranslations-Linux-RHEL_8_10-Clang-Android-Android_ANY-X86_64.7z in 7.10639146
+2026-11-04 22:07:12,970 - aqt.installer - INFO - installer 8404197760 Finished installation of qtbase-Linux-RHEL_8_10-Clang-Android-Android_ANY-X86_64.7z in 37.66443937
+2026-11-04 22:07:13,634 - aqt.installer - INFO - installer 8404197760 Finished installation of qtdeclarative-Linux-RHEL_8_10-Clang-Android-Android_ANY-X86_64.7z in 38.32778725
+2026-11-04 22:07:13,736 - aqt.updater - INFO - updater 8404197760 Patching /Users/yonghu/Android/Qt/6.8.3/android_x86_64/bin/qmake
+2026-11-04 22:07:13,737 - aqt.updater - INFO - updater 8404197760 Patching /Users/yonghu/Android/Qt/6.8.3/android_x86_64/bin/qtpaths
+2026-11-04 22:07:13,737 - aqt.updater - INFO - updater 8404197760 Patching /Users/yonghu/Android/Qt/6.8.3/android_x86_64/bin/qmake6
+2026-11-04 22:07:13,738 - aqt.updater - INFO - updater 8404197760 Patching /Users/yonghu/Android/Qt/6.8.3/android_x86_64/bin/qtpaths6
+2026-11-04 22:07:13,738 - aqt.updater - INFO - updater 8404197760 Patching /Users/yonghu/Android/Qt/6.8.3/android_x86_64/bin/target_qt.conf
+2026-11-04 22:07:13,739 - aqt.main - INFO - installer 8404197760 Finished installation
+2026-11-04 22:07:13,739 - aqt.main - INFO - installer 8404197760 Time elapsed: 54.11081096 second
+2026-11-04 22:07:50,848 - aqt.main - INFO - installer 8404197760 aqtinstall(aqt) v3.3.0 on Python 3.14.5 [CPython Clang 17.0.0 (clang-1700.6.4.2)]
+2026-11-04 22:07:50,849 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_683/qt6_683/Updates.xml.sha256
+2026-11-04 22:07:53,405 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/extensions/qtwebengine/683/clang_64/Updates.xml.sha256
+2026-11-04 22:07:55,908 - aqt.archives - INFO - archives 8404197760 Found extension qtwebengine
+2026-11-04 22:07:55,909 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/extensions/qtpdf/683/clang_64/Updates.xml.sha256
+2026-11-04 22:07:58,431 - aqt.archives - INFO - archives 8404197760 Found extension qtpdf
+2026-11-04 22:07:58,860 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_683/qt6_683/qt.qt6.683.clang_64/6.8.3-0-202503201723qtbase-MacOS-MacOS_14-Clang-MacOS-MacOS_14-X86_64-ARM64.7z.sha256
+2026-11-04 22:07:58,860 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_683/qt6_683/qt.qt6.683.clang_64/6.8.3-0-202503201723qtdeclarative-MacOS-MacOS_14-Clang-MacOS-MacOS_14-X86_64-ARM64.7z.sha256
+2026-11-04 22:07:58,861 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_683/qt6_683/qt.qt6.683.clang_64/6.8.3-0-202503201723qtsvg-MacOS-MacOS_14-Clang-MacOS-MacOS_14-X86_64-ARM64.7z.sha256
+2026-11-04 22:07:58,865 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_683/qt6_683/qt.qt6.683.clang_64/6.8.3-0-202503201723qttools-MacOS-MacOS_14-Clang-MacOS-MacOS_14-X86_64-ARM64.7z.sha256
+2026-11-04 22:08:00,129 - aqt.helper - INFO - helper 8404197760 Downloading qtsvg...
+2026-11-04 22:08:00,130 - aqt.installer - DEBUG - installer 8404197760 Download URL: https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_683/qt6_683/qt.qt6.683.clang_64/6.8.3-0-202503201723qtsvg-MacOS-MacOS_14-Clang-MacOS-MacOS_14-X86_64-ARM64.7z
+2026-11-04 22:08:00,148 - aqt.helper - INFO - helper 8404197760 Downloading qtbase...
+2026-11-04 22:08:00,149 - aqt.installer - DEBUG - installer 8404197760 Download URL: https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_683/qt6_683/qt.qt6.683.clang_64/6.8.3-0-202503201723qtbase-MacOS-MacOS_14-Clang-MacOS-MacOS_14-X86_64-ARM64.7z
+2026-11-04 22:08:00,348 - aqt.helper - INFO - helper 8404197760 Downloading qttools...
+2026-11-04 22:08:00,348 - aqt.installer - DEBUG - installer 8404197760 Download URL: https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_683/qt6_683/qt.qt6.683.clang_64/6.8.3-0-202503201723qttools-MacOS-MacOS_14-Clang-MacOS-MacOS_14-X86_64-ARM64.7z
+2026-11-04 22:08:01,060 - aqt.helper - INFO - helper 8404197760 Downloading qtdeclarative...
+2026-11-04 22:08:01,061 - aqt.installer - DEBUG - installer 8404197760 Download URL: https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_683/qt6_683/qt.qt6.683.clang_64/6.8.3-0-202503201723qtdeclarative-MacOS-MacOS_14-Clang-MacOS-MacOS_14-X86_64-ARM64.7z
+2026-11-04 22:08:01,384 - aqt.helper - DEBUG - helper 8404197760 Asked to redirect(302) to: https://qt.mirror.constant.com/online/qtsdkrepository/mac_x64/desktop/qt6_683/qt6_683/qt.qt6.683.clang_64/6.8.3-0-202503201723qtsvg-MacOS-MacOS_14-Clang-MacOS-MacOS_14-X86_64-ARM64.7z
+2026-11-04 22:08:01,384 - aqt.helper - INFO - helper 8404197760 Redirected: qt.mirror.constant.com
+2026-11-04 22:08:01,423 - aqt.helper - DEBUG - helper 8404197760 Asked to redirect(302) to: https://qt.mirror.constant.com/online/qtsdkrepository/mac_x64/desktop/qt6_683/qt6_683/qt.qt6.683.clang_64/6.8.3-0-202503201723qtbase-MacOS-MacOS_14-Clang-MacOS-MacOS_14-X86_64-ARM64.7z
+2026-11-04 22:08:01,423 - aqt.helper - INFO - helper 8404197760 Redirected: qt.mirror.constant.com
+2026-11-04 22:08:01,614 - aqt.helper - DEBUG - helper 8404197760 Asked to redirect(302) to: https://qt.mirror.constant.com/online/qtsdkrepository/mac_x64/desktop/qt6_683/qt6_683/qt.qt6.683.clang_64/6.8.3-0-202503201723qttools-MacOS-MacOS_14-Clang-MacOS-MacOS_14-X86_64-ARM64.7z
+2026-11-04 22:08:01,614 - aqt.helper - INFO - helper 8404197760 Redirected: qt.mirror.constant.com
+2026-11-04 22:08:02,331 - aqt.helper - DEBUG - helper 8404197760 Asked to redirect(302) to: https://qt.mirror.constant.com/online/qtsdkrepository/mac_x64/desktop/qt6_683/qt6_683/qt.qt6.683.clang_64/6.8.3-0-202503201723qtdeclarative-MacOS-MacOS_14-Clang-MacOS-MacOS_14-X86_64-ARM64.7z
+2026-11-04 22:08:02,331 - aqt.helper - INFO - helper 8404197760 Redirected: qt.mirror.constant.com
+2026-11-04 22:08:13,391 - aqt.installer - INFO - installer 8404197760 Finished installation of qtsvg-MacOS-MacOS_14-Clang-MacOS-MacOS_14-X86_64-ARM64.7z in 14.53090488
+2026-11-04 22:08:13,398 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_683/qt6_683/qt.qt6.683.clang_64/6.8.3-0-202503201723qttranslations-MacOS-MacOS_14-Clang-MacOS-MacOS_14-X86_64-ARM64.7z.sha256
+2026-11-04 22:08:14,694 - aqt.helper - INFO - helper 8404197760 Downloading qttranslations...
+2026-11-04 22:08:14,694 - aqt.installer - DEBUG - installer 8404197760 Download URL: https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_683/qt6_683/qt.qt6.683.clang_64/6.8.3-0-202503201723qttranslations-MacOS-MacOS_14-Clang-MacOS-MacOS_14-X86_64-ARM64.7z
+2026-11-04 22:08:16,178 - aqt.helper - DEBUG - helper 8404197760 Asked to redirect(302) to: https://qt.mirror.constant.com/online/qtsdkrepository/mac_x64/desktop/qt6_683/qt6_683/qt.qt6.683.clang_64/6.8.3-0-202503201723qttranslations-MacOS-MacOS_14-Clang-MacOS-MacOS_14-X86_64-ARM64.7z
+2026-11-04 22:08:16,179 - aqt.helper - INFO - helper 8404197760 Redirected: qt.mirror.constant.com
+2026-11-04 22:08:22,236 - aqt.installer - INFO - installer 8404197760 Finished installation of qttranslations-MacOS-MacOS_14-Clang-MacOS-MacOS_14-X86_64-ARM64.7z in 8.83891696
+2026-11-04 22:12:03,563 - aqt.installer - INFO - installer 8404197760 Finished installation of qttools-MacOS-MacOS_14-Clang-MacOS-MacOS_14-X86_64-ARM64.7z in 244.70948246
+2026-11-04 22:13:37,854 - aqt.installer - INFO - installer 8404197760 Finished installation of qtbase-MacOS-MacOS_14-Clang-MacOS-MacOS_14-X86_64-ARM64.7z in 339.00644500
+2026-11-04 22:16:55,462 - aqt.installer - INFO - installer 8404197760 Finished installation of qtdeclarative-MacOS-MacOS_14-Clang-MacOS-MacOS_14-X86_64-ARM64.7z in 536.61649708
+2026-11-04 22:16:56,849 - aqt.updater - INFO - updater 8404197760 Patching /Users/yonghu/Android/Qt/6.8.3/macos/bin/qmake
+2026-11-04 22:16:56,857 - aqt.updater - INFO - updater 8404197760 Patching /Users/yonghu/Android/Qt/6.8.3/macos/lib/libQt6QmlLS.prl
+2026-11-04 22:16:56,858 - aqt.updater - INFO - updater 8404197760 Patching /Users/yonghu/Android/Qt/6.8.3/macos/lib/libQt6FbSupport.prl
+2026-11-04 22:16:56,859 - aqt.updater - INFO - updater 8404197760 Patching /Users/yonghu/Android/Qt/6.8.3/macos/lib/libQt6QmlDebug.prl
+2026-11-04 22:16:56,859 - aqt.updater - INFO - updater 8404197760 Patching /Users/yonghu/Android/Qt/6.8.3/macos/lib/libQt6QmlTypeRegistrar.prl
+2026-11-04 22:16:56,859 - aqt.updater - INFO - updater 8404197760 Patching /Users/yonghu/Android/Qt/6.8.3/macos/lib/libQt6QuickTestUtils.prl
+2026-11-04 22:16:56,859 - aqt.updater - INFO - updater 8404197760 Patching /Users/yonghu/Android/Qt/6.8.3/macos/lib/libQt6ExampleIcons.prl
+2026-11-04 22:16:56,859 - aqt.updater - INFO - updater 8404197760 Patching /Users/yonghu/Android/Qt/6.8.3/macos/lib/libQt6QuickControlsTestUtils.prl
+2026-11-04 22:16:56,859 - aqt.updater - INFO - updater 8404197760 Patching /Users/yonghu/Android/Qt/6.8.3/macos/lib/libQt6DeviceDiscoverySupport.prl
+2026-11-04 22:16:56,860 - aqt.updater - INFO - updater 8404197760 Patching /Users/yonghu/Android/Qt/6.8.3/macos/lib/libQt6QmlDom.prl
+2026-11-04 22:16:56,860 - aqt.updater - INFO - updater 8404197760 Patching /Users/yonghu/Android/Qt/6.8.3/macos/lib/libQt6ExamplesAssetDownloader.prl
+2026-11-04 22:16:56,861 - aqt.updater - INFO - updater 8404197760 Patching /Users/yonghu/Android/Qt/6.8.3/macos/lib/libQt6QmlAssetDownloader.prl
+2026-11-04 22:16:56,861 - aqt.updater - INFO - updater 8404197760 Patching /Users/yonghu/Android/Qt/6.8.3/macos/lib/libQt6PacketProtocol.prl
+2026-11-04 22:16:56,861 - aqt.updater - INFO - updater 8404197760 Patching /Users/yonghu/Android/Qt/6.8.3/macos/lib/libQt6QmlToolingSettings.prl
+2026-11-04 22:16:56,862 - aqt.main - INFO - installer 8404197760 Finished installation
+2026-11-04 22:16:56,862 - aqt.main - INFO - installer 8404197760 Time elapsed: 546.02706246 second
+2026-11-04 22:20:35,421 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:20:36,844 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:20:38,178 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:20:39,419 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:20:40,631 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:20:42,457 - aqt.main - ERROR - installer 8404197760 Failed to download checksum for the file 'Updates.xml' from mirrors '['https://download.qt.io']
+==============================Suggested follow-up:==============================
+* Check your internet connection
+* Consider modifying `requests.max_retries_to_retrieve_hash` in settings.ini
+* Consider modifying `mirrors.trusted_mirrors` in settings.ini (see https://aqtinstall.readthedocs.io/en/stable/configuration.html#configuration)
+* Please use 'aqt list-qt mac android' to show versions of Qt available.
+* Please use 'aqt list-qt mac android --arch <QT_VERSION>' to list valid architectures.
+2026-11-04 22:20:42,687 - aqt.main - INFO - installer 8404197760 aqtinstall(aqt) v3.3.0 on Python 3.14.5 [CPython Clang 17.0.0 (clang-1700.6.4.2)]
+2026-11-04 22:20:42,687 - aqt.main - INFO - installer 8404197760 Found installed mac-desktop Qt at /Users/yonghu/Android/Qt/6.8.3/macos
+2026-11-04 22:20:42,687 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:20:45,447 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:20:46,728 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:20:48,106 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:20:49,316 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:20:50,675 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:20:52,097 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:20:53,353 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:20:54,642 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:20:56,080 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:20:57,423 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:20:58,658 - aqt.main - ERROR - installer 8404197760 The packages ['connectivity'] were not found while parsing XML of package information!
+==============================Suggested follow-up:==============================
+* Please use 'aqt list-qt mac android --modules 6.8.3 <arch>' to show modules available.
+2026-11-04 22:20:58,933 - aqt.main - INFO - installer 8404197760 aqtinstall(aqt) v3.3.0 on Python 3.14.5 [CPython Clang 17.0.0 (clang-1700.6.4.2)]
+2026-11-04 22:20:58,933 - aqt.main - INFO - installer 8404197760 Found installed mac-desktop Qt at /Users/yonghu/Android/Qt/6.8.3/macos
+2026-11-04 22:20:58,933 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_x86_64/Updates.xml.sha256
+2026-11-04 22:21:02,444 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:21:03,622 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:21:04,795 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:21:06,128 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:21:07,457 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:21:08,793 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:21:10,120 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:21:11,456 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:21:12,653 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:21:13,913 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:21:15,149 - aqt.main - ERROR - installer 8404197760 The packages ['connectivity'] were not found while parsing XML of package information!
+==============================Suggested follow-up:==============================
+* Please use 'aqt list-qt mac android --modules 6.8.3 <arch>' to show modules available.
+2026-11-04 22:21:23,699 - aqt.main - INFO - installer 8404197760 aqtinstall(aqt) v3.3.0 on Python 3.14.5 [CPython Clang 17.0.0 (clang-1700.6.4.2)]
+2026-11-04 22:21:23,699 - aqt.main - INFO - installer 8404197760 Found installed mac-desktop Qt at /Users/yonghu/Android/Qt/6.8.3/macos
+2026-11-04 22:21:23,699 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:21:25,446 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:21:26,625 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:21:27,838 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:21:29,069 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:21:30,347 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:21:31,633 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:21:32,956 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:21:34,187 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:21:35,372 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:21:36,638 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:21:37,979 - aqt.main - ERROR - installer 8404197760 The packages ['connectivity'] were not found while parsing XML of package information!
+==============================Suggested follow-up:==============================
+* Please use 'aqt list-qt mac android --modules 6.8.3 <arch>' to show modules available.
+2026-11-04 22:21:38,206 - aqt.main - INFO - installer 8404197760 aqtinstall(aqt) v3.3.0 on Python 3.14.5 [CPython Clang 17.0.0 (clang-1700.6.4.2)]
+2026-11-04 22:21:38,206 - aqt.main - INFO - installer 8404197760 Found installed mac-desktop Qt at /Users/yonghu/Android/Qt/6.8.3/macos
+2026-11-04 22:21:38,206 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/android/qt6_683/qt6_683_x86_64/Updates.xml.sha256
+2026-11-04 22:21:39,669 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:21:40,956 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:21:42,277 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:21:43,432 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:21:44,698 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:22:07,798 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:22:09,105 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:22:10,336 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:22:12,279 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:22:13,715 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtpdf/683/android_x86_64/Updates.xml.sha256
+2026-11-04 22:22:14,951 - aqt.main - ERROR - installer 8404197760 The packages ['connectivity'] were not found while parsing XML of package information!
+==============================Suggested follow-up:==============================
+* Please use 'aqt list-qt mac android --modules 6.8.3 <arch>' to show modules available.
+2026-11-04 22:22:32,029 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:22:33,415 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:22:34,604 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:22:35,825 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:22:37,058 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:22:38,493 - aqt.main - ERROR - installer 8404197760 Failed to download checksum for the file 'Updates.xml' from mirrors '['https://download.qt.io']
+==============================Suggested follow-up:==============================
+* Check your internet connection
+* Consider modifying `requests.max_retries_to_retrieve_hash` in settings.ini
+* Consider modifying `mirrors.trusted_mirrors` in settings.ini (see https://aqtinstall.readthedocs.io/en/stable/configuration.html#configuration)
+* Please use 'aqt list-qt mac android' to show versions of Qt available.
+* Please use 'aqt list-qt mac android --arch <QT_VERSION>' to list valid architectures.
+2026-11-04 22:23:37,370 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:23:38,989 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:23:40,155 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:23:41,470 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:23:42,802 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:23:44,139 - aqt.main - ERROR - installer 8404197760 Failed to download checksum for the file 'Updates.xml' from mirrors '['https://download.qt.io']
+==============================Suggested follow-up:==============================
+* Check your internet connection
+* Consider modifying `requests.max_retries_to_retrieve_hash` in settings.ini
+* Consider modifying `mirrors.trusted_mirrors` in settings.ini (see https://aqtinstall.readthedocs.io/en/stable/configuration.html#configuration)
+* Please use 'aqt list-qt mac android' to show versions of Qt available.
+* Please use 'aqt list-qt mac android --arch <QT_VERSION>' to list valid architectures.
+2026-11-04 22:23:50,405 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:23:51,917 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:23:53,151 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:23:54,476 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:23:55,908 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:23:57,151 - aqt.main - ERROR - installer 8404197760 Failed to download checksum for the file 'Updates.xml' from mirrors '['https://download.qt.io']
+==============================Suggested follow-up:==============================
+* Check your internet connection
+* Consider modifying `requests.max_retries_to_retrieve_hash` in settings.ini
+* Consider modifying `mirrors.trusted_mirrors` in settings.ini (see https://aqtinstall.readthedocs.io/en/stable/configuration.html#configuration)
+* Please use 'aqt list-qt mac android' to show versions of Qt available.
+* Please use 'aqt list-qt mac android --arch <QT_VERSION>' to list valid architectures.
+2026-11-04 22:24:03,414 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:24:04,721 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:24:06,249 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:24:07,615 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:24:08,915 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:24:10,196 - aqt.main - ERROR - installer 8404197760 Failed to download checksum for the file 'Updates.xml' from mirrors '['https://download.qt.io']
+==============================Suggested follow-up:==============================
+* Check your internet connection
+* Consider modifying `requests.max_retries_to_retrieve_hash` in settings.ini
+* Consider modifying `mirrors.trusted_mirrors` in settings.ini (see https://aqtinstall.readthedocs.io/en/stable/configuration.html#configuration)
+* Please use 'aqt list-qt mac android' to show versions of Qt available.
+* Please use 'aqt list-qt mac android --arch <QT_VERSION>' to list valid architectures.
+2026-11-04 22:24:16,443 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:24:17,719 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:24:18,951 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:24:20,279 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:24:21,519 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:24:23,444 - aqt.main - ERROR - installer 8404197760 Failed to download checksum for the file 'Updates.xml' from mirrors '['https://download.qt.io']
+==============================Suggested follow-up:==============================
+* Check your internet connection
+* Consider modifying `requests.max_retries_to_retrieve_hash` in settings.ini
+* Consider modifying `mirrors.trusted_mirrors` in settings.ini (see https://aqtinstall.readthedocs.io/en/stable/configuration.html#configuration)
+* Please use 'aqt list-qt mac android' to show versions of Qt available.
+* Please use 'aqt list-qt mac android --arch <QT_VERSION>' to list valid architectures.
+2026-11-04 22:24:29,716 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:24:31,043 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:24:32,256 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:24:33,603 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:24:34,777 - aqt.helper - DEBUG - helper 8404197760 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/mac_x64/android/qt6_683/qt6_683_arm64_v8a/Updates.xml.sha256
+2026-11-04 22:24:36,265 - aqt.main - ERROR - installer 8404197760 Failed to download checksum for the file 'Updates.xml' from mirrors '['https://download.qt.io']
+==============================Suggested follow-up:==============================
+* Check your internet connection
+* Consider modifying `requests.max_retries_to_retrieve_hash` in settings.ini
+* Consider modifying `mirrors.trusted_mirrors` in settings.ini (see https://aqtinstall.readthedocs.io/en/stable/configuration.html#configuration)
+* Please use 'aqt list-qt mac android' to show versions of Qt available.
+* Please use 'aqt list-qt mac android --arch <QT_VERSION>' to list valid architectures.
