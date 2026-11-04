@@ -6,6 +6,8 @@ HEADERS += desktop/BeeApplication.h \
   desktop/GuiAddUser.h \
   desktop/GuiAskPassword.h \
   desktop/GuiChat.h \
+  desktop/ChatMessageDelegate.h \
+  desktop/ChatMessageModel.h \
   desktop/GuiChatItem.h \
   desktop/GuiChatList.h \
   desktop/GuiChatMessage.h \
@@ -57,6 +59,8 @@ SOURCES +=  desktop/BeeApplication.cpp \
   desktop/GuiAddUser.cpp \
   desktop/GuiAskPassword.cpp \
   desktop/GuiChat.cpp \
+  desktop/ChatMessageDelegate.cpp \
+  desktop/ChatMessageModel.cpp \
   desktop/GuiChatItem.cpp \
   desktop/GuiChatList.cpp \
   desktop/GuiChatMessage.cpp \

@@ -10,5 +10,6 @@
         <file>file-doc.svg</file>
         <file>file-image.svg</file>
         <file>file-archive.svg</file>
+        <file>markdown.svg</file>
     </qresource>
 </RCC>

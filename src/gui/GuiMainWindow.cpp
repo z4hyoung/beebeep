@@ -291,6 +291,16 @@ void GuiMainWindow::demoChatInputDraft( VNumber chat_id, const QString& draft, V
   refreshChatList( true );
 }
 
+void GuiMainWindow::demoChatMarkdownTexts( VNumber chat_id, const QStringList& raw_texts )
+{
+  // YongBEEP S4e (--demo-chat): create the chat widget up front and
+  // register the raw markdown texts so the matching local-user demo
+  // messages render with setMarkdown when the chat is shown later.
+  GuiChat* gui_chat = chatWidget( chat_id, true );
+  if( gui_chat )
+    gui_chat->registerDemoMarkdownTexts( raw_texts );
+}
+
 
 void GuiMainWindow::showChat( VNumber chat_id )
 {

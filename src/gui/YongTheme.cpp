@@ -46,7 +46,7 @@ int YongTheme::fontAuxPx()         { return 12; }
 int YongTheme::fontTimestampPx()   { return 11; }
 int YongTheme::avatarSizePx()      { return 40; }
 qreal YongTheme::avatarRadiusPx()  { return 6.0; }
-qreal YongTheme::bubbleRadiusPx()  { return 4.0; }
+qreal YongTheme::bubbleRadiusPx()  { return 8.0; }
 qreal YongTheme::buttonRadiusPx()  { return 4.0; }
 int YongTheme::toolbarIconPx()     { return 20; }
 
@@ -120,7 +120,8 @@ QString YongTheme::mainWindowQss()
     "#GuiChatInputLine { background: %2; border: none; }"
     "#GuiChatInputToolbar { background: %1; }"
     "#GuiMessageEdit { border: none; background: %1; color: %4; font-size: 14px; }"
-    "#GuiChatEmoticonsButton, #GuiChatAttachButton { border: none; background: transparent; }"
+    "#GuiChatEmoticonsButton, #GuiChatAttachButton, #GuiChatMarkdownButton { border: none; background: transparent; }"
+    "#GuiChatMarkdownButton:checked { background: %3; border-radius: 4px; }"
 
     // ---- send button: brand green capsule, gray when input is empty ----
     "#GuiChatSendButton {"

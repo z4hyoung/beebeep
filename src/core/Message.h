@@ -36,7 +36,9 @@ public:
               FileChunk, NumTypes };
   enum Flag { Private, UserWriting, UserStatus, Create /* it was UserName in 3.0.9 */, UserVCard,
               Refused, List, Request, GroupChat, Delete, Auto, Important, VoiceMessage,
-              EncryptionDisabled, Compressed, Delayed, SourceCode, InlineFile, NumFlags };
+              EncryptionDisabled, Compressed, Delayed, SourceCode, InlineFile,
+              Markdown /* YongBEEP: message text is Markdown, rendered with QTextDocument::setMarkdown */,
+              NumFlags };
 
   Message();
   Message( const Message& );
@@ -65,6 +67,8 @@ public:
   inline bool isDelayed() const;
   inline void setSourceCode();
   inline bool isSourceCode() const;
+  inline void setMarkdown();
+  inline bool isMarkdown() const;
 
 private:
   Type m_type;
@@ -99,5 +103,7 @@ inline void Message::setDelayed() { addFlag( Message::Delayed ); }
 inline bool Message::isDelayed() const { return hasFlag( Message::Delayed ); }
 inline void Message::setSourceCode() { addFlag( Message::SourceCode ); }
 inline bool Message::isSourceCode() const { return hasFlag( Message::SourceCode ); }
+inline void Message::setMarkdown() { addFlag( Message::Markdown ); }
+inline bool Message::isMarkdown() const { return hasFlag( Message::Markdown ); }
 
 #endif // BEEBEEP_MESSAGE_H

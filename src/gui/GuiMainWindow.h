@@ -47,6 +47,10 @@ public:
   // draft (active input/green send button) and put an unread badge on
   // unread_chat_id so screenshots are deterministic.
   void demoChatInputDraft( VNumber chat_id, const QString& draft, VNumber unread_chat_id = ID_INVALID, int unread_count = 0 );
+  // YongBEEP S4e debug hook (--demo-chat): register raw markdown texts so
+  // the matching demo messages render with setMarkdown (ChatMessageModel).
+  // Must be called before the chat is shown (it creates the chat widget).
+  void demoChatMarkdownTexts( VNumber chat_id, const QStringList& raw_texts );
 
 public slots:
   void loadSession();

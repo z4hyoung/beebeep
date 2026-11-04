@@ -349,9 +349,24 @@ int main( int argc, char *argv[] )
       demo_private_messages.append( qMakePair( demo_phone.id(), QStringLiteral( "这份是最终版吗？" ) ) );
       demo_private_messages.append( qMakePair( ID_LOCAL_USER, QStringLiteral( "对，发你了，看下" ) ) );
       demo_private_messages.append( qMakePair( demo_phone.id(), QStringLiteral( "好的，收到了 👍" ) ) );
+      // S4e: wrapped 3-line peer message - verifies the QPainter rounded
+      // bubble and the shrink-to-fit width (right edge stays on one line)
+      demo_private_messages.append( qMakePair( demo_phone.id(), QStringLiteral(
+        "这条消息有三行，用来验证自绘气泡的圆角与按内容收缩的宽度，第一行先铺开一些文字。"
+        "第二行继续补充说明，确保换行以后气泡右缘仍然在同一条直线上面。"
+        "第三行收尾，气泡宽度应该明显小于聊天区宽度的百分之六十二。" ) ) );
+      // S4e: markdown demo message (**bold**, - list, `code`) from the
+      // local user - rendered via QTextDocument::setMarkdown
+      const QString demo_markdown_text = QStringLiteral(
+        "**本周进展**\n- 消息列表切换为 QListView 自绘\n- 圆角气泡与收缩宽度完成\n构建命令 `make -j8` 通过" );
+      demo_private_messages.append( qMakePair( ID_LOCAL_USER, demo_markdown_text ) );
       for( int demo_i = 0; demo_i < demo_private_messages.size(); demo_i++ )
       {
         Message pm( Message::Chat, demo_private_messages.at( demo_i ).first, demo_private_messages.at( demo_i ).second );
+        // S4e: backdate the first messages so the WeChat 5-minute separator
+        // logic shows a visible centered timestamp above the long message
+        if( demo_i <= 2 )
+          pm.setTimestamp( QDateTime::currentDateTime().addSecs( -900 ) );
         demo_private_chat.addMessage( ChatMessage( demo_private_messages.at( demo_i ).first, pm, ChatMessage::Chat, false ) );
       }
       // Outgoing file message in the 1:1 chat (WeChat file card, S4c)
@@ -360,6 +375,9 @@ int main( int argc, char *argv[] )
       demo_private_chat.addMessage( ChatMessage( ID_SYSTEM_MESSAGE, demo_own_file_m, ChatMessage::FileTransfer, false ) );
       demo_private_chat.setLastMessageTimestamp( QDateTime::currentDateTime() );
       ChatManager::instance().setChat( demo_private_chat );
+      // Register the raw markdown text BEFORE any chat is shown, so the
+      // demo markdown message is matched and rendered with setMarkdown
+      mw.demoChatMarkdownTexts( 990002, QStringList() << demo_markdown_text );
 
       QMetaObject::invokeMethod( &mw, "loadSession", Qt::QueuedConnection );
       // After loadSession selects a chat: force-select the 1:1 demo chat,

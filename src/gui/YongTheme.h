@@ -47,7 +47,7 @@ public:
   static int fontTimestampPx();         // 11
   static int avatarSizePx();            // 40 (rounded-rect, not a circle!)
   static qreal avatarRadiusPx();        // 6
-  static qreal bubbleRadiusPx();        // 4
+  static qreal bubbleRadiusPx();        // 8 (S4e: QPainter-drawn message bubble corner radius)
   static qreal buttonRadiusPx();        // 4
   static int toolbarIconPx();           // 20
 

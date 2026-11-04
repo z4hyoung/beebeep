@@ -24,6 +24,8 @@
 #include "BeeUtils.h"
 #include "ChatManager.h"
 #include "ChatMessage.h"
+#include "ChatMessageDelegate.h"
+#include "ChatMessageModel.h"
 #include "Core.h"
 #include "FileDialog.h"
 #include "GuiChat.h"
@@ -41,6 +43,8 @@
   #include "SpellChecker.h"
 #endif
 #include "UserManager.h"
+#include <QListView>
+#include <QScrollBar>
 
 
 GuiChat::GuiChat( QWidget *parent )
@@ -53,8 +57,14 @@ GuiChat::GuiChat( QWidget *parent )
   mp_inputToolbar = Q_NULLPTR;
   mp_tbEmoticons = Q_NULLPTR;
   mp_tbAttach = Q_NULLPTR;
+  mp_tbMarkdown = Q_NULLPTR;
   mp_emoticonsPopup = Q_NULLPTR;
   mp_emoticonsWidget = Q_NULLPTR;
+
+  // YongBEEP S4e (chatview-v2): QListView + delegate replaces the
+  // QTextBrowser+HTML rendering (true rounded bubbles, shrink-to-fit
+  // width, markdown)
+  setupMessageList();
 
 #ifdef BEEBEEP_USE_VOICE_CHAT
   mp_guiVoicePlayer = new GuiVoicePlayer( mp_frameVoicePlayer );
@@ -110,20 +120,6 @@ GuiChat::GuiChat( QWidget *parent )
 #endif
   mp_teMessage->setObjectName( "GuiMessageEdit" );
 
-  mp_teChat->setObjectName( "GuiChatViewer" );
-  mp_teChat->document()->setDocumentMargin( 14 ); // WeChat breathing room around bubbles
-  m_defaultChatPalette = mp_teChat->palette();
-  m_defaultChatPalette.setColor( QPalette::Highlight, Qt::yellow );
-  m_defaultChatPalette.setColor( QPalette::HighlightedText, Qt::black );
-  mp_teChat->setPalette( m_defaultChatPalette );
-  mp_teChat->setFocusPolicy( Qt::StrongFocus ); // need focus for keyboard events like CTRL+c
-  mp_teChat->setReadOnly( true );
-  mp_teChat->setUndoRedoEnabled( false );
-  mp_teChat->setContextMenuPolicy( Qt::CustomContextMenu );
-  mp_teChat->setOpenExternalLinks( false );
-  mp_teChat->setOpenLinks( false );
-  mp_teChat->setAcceptRichText( false );
-
 #ifdef BEEBEEP_USE_VOICE_CHAT
   connect( mp_pbRecordVoiceMessage, SIGNAL( clicked() ), this, SIGNAL( showVoiceMessageDialogRequest() ) );
 #else
@@ -135,6 +131,7 @@ GuiChat::GuiChat( QWidget *parent )
   m_lastMessageUserId = ID_SYSTEM_MESSAGE;
   m_lastMessageTimestamp = QDateTime();
   m_lastTextFound = "";
+  m_lastFindRow = -1;
 
   mp_menuContext = new QMenu( this );
   mp_menuFilters = new QMenu( this );
@@ -196,14 +193,11 @@ GuiChat::GuiChat( QWidget *parent )
   mp_actRestoreDefaultFont = new QAction( IconManager::instance().icon( "font.png" ), tr( "Restore the default font" ), this );
   connect( mp_actRestoreDefaultFont, SIGNAL( triggered() ), this, SLOT( resetChatFontToDefault() ) );
 
-  setChatFont( Settings::instance().chatFont() );
   // S4c WeChat body text is 14px in the light theme (dark style untouched)
+  QFont chat_font = Settings::instance().chatFont();
   if( !Settings::instance().useDarkStyle() )
-  {
-    QFont chat_font = mp_teChat->font();
     chat_font.setPixelSize( YongTheme::fontBodyPx() );
-    mp_teChat->setFont( chat_font );
-  }
+  setChatFont( chat_font );
   updateChatColors();
   updateOnSendingMessage();
 
@@ -229,8 +223,8 @@ GuiChat::GuiChat( QWidget *parent )
   connect( mp_actScreenshot, SIGNAL( triggered() ), this, SLOT( sendScreenshotToChat() ) );
 #endif
 
-  connect( mp_teChat, SIGNAL( customContextMenuRequested( const QPoint& ) ), this, SLOT( customContextMenu( const QPoint& ) ) );
-  connect( mp_teChat, SIGNAL( anchorClicked( const QUrl& ) ), this, SLOT( checkAnchorClicked( const QUrl&  ) ) );
+  connect( mp_lvChat, SIGNAL( customContextMenuRequested( const QPoint& ) ), this, SLOT( customContextMenu( const QPoint& ) ) );
+  connect( mp_messageDelegate, SIGNAL( urlActivated( const QUrl& ) ), this, SLOT( checkAnchorClicked( const QUrl& ) ) );
   connect( mp_teMessage, SIGNAL( returnPressed() ), this, SLOT( sendMessage() ) );
   connect( mp_teMessage, SIGNAL( writing() ), this, SLOT( checkWriting() ) );
   connect( mp_teMessage, SIGNAL( urlsToCheck( const QMimeData* ) ), this, SLOT( checkAndSendUrls( const QMimeData* ) ) );
@@ -244,6 +238,54 @@ void GuiChat::setCompactInputMode()
   mp_cbSendAndClose->setChecked( false );
   mp_cbSendAndClose->hide();
   mp_pbRecordVoiceMessage->hide();
+}
+
+// ---------------------------------------------------------------------
+// YongBEEP S4e (chatview-v2): QListView + custom delegate message list.
+// Replaces the QTextBrowser+HTML chain: the delegate paints true rounded
+// bubbles (r=8), shrink-to-fit documents (max 62% of the area) and the
+// WeChat file card; the model caches one QTextDocument per message.
+// ---------------------------------------------------------------------
+void GuiChat::setupMessageList()
+{
+  mp_messageModel = new ChatMessageModel( this );
+  mp_messageDelegate = new ChatMessageDelegate( this );
+
+  // keep the #GuiChatViewer objectName so the YongTheme QSS still paints
+  // the #F5F5F5 chat background from the main window cascade
+  mp_lvChat->setObjectName( "GuiChatViewer" );
+  mp_lvChat->setModel( mp_messageModel );
+  mp_lvChat->setItemDelegate( mp_messageDelegate );
+  mp_lvChat->setSelectionMode( QAbstractItemView::NoSelection );
+  mp_lvChat->setEditTriggers( QAbstractItemView::NoEditTriggers );
+  mp_lvChat->setVerticalScrollMode( QAbstractItemView::ScrollPerPixel ); // smooth scrolling
+  mp_lvChat->setHorizontalScrollBarPolicy( Qt::ScrollBarAlwaysOff );
+  mp_lvChat->setResizeMode( QListView::Adjust );
+  mp_lvChat->setUniformItemSizes( false );
+  mp_lvChat->setSpacing( 0 );
+  mp_lvChat->setFocusPolicy( Qt::StrongFocus ); // keyboard events like CTRL+c
+  mp_lvChat->setContextMenuPolicy( Qt::CustomContextMenu );
+  mp_lvChat->viewport()->installEventFilter( this ); // relayout on resize
+  mp_messageModel->setViewportWidth( qMax( 200, mp_lvChat->viewport()->width() ) );
+}
+
+bool GuiChat::eventFilter( QObject* obj, QEvent* event )
+{
+  if( obj == mp_lvChat->viewport() && ( event->type() == QEvent::Resize || event->type() == QEvent::Show ) )
+  {
+    int new_width = qMax( 200, mp_lvChat->viewport()->width() );
+    if( new_width != mp_messageModel->viewportWidth() )
+    {
+      mp_messageModel->setViewportWidth( new_width );
+      mp_lvChat->doItemsLayout(); // rebuild the cached item heights
+    }
+  }
+  return QWidget::eventFilter( obj, event );
+}
+
+void GuiChat::registerDemoMarkdownTexts( const QStringList& raw_texts )
+{
+  mp_messageModel->registerMarkdownTexts( raw_texts );
 }
 
 // YongBEEP S4c debug helper (--demo-chat + --screenshot only): the demo core
@@ -293,12 +335,41 @@ void GuiChat::setupInputToolbar()
   mp_tbAttach->setAutoRaise( true );
   mp_tbAttach->setCursor( Qt::PointingHandCursor );
 
+  // S4e: checkable Markdown toggle - messages sent while on carry the
+  // Message::Markdown intent and render with QTextDocument::setMarkdown
+  mp_tbMarkdown = new QToolButton( mp_inputToolbar );
+  mp_tbMarkdown->setObjectName( "GuiChatMarkdownButton" );
+  mp_tbMarkdown->setIcon( YongTheme::svgIcon( "markdown", YongTheme::iconGray(), YongTheme::textPrimary(), YongTheme::toolbarIconPx() ) );
+  mp_tbMarkdown->setIconSize( QSize( YongTheme::toolbarIconPx(), YongTheme::toolbarIconPx() ) );
+  mp_tbMarkdown->setText( tr( "MD" ) );
+  mp_tbMarkdown->setToolTip( tr( "Send messages as Markdown" ) );
+  mp_tbMarkdown->setCheckable( true );
+  mp_tbMarkdown->setAutoRaise( true );
+  mp_tbMarkdown->setCursor( Qt::PointingHandCursor );
+
   toolbar_layout->addWidget( mp_tbEmoticons );
   toolbar_layout->addWidget( mp_tbAttach );
+  toolbar_layout->addWidget( mp_tbMarkdown );
   toolbar_layout->addStretch( 1 );
 
   connect( mp_tbEmoticons, SIGNAL( clicked() ), this, SLOT( showEmoticonsPopup() ) );
   connect( mp_tbAttach, SIGNAL( clicked() ), this, SLOT( sendFile() ) );
+  connect( mp_tbMarkdown, SIGNAL( toggled( bool ) ), this, SLOT( onMarkdownToggled( bool ) ) );
+}
+
+void GuiChat::onMarkdownToggled( bool checked )
+{
+  if( checked )
+  {
+    mp_tbMarkdown->setIcon( YongTheme::svgIcon( "markdown", YongTheme::brandGreen(), YongTheme::textPrimary(), YongTheme::toolbarIconPx() ) );
+    mp_tbMarkdown->setToolTip( tr( "Markdown is enabled" ) );
+  }
+  else
+  {
+    mp_tbMarkdown->setIcon( YongTheme::svgIcon( "markdown", YongTheme::iconGray(), YongTheme::textPrimary(), YongTheme::toolbarIconPx() ) );
+    mp_tbMarkdown->setToolTip( tr( "Send messages as Markdown" ) );
+  }
+  ensureFocusInChat();
 }
 
 void GuiChat::showEmoticonsPopup()
@@ -385,7 +456,7 @@ void GuiChat::updateActions( const Chat& c, bool is_connected, int connected_use
     return;
 
   mp_teMessage->setEnabled( c.isValid() );
-  mp_teChat->setEnabled( c.isValid() );
+  mp_lvChat->setEnabled( c.isValid() );
 
   bool local_user_is_member = c.hasUser( Settings::instance().localUser().id() );
   bool chat_is_empty = ChatManager::instance().isChatEmpty( c, true );
@@ -516,32 +587,33 @@ void GuiChat::updateSendButton()
   mp_pbSend->setEnabled( m_sendAllowedByState && has_text );
 }
 
+// YongBEEP S4e: context menu rebuilt on the QListView - simplified per
+// message (copy full text + quote) plus the chat-level actions.
 void GuiChat::customContextMenu( const QPoint& p )
 {
   mp_menuContext->clear();
+  m_contextIndex = mp_lvChat->indexAt( p );
+
+  if( m_contextIndex.isValid() )
+  {
+    QAction* act = mp_menuContext->addAction( IconManager::instance().icon( "copy.png" ), tr( "Copy to clipboard" ), this, SLOT( copyMessageToClipboard() ), QKeySequence::Copy );
+    act->setEnabled( !m_contextIndex.data().toString().isEmpty() );
+    mp_menuContext->addAction( IconManager::instance().icon( "quote.png" ), tr( "Quote message" ), this, SLOT( quoteMessageToInput() ) );
+
+    QUrl anchor = mp_messageDelegate->anchorAt( m_contextIndex, mp_lvChat->visualRect( m_contextIndex ), p );
+    if( anchor.isValid() && !anchor.toString().isEmpty() )
+    {
+      act = mp_menuContext->addAction( IconManager::instance().icon( "anchor.png" ), tr( "Copy URL to clipboard" ), this, SLOT( copyUrlToClipboard() ) );
+      act->setData( anchor.toString() );
+    }
+    mp_menuContext->addSeparator();
+  }
+
   mp_menuContext->addAction( mp_actSelectBackgroundColor );
-  mp_menuContext->addAction(  mp_actSelectForegroundColor );
-  mp_menuContext->addAction(  mp_actSelectSystemColor );
+  mp_menuContext->addAction( mp_actSelectForegroundColor );
+  mp_menuContext->addAction( mp_actSelectSystemColor );
   mp_menuContext->addSeparator();
   mp_menuContext->addAction( mp_actFindTextInChat );
-  mp_menuContext->addSeparator();
-  mp_menuContext->addAction( IconManager::instance().icon( "select-all.png" ), tr( "Select all" ), mp_teChat, SLOT( selectAll() ), QKeySequence::SelectAll );
-  mp_menuContext->addSeparator();
-  QAction* act = mp_menuContext->addAction( IconManager::instance().icon( "copy.png" ), tr( "Copy to clipboard" ), mp_teChat, SLOT( copy() ), QKeySequence::Copy );
-  act->setEnabled( !mp_teChat->textCursor().selectedText().isEmpty() );
-  act = mp_menuContext->addAction( IconManager::instance().icon( "anchor.png" ), tr( "Copy URL to clipboard" ), this, SLOT( copyUrlToClipboard() ) );
-  QString url_clicked = mp_teChat->anchorAt( p );
-  if( !url_clicked.isEmpty() )
-    act->setData( url_clicked );
-  else
-    act->setEnabled( false );
-  act = mp_menuContext->addAction( IconManager::instance().icon( "quote.png" ), tr( "Quote selected text" ), this, SLOT( quoteSelectedText() ) );
-  act->setEnabled( !mp_teChat->textCursor().selectedText().isEmpty() );
-  act = mp_menuContext->addAction( IconManager::instance().icon( "network.png" ), tr( "Open selected text as url" ), this, SLOT( openSelectedTextAsUrl() ) );
-  act->setEnabled( !mp_teChat->textCursor().selectedText().isEmpty() );
-  //act = mp_menuContext->addAction( IconManager::instance().icon( "font-color.png" ), tr( "Change the background color of the selected text" ), this, SLOT( changeBackgroundColorInSelectedText() ) );
-  //act->setEnabled( !mp_teChat->textCursor().selectedText().isEmpty() );
-
   mp_menuContext->addSeparator();
   mp_menuContext->addAction( mp_actClear );
   mp_menuContext->addAction( mp_actClearSystemMessages );
@@ -550,6 +622,32 @@ void GuiChat::customContextMenu( const QPoint& p )
   mp_menuContext->addSeparator();
   mp_menuContext->addAction( mp_actRestoreDefaultFont );
   mp_menuContext->exec( QCursor::pos() );
+  m_contextIndex = QPersistentModelIndex();
+}
+
+void GuiChat::copyMessageToClipboard()
+{
+  if( !m_contextIndex.isValid() )
+    return;
+  QString text = m_contextIndex.data().toString();
+  if( text.isEmpty() )
+    return;
+  QClipboard* cb = qApp->clipboard();
+  if( cb )
+    cb->setText( text );
+}
+
+void GuiChat::quoteMessageToInput()
+{
+  if( !m_contextIndex.isValid() )
+    return;
+  QString text = m_contextIndex.data().toString();
+  if( text.isEmpty() )
+    return;
+  text.replace( QChar( '\n' ), QLatin1String( " " ) );
+  QString text_to_add = QString( " [quote]%1 [/quote]<br>" ).arg( text.trimmed() );
+  mp_teMessage->addText( text_to_add );
+  mp_teMessage->setFocus();
 }
 
 bool GuiChat::messageCanBeShowed( const ChatMessage& cm )
@@ -636,10 +734,10 @@ void GuiChat::setLastMessageTimestamp( const QDateTime& dt )
       last_msg_timestamp = last_msg_timestamp.arg( dt.toString( "hh:mm" ) );
     else
       last_msg_timestamp = last_msg_timestamp.arg( QLocale::system().toString( dt, QLocale::LongFormat ) );
-    mp_teChat->setToolTip( last_msg_timestamp );
+    mp_lvChat->setToolTip( last_msg_timestamp );
   }
   else
-    mp_teChat->setToolTip( "" );
+    mp_lvChat->setToolTip( "" );
 }
 
 void GuiChat::sendMessage()
@@ -650,6 +748,11 @@ void GuiChat::sendMessage()
   if( msg.isEmpty() )
     return;
   mp_teMessage->addMessageToHistory();
+  // S4e: with the MD toggle on, register the raw text so the local echo
+  // (and same-session reloads) render it with setMarkdown. The wire flag
+  // is Message::Markdown - see ChatMessageModel for the plumbing notes.
+  if( mp_tbMarkdown && mp_tbMarkdown->isChecked() )
+    mp_messageModel->addMarkdownText( msg );
   emit newMessage( m_chatId, msg, false );
   mp_teMessage->clearMessage();
   if( mp_cbSendAndClose->isChecked() )
@@ -674,34 +777,6 @@ void GuiChat::checkAnchorClicked( const QUrl& url )
     emit showStatusMessageRequest( tr( "Opening voice message" ) + QString( "..." ), 3000 );
 
   emit openUrl( url, m_chatId );
-}
-
-QString GuiChat::chatMessageToText( const ChatMessage& cm )
-{
-  QString s = "";
-
-  if( !messageCanBeShowed( cm ) )
-    return s;
-
-  if( !cm.isFromSystem() )
-  {
-    User u = UserManager::instance().findUser( cm.userId() );
-    if( !u.isValid() )
-    {
-      qWarning() << "User" << cm.userId() << "not found for message:" << qPrintable( cm.message() );
-      return "";
-    }
-    s = GuiChatMessage::formatMessage( u, cm, m_lastMessageUserId, Settings::instance().chatShowMessageTimestamp(), Settings::instance().chatShowMessageDatestamp(), false,
-                                       Settings::instance().showMessagesGroupByUser(), m_chatId == ID_DEFAULT_CHAT ? true : Settings::instance().chatUseYourNameInsteadOfYou(),
-                                       Settings::instance().chatCompact(), m_lastMessageTimestamp,
-                                       m_chatId != ID_DEFAULT_CHAT /* WeChat 1:1 chats show no sender name (S4c) */ );
-    m_lastMessageTimestamp = cm.timestamp();
-  }
-  else
-    s = GuiChatMessage::formatSystemMessage( cm, m_lastMessageUserId, Settings::instance().chatShowMessageTimestamp(), Settings::instance().chatShowMessageDatestamp(), Settings::instance().chatCompact() );
-
-  m_lastMessageUserId = cm.isImportant() ? ID_IMPORTANT_MESSAGE : cm.userId();
-  return s;
 }
 
 void GuiChat::updateChat()
@@ -743,89 +818,33 @@ void GuiChat::loadSavedMessages()
   setChat( c );
 }
 
-void GuiChat::setChatStylesheet( QTextDocument* text_document )
-{
-  // Valid only for NEW INSERTED HTML
-  QString default_chat_css = text_document->defaultStyleSheet();
-  default_chat_css.append( QString( " .bee-quote { background-color: %1; color: %2; }" ).arg( Settings::instance().chatQuoteBackgroundColor(), Settings::instance().chatQuoteTextColor() ) );
-  text_document->setDefaultStyleSheet( default_chat_css );
-}
-
 bool GuiChat::setChat( const Chat& c )
 {
   if( !c.isValid() )
     return false;
 
-  m_chatId = c.id();
+  // Keep the scroll position when the SAME chat is reloaded (saved-messages
+  // load); jump to the bottom when a different chat is opened.
+  bool same_chat = ( m_chatId == c.id() );
+  int keep_row = -1;
+  if( same_chat && mp_messageModel->rowCount() > 0 )
+  {
+    QModelIndex top_index = mp_lvChat->indexAt( QPoint( 0, 0 ) );
+    if( top_index.isValid() && !mp_lvChat->visualRect( top_index ).isNull() )
+      keep_row = top_index.row();
+  }
 
-  int missed_lines = -1;
-  int num_messages = c.messages().size();
-  int msg_lines = Settings::instance().chatMessagesToShow() >= 0 ? qMin( num_messages, Settings::instance().chatMessagesToShow() ) : num_messages;
-  int history_lines = Settings::instance().chatMessagesToShow() >= 0 ? qMax( 0, Settings::instance().chatMessagesToShow() - msg_lines ) : -1;
+  m_chatId = c.id();
   m_lastMessageUserId = ID_SYSTEM_MESSAGE;
   m_lastMessageTimestamp = QDateTime();
 
-  QString html_text = "";
-  if( ChatManager::instance().isLoadHistoryCompleted() && historyCanBeShowed() && history_lines != 0 )
-  {
-    if( !ChatManager::instance().chatHasSavedText( c.name() ) )
-    {
-      if( c.isPrivate() && c.name().contains( "@" ) && ChatManager::instance().chatHasSavedText( User::nameFromPath( c.name() ) ) )
-        html_text += ChatManager::instance().chatSavedText( User::nameFromPath( c.name() ), history_lines, &missed_lines );
-    }
-    else
-      html_text += ChatManager::instance().chatSavedText( c.name(), history_lines, &missed_lines );
-  }
+  mp_messageModel->resetFromChat( c );
 
-  if( missed_lines < 0 )
-    missed_lines = qMax( 0, num_messages - msg_lines );
-
-  if( Settings::instance().chatMessagesToShow() >= 0 && (missed_lines > 0 || num_messages > msg_lines) )
-  {
-    QUrl saved_chat_url;
-    saved_chat_url.setUrl( QString( "#%1").arg( m_chatId ) );
-    saved_chat_url.setScheme( "beeshowsavedchat" );
-    QString limit_reached_text = "";
-    limit_reached_text += QString( "<p><font color=%1><i>... %2 ...<br>... %3, %4 ...</i></font></p>" )
-                            .arg( Settings::instance().chatSystemTextColor(),
-                                  tr( "only the last %1 messages are shown" ).arg( Settings::instance().chatMessagesToShow() ),
-                                  tr( "maximum number of messages to show reached" ),
-                                  tr( "open %1 to read them all" ).arg( QString( "<a href='%1'>%2</a>" ).arg( saved_chat_url.toString(), tr( "the saved chat" ) ) ) );
-    if( !html_text.isEmpty() )
-      html_text.prepend( limit_reached_text );
-    else
-      html_text += limit_reached_text;
-  }
-
-  foreach( ChatMessage cm, c.messages() )
-  {
-    if( num_messages > msg_lines )
-    {
-      num_messages--;
-      continue;
-    }
-    else
-      html_text += chatMessageToText( cm );
-  }
-
-  QTextDocument *text_document = mp_teMessage->document();
-  QTextOption text_option = text_document->defaultTextOption();
-  text_option.setTextDirection( Settings::instance().showTextInModeRTL() ? Qt::RightToLeft : Qt::LeftToRight );
-  text_document->setDefaultTextOption( text_option );
-  mp_teMessage->setDocument( text_document );
-  bool updates_is_enabled = mp_teChat->updatesEnabled();
-  mp_teChat->setUpdatesEnabled( false );
-  mp_teChat->clear();
-  text_document = mp_teChat->document();
-  text_option = text_document->defaultTextOption();
-  text_option.setTextDirection( Settings::instance().showTextInModeRTL() ? Qt::RightToLeft : Qt::LeftToRight );
-  text_document->setDefaultTextOption( text_option );
-  setChatStylesheet( text_document );
-  mp_teChat->setDocument( text_document );
-  mp_teChat->setHtml( html_text );
-  mp_teChat->setUpdatesEnabled( updates_is_enabled );
   setLastMessageTimestamp( c.lastMessageTimestamp() );
-  ensureLastMessageVisible();
+  if( keep_row >= 0 && keep_row < mp_messageModel->rowCount() )
+    mp_lvChat->scrollTo( mp_messageModel->index( keep_row, 0 ), QAbstractItemView::PositionAtTop );
+  else
+    ensureLastMessageVisible();
   updateChat( c );
   QTimer::singleShot( 0, this, SLOT( operationCompleted() ) );
   return true;
@@ -852,14 +871,18 @@ void GuiChat::ensureFocusInChat()
 
 void GuiChat::ensureLastMessageVisible()
 {
-  QScrollBar *bar = mp_teChat->verticalScrollBar();
-  if( bar )
-  {
-    if( !bar->isSliderDown() )
-      bar->setValue( bar->maximum() );
-  }
-  else
-    mp_teChat->ensureCursorVisible();
+  if( mp_messageModel->rowCount() > 0 )
+    mp_lvChat->scrollTo( mp_messageModel->index( mp_messageModel->rowCount() - 1, 0 ), QAbstractItemView::PositionAtBottom );
+}
+
+// S4e: auto-scroll to the bottom only when the user is already there -
+// reading older messages upward is never yanked down by new arrivals.
+bool GuiChat::isScrolledToBottom() const
+{
+  QScrollBar* bar = mp_lvChat->verticalScrollBar();
+  if( !bar )
+    return true;
+  return bar->value() >= bar->maximum() - 48;
 }
 
 bool GuiChat::appendChatMessage( const Chat& c, const ChatMessage& cm )
@@ -879,24 +902,12 @@ bool GuiChat::appendChatMessage( const Chat& c, const ChatMessage& cm )
   bool show_timestamp_last_message = !cm.isFromLocalUser() && !cm.isFromSystem();
   mp_actClear->setDisabled( c.isEmpty() && !ChatManager::instance().chatHasSavedText( c.name() ) );
   mp_actClearSystemMessages->setEnabled( c.hasSystemMessages() );
-  QString text_message = chatMessageToText( cm );
 
-  if( !text_message.isEmpty() )
+  bool was_at_bottom = isScrolledToBottom();
+  if( mp_messageModel->appendMessage( c, cm ) )
   {
-#ifdef BEEBEEP_DEBUG
-    QElapsedTimer time_to_insert;
-    time_to_insert.start();
-#endif
-    bool updates_enabled = mp_teChat->updatesEnabled();
-    mp_teChat->setUpdatesEnabled( false );
-    QTextCursor cursor( mp_teChat->textCursor() );
-    cursor.movePosition( QTextCursor::End );
-    cursor.insertHtml( text_message );
-    mp_teChat->setUpdatesEnabled( updates_enabled );
-#ifdef BEEBEEP_DEBUG
-    qDebug() << "Elapsed time to insert HTML text in chat:" << time_to_insert.elapsed() << "ms";
-#endif
-    ensureLastMessageVisible();
+    if( was_at_bottom )
+      ensureLastMessageVisible();
   }
 
   if( show_timestamp_last_message )
@@ -907,7 +918,8 @@ bool GuiChat::appendChatMessage( const Chat& c, const ChatMessage& cm )
 
 void GuiChat::setChatFont( const QFont& f )
 {
-  mp_teChat->setFont( f );
+  mp_lvChat->setFont( f );
+  mp_messageModel->setChatFont( f );
   mp_teMessage->setFont( f );
   mp_teMessage->update();
   mp_actRestoreDefaultFont->setEnabled( f != QApplication::font() );
@@ -922,7 +934,7 @@ void GuiChat::selectFont()
     Settings::instance().setChatFont( f, false );
     Settings::instance().save();
     setChatFont( f );
-    mp_teChat->ensureCursorVisible();
+    ensureLastMessageVisible();
     emit updateChatFontRequest();
   }
 }
@@ -936,8 +948,7 @@ void GuiChat::updateChatColors()
     QString text_color = Settings::instance().chatFontColor() != Settings::instance().chatDefaultTextColor() ? Settings::instance().chatFontColor(): Settings::instance().chatDefaultTextColor();
     mp_teMessage->setTextColor( text_color );
     mp_teMessage->setStyleSheet( QString( "#GuiMessageEdit { background-color: %1; color: %2; }" ).arg( background_color, text_color ) );
-    mp_teChat->setStyleSheet( QString( "#GuiChatViewer { background-color: %1; color: %2; }" ).arg( background_color, Settings::instance().chatDefaultTextColor() ) );
-    // No css for bee-quote because stylesheet is only applied to new inserted HTML
+    mp_lvChat->setStyleSheet( QString( "#GuiChatViewer { background-color: %1; color: %2; }" ).arg( background_color, Settings::instance().chatDefaultTextColor() ) );
     return;
   }
 
@@ -946,7 +957,7 @@ void GuiChat::updateChatColors()
   // per-widget overrides so the QSS rules (#GuiChatViewer/#GuiMessageEdit)
   // win, and keep the placeholder gray.
   mp_teMessage->setStyleSheet( QString() );
-  mp_teChat->setStyleSheet( QString() );
+  mp_lvChat->setStyleSheet( QString() );
   mp_teMessage->setTextColor( YongTheme::textPrimary() );
   QPalette message_palette = mp_teMessage->palette();
   message_palette.setColor( QPalette::PlaceholderText, YongTheme::textSecondary() );
@@ -1410,8 +1421,26 @@ void GuiChat::printChat()
                    QAbstractPrintDialog::PrintCurrentPage |
                    QAbstractPrintDialog::PrintToFile );
 
-  if( dlg->exec() == QDialog::Accepted)
-    mp_teChat->print( dlg->printer() );
+  if( dlg->exec() == QDialog::Accepted )
+  {
+    // S4e: the message list is no longer a QTextBrowser - compose the
+    // printable document from the classic chatToHtml pipeline
+    Chat c = ChatManager::instance().chat( m_chatId );
+    if( c.isValid() )
+    {
+      QString html_text;
+      if( ChatManager::instance().chatHasSavedText( c.name() ) )
+        html_text.append( ChatManager::instance().chatSavedText( c.name() ) );
+      html_text.append( GuiChatMessage::chatToHtml( c, !Settings::instance().chatSaveFileTransfers(),
+                                                    !Settings::instance().chatSaveSystemMessages(), true, true,
+                                                    Settings::instance().chatCompact(), Settings::instance().useCompactDataSaving() ) );
+      html_text.replace( QStringLiteral( "beefile:" ), QStringLiteral( "file://" ) );
+      QTextDocument *doc = new QTextDocument( this );
+      doc->setHtml( html_text );
+      doc->print( dlg->printer() );
+      doc->deleteLater();
+    }
+  }
 
   dlg->deleteLater();
 }
@@ -1447,83 +1476,32 @@ void GuiChat::findTextInChat( const QString& txt, bool search_forward )
   if( txt.isEmpty() )
     return;
 
-  QTextDocument::FindFlags find_flags;
-  if( !search_forward )
-    find_flags = QTextDocument::FindBackward;
-
-  bool search_from_start = false;
-  if( txt != m_lastTextFound )
+  // S4e: search runs on the model's plain texts and scrolls the list to
+  // the matching message
+  bool new_search = ( txt != m_lastTextFound );
+  int from_row = new_search ? -1 : ( m_lastFindRow >= 0 ? m_lastFindRow + ( search_forward ? 1 : -1 ) : -1 );
+  int found_row = mp_messageModel->findPlainText( txt, from_row, search_forward );
+  if( found_row < 0 )
   {
-    mp_teChat->moveCursor( QTextCursor::Start );
-    search_from_start = true;
-  }
-
-  if( !mp_teChat->find( txt, find_flags ) )
-  {
-    if( !search_from_start )
+    if( !new_search )
     {
-      mp_teChat->moveCursor( QTextCursor::Start );
-      if( mp_teChat->find( txt, find_flags ) )
+      found_row = mp_messageModel->findPlainText( txt, -1, search_forward );
+      if( found_row >= 0 )
       {
         m_lastTextFound = txt;
+        m_lastFindRow = found_row;
+        mp_lvChat->scrollTo( mp_messageModel->index( found_row, 0 ), QAbstractItemView::PositionAtCenter );
         return;
       }
     }
-
     QMessageBox::information( this, Settings::instance().programName(), tr( "%1 not found in chat." ).arg( QString( "\"%1\"" ).arg( txt ) ) );
   }
   else
-    m_lastTextFound = txt;
-}
-
-void GuiChat::openSelectedTextAsUrl()
-{
-  QString selected_text = mp_teChat->textCursor().selectedText();
-  if( !selected_text.isEmpty() )
   {
-#ifdef BEEBEEP_DEBUG
-    qDebug() << "Try to open selected text as url:" << selected_text;
-#endif
-    QUrl url = QUrl::fromUserInput( selected_text );
-    emit openUrl( url, m_chatId );
+    m_lastTextFound = txt;
+    m_lastFindRow = found_row;
+    mp_lvChat->scrollTo( mp_messageModel->index( found_row, 0 ), QAbstractItemView::PositionAtCenter );
   }
-}
-
-void GuiChat::quoteSelectedText()
-{
-  QTextCursor tc = mp_teChat->textCursor();
-  if( !tc.hasSelection() )
-    return;
-  QString selected_text = tc.selection().toHtml();
-  selected_text.replace( "</p>", "</p>\n" );
-  selected_text.replace( "<br>", "\n" );
-  selected_text = Bee::removeHtmlTags( selected_text );
-  selected_text.replace( "\n", "&nbsp;&nbsp;<br>&nbsp;&nbsp;" );
-  QString text_to_add = QString( " [quote]%1 [/quote]<br>" ).arg( selected_text.trimmed() );
-  mp_teMessage->addText( text_to_add );
-  mp_teMessage->setFocus();
-}
-
-void GuiChat::changeBackgroundColorInSelectedText()
-{
-// FIXME: TODO (to save also in chat history and messages)
-
-  QTextCursor tc = mp_teChat->textCursor();
-  if( !tc.hasSelection() )
-    return;
-
-  QString selected_text = tc.selection().toHtml();
-  selected_text.replace( "</p>", "</p>\n" );
-  selected_text.replace( "<br>", "\n" );
-  selected_text = Bee::removeHtmlTags( selected_text );
-  selected_text.replace( "\n", "<br>" );
-  int pos = tc.selectionStart();
-  mp_teChat->textCursor().removeSelectedText();
-  tc.setPosition( pos );
-  mp_teChat->setTextCursor( tc );
-  selected_text.prepend( "<span style=\"background-color:'#000'; color:'#fff'\">" );
-  selected_text.append( "</span>" );
-  mp_teChat->textCursor().insertHtml( selected_text );
 }
 
 void GuiChat::resetChatFontToDefault()

@@ -184,22 +184,25 @@
     <property name="verticalSpacing">
      <number>2</number>
     </property>
-    <item row="0" column="0">
-     <widget class="QTextBrowser" name="mp_teChat">
-      <property name="minimumSize">
-       <size>
-        <width>200</width>
-        <height>120</height>
-       </size>
-      </property>
-      <property name="readOnly">
-       <bool>true</bool>
-      </property>
-      <property name="textInteractionFlags">
-       <set>Qt::TextBrowserInteraction</set>
-      </property>
-     </widget>
-    </item>
+     <item row="0" column="0">
+      <widget class="QListView" name="mp_lvChat">
+       <property name="minimumSize">
+        <size>
+         <width>200</width>
+         <height>120</height>
+        </size>
+       </property>
+       <property name="editTriggers">
+        <set>QAbstractItemView::NoEditTriggers</set>
+       </property>
+       <property name="selectionMode">
+        <enum>QAbstractItemView::NoSelection</enum>
+       </property>
+       <property name="verticalScrollMode">
+        <enum>QAbstractItemView::ScrollPerPixel</enum>
+       </property>
+      </widget>
+     </item>
     <item row="1" column="0">
      <widget class="QFrame" name="mp_frameVoicePlayer">
       <property name="sizePolicy">
@@ -237,7 +240,7 @@
   <tabstop>mp_pbSend</tabstop>
   <tabstop>mp_pbRecordVoiceMessage</tabstop>
   <tabstop>mp_cbSendAndClose</tabstop>
-  <tabstop>mp_teChat</tabstop>
+  <tabstop>mp_lvChat</tabstop>
  </tabstops>
  <resources>
   <include location="../beebeep.qrc"/>
