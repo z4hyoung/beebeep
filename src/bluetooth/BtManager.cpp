@@ -76,8 +76,18 @@ bool BtManager::start()
     }
     else
     {
+#ifdef Q_OS_MACOS
+      // YongBEEP: Qt's QBluetoothPermission maps to the CoreBluetooth (BLE)
+      // authorization on macOS, while our classic RFCOMM transport runs on
+      // IOBluetooth, which is NOT gated by that permission. Verified live:
+      // classic inquiry scan and RFCOMM server work regardless of this status.
+      // Treat the denial as non-fatal and run the classic transport anyway.
+      qWarning() << "BtManager bluetooth permission denied for BLE: continuing with the classic (IOBluetooth) transport";
+      startComponents();
+#else
       qWarning() << "BtManager bluetooth permission denied: the bluetooth transport stays disabled (degraded mode, TCP only)";
       emit bluetoothPermissionDenied();
+#endif
     }
   } );
 
