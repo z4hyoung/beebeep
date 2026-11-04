@@ -93,7 +93,7 @@ void ConnectionSocket::connectToBluetoothService( StreamDeviceBt* bt_stream, con
   bt_stream->connectToService( bt_peer_address );
 }
 
-void ConnectionSocket::adoptBluetoothSocket( StreamDeviceBt* bt_stream, QBluetoothSocket* bt_socket, quint16 bt_server_channel )
+void ConnectionSocket::adoptBluetoothSocket( StreamDeviceBt* bt_stream, QObject* bt_socket, quint16 bt_server_channel )
 {
   // Server side entry point over RFCOMM: same state setup of initSocket().
   // StreamDeviceBt::adoptSocket() does not emit connected(), so this socket

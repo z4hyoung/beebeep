@@ -20,26 +20,59 @@
 #include <QtBluetooth/QBluetoothServiceInfo>
 #include <QTimer>
 
+#if defined( Q_OS_WIN )
+  #include "BtWinWorker.h"
+  #include <QtCore/QMetaObject>
+#endif
+
 
 BtDiscoverer::BtDiscoverer( QObject* parent )
-  : QObject( parent ), mp_agent( new QBluetoothServiceDiscoveryAgent( this ) ),
-    mp_scanTimer( new QTimer( this ) ), m_localAddress()
+  : QObject( parent )
+#if !defined( Q_OS_WIN )
+  , mp_agent( new QBluetoothServiceDiscoveryAgent( this ) )
+#else
+  , mp_winWorker( Q_NULLPTR ), m_scanRequested( false )
+#endif
+  , mp_scanTimer( new QTimer( this ) ), m_localAddress()
 {
+#if !defined( Q_OS_WIN )
   // Classic SDP discovery: only the devices running our RFCOMM service are reported.
   mp_agent->setUuidFilter( StreamDeviceBt::serviceUuid() );
 
   connect( mp_agent, &QBluetoothServiceDiscoveryAgent::serviceDiscovered, this, &BtDiscoverer::onServiceDiscovered );
   connect( mp_agent, &QBluetoothServiceDiscoveryAgent::finished, this, &BtDiscoverer::onDiscoveryFinished );
   connect( mp_agent, &QBluetoothServiceDiscoveryAgent::errorOccurred, this, &BtDiscoverer::onDiscoveryError );
+#endif
 
   mp_scanTimer->setInterval( BLUETOOTH_SCAN_INTERVAL_MS );
   connect( mp_scanTimer, &QTimer::timeout, this, &BtDiscoverer::startScan );
 }
 
+#if defined( Q_OS_WIN )
+void BtDiscoverer::setWinWorker( BtWinWorker* win_worker )
+{
+  if( mp_winWorker )
+    disconnect( mp_winWorker, Q_NULLPTR, this, Q_NULLPTR );
+
+  mp_winWorker = win_worker;
+
+  if( mp_winWorker )
+  {
+    connect( mp_winWorker, &BtWinWorker::peerFound, this, &BtDiscoverer::onWinPeerFound );
+    connect( mp_winWorker, &BtWinWorker::scanFinished, this, &BtDiscoverer::onWinScanFinished );
+  }
+}
+#endif
+
 void BtDiscoverer::start()
 {
   if( mp_scanTimer->isActive() )
     return;
+
+#if defined( Q_OS_WIN )
+  if( mp_winWorker == Q_NULLPTR )
+    return;
+#endif
 
   qDebug() << "BtDiscoverer starts scanning for service" << BLUETOOTH_SERVICE_UUID << "every" << BLUETOOTH_SCAN_INTERVAL_MS << "ms";
   mp_scanTimer->start();
@@ -52,8 +85,10 @@ void BtDiscoverer::stop()
     return;
 
   mp_scanTimer->stop();
+#if !defined( Q_OS_WIN )
   if( mp_agent->isActive() )
     mp_agent->stop();
+#endif
   qDebug() << "BtDiscoverer stopped";
 }
 
@@ -64,6 +99,7 @@ void BtDiscoverer::setLocalAddress( const QBluetoothAddress& local_address )
 
 void BtDiscoverer::startScan()
 {
+#if !defined( Q_OS_WIN )
   if( mp_agent->isActive() )
     return;
 
@@ -72,7 +108,22 @@ void BtDiscoverer::startScan()
 #ifdef BEEBEEP_DEBUG
   qDebug() << "BtDiscoverer scan started";
 #endif
+#else
+  // A cycle still running in the worker thread is skipped: the timer keeps
+  // the cadence, the inquiry plus the SDP probes define the real duration.
+  if( m_scanRequested || mp_winWorker == Q_NULLPTR )
+    return;
+
+  m_scanRequested = true;
+  QMetaObject::invokeMethod( mp_winWorker, "scanForPeers", Qt::QueuedConnection,
+                             Q_ARG( quint64, m_localAddress.toUInt64() ) );
+#ifdef BEEBEEP_DEBUG
+  qDebug() << "BtDiscoverer scan requested";
+#endif
+#endif
 }
+
+#if !defined( Q_OS_WIN )
 
 void BtDiscoverer::onServiceDiscovered( const QBluetoothServiceInfo& service_info )
 {
@@ -110,3 +161,23 @@ void BtDiscoverer::onDiscoveryError( QBluetoothServiceDiscoveryAgent::Error erro
 
   emit discoveryError( error );
 }
+
+#else
+
+void BtDiscoverer::onWinPeerFound( quint64 bt_address, const QString& device_name )
+{
+  // Self connection filter: skip the service record of the local adapter.
+  if( !m_localAddress.isNull() && bt_address == m_localAddress.toUInt64() )
+    return;
+
+  qDebug() << "BtDiscoverer has found the service of device" << device_name << "(" << Qt::hex << bt_address << ")";
+
+  emit btPeerFound( QBluetoothAddress( bt_address ), device_name );
+}
+
+void BtDiscoverer::onWinScanFinished()
+{
+  m_scanRequested = false;
+}
+
+#endif

@@ -20,18 +20,69 @@
 #include "Config.h"
 #include "Settings.h"
 #include <QCoreApplication>
-#include <QPermission>
+#if QT_CONFIG(permissions)
+# include <QPermissions>
+#endif
 #include <QtBluetooth/QBluetoothLocalDevice>
 #include <QtBluetooth/QBluetoothSocket>
+
+#if defined( Q_OS_WIN )
+  #include "BtWinWorker.h"
+  #include <QtCore/QMetaObject>
+  #include <QtCore/QThread>
+#endif
 
 
 BtManager::BtManager( QObject* parent )
   : QObject( parent ), mp_listener( new BtListener( this ) ), mp_discoverer( new BtDiscoverer( this ) ),
     m_localAddress(), m_active( false ), m_stopRequested( false )
+#if defined( Q_OS_WIN )
+  , mp_winThread( Q_NULLPTR ), mp_winWorker( Q_NULLPTR )
+#endif
 {
   connect( mp_discoverer, &BtDiscoverer::btPeerFound, this, &BtManager::btPeerFound );
   connect( mp_listener, &BtListener::newBtConnection, this, &BtManager::newBtConnection );
+
+#if defined( Q_OS_WIN )
+  // MinGW builds of Qt ship QtBluetooth with a dummy backend only, so the
+  // whole transport runs on the native win32 stack in a worker thread.
+  mp_winThread = new QThread( this );
+  mp_winWorker = new BtWinWorker();
+  mp_winWorker->moveToThread( mp_winThread );
+  BtWinWorker::setInstance( mp_winWorker );
+
+  connect( mp_winThread, &QThread::finished, mp_winWorker, &QObject::deleteLater );
+  connect( mp_winWorker, &BtWinWorker::localAddressReady, this, &BtManager::onWinLocalAddress );
+
+  mp_listener->setWinWorker( mp_winWorker );
+  mp_discoverer->setWinWorker( mp_winWorker );
+
+  mp_winThread->start();
+  QMetaObject::invokeMethod( mp_winWorker, "initialize", Qt::QueuedConnection );
+#endif
 }
+
+BtManager::~BtManager()
+{
+#if defined( Q_OS_WIN )
+  if( mp_winThread )
+  {
+    if( mp_winWorker )
+      QMetaObject::invokeMethod( mp_winWorker, "shutdown", Qt::BlockingQueuedConnection );
+    mp_winThread->quit();
+    mp_winThread->wait();
+    BtWinWorker::setInstance( Q_NULLPTR );
+  }
+#endif
+}
+
+#if defined( Q_OS_WIN )
+void BtManager::onWinLocalAddress( quint64 bt_address )
+{
+  m_localAddress = QBluetoothAddress( bt_address );
+  mp_discoverer->setLocalAddress( m_localAddress );
+}
+#endif
 
 bool BtManager::start()
 {
@@ -46,6 +97,7 @@ bool BtManager::start()
     return false;
   }
 
+#if QT_CONFIG(permissions)
   // Qt 6.5+ permission gate (docs/02-技术设计.md §2.6). On macOS the request
   // shows the system dialog on first run; on platforms without a permission
   // concept checkPermission() is granted and the flow is synchronous.
@@ -93,6 +145,12 @@ bool BtManager::start()
 
   // Started asynchronously: the components will run as soon as the user grants the permission.
   return true;
+#else
+  // Windows/Linux Qt builds ship without the permissions feature: there is no
+  // OS-level bluetooth permission to request, so the transport starts directly.
+  startComponents();
+  return true;
+#endif
 }
 
 void BtManager::startComponents()
@@ -100,12 +158,17 @@ void BtManager::startComponents()
   if( m_active )
     return;
 
+#if !defined( Q_OS_WIN )
   // Reading the local adapter may itself initialize the bluetooth stack, so it
   // happens only after the permission has been granted. Some platforms do not
   // expose the local address at all: it stays invalid and the self connection
   // filter of BtDiscoverer/Core simply degrades to a no-op.
   QBluetoothLocalDevice local_device;
   m_localAddress = local_device.address();
+#endif
+  // On Windows the address arrives asynchronously from BtWinWorker
+  // (onWinLocalAddress): if the radio is not ready yet it stays invalid and
+  // the self connection filter degrades to a no-op, exactly like above.
   qDebug() << "BtManager starts on local adapter" << (!m_localAddress.isNull() ? m_localAddress.toString() : QString( "(unknown address)" ));
 
   QString service_name = Settings::instance().bluetoothDeviceName();

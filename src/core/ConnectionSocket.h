@@ -30,7 +30,7 @@
 
 class Message;
 class QBluetoothAddress;
-class QBluetoothSocket;
+class QObject;
 class StreamDeviceBt;
 
 
@@ -64,7 +64,7 @@ public:
   // the default TCP stream and keep its exact semantics (client = question
   // HELLO on connected(), server = wait for the peer and sendAnswerHello()).
   void connectToBluetoothService( StreamDeviceBt* bt_stream, const QBluetoothAddress& bt_peer_address );
-  void adoptBluetoothSocket( StreamDeviceBt* bt_stream, QBluetoothSocket* bt_socket, quint16 bt_server_channel );
+  void adoptBluetoothSocket( StreamDeviceBt* bt_stream, QObject* bt_socket, quint16 bt_server_channel );
 
   /*! Generic injection point: replaces the default TCP stream before the handshake (the old one is deleted). */
   void setStreamDevice( StreamDevice* new_stream );

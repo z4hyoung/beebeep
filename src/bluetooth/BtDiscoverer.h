@@ -18,18 +18,29 @@
 #define BEEBEEP_BTDISCOVERER_H
 
 #include <QtBluetooth/QBluetoothAddress>
-#include <QtBluetooth/QBluetoothServiceDiscoveryAgent>
 #include <QTimer>
+
+class QBluetoothServiceDiscoveryAgent;
+class BtWinWorker;
+
+#if !defined( Q_OS_WIN )
+  #include <QtBluetooth/QBluetoothServiceDiscoveryAgent>
+#endif
 
 
 /*! \brief Periodic SDP discovery of the other YongBEEP instances
  *
- * Mirror of core/Broadcaster for the Bluetooth transport: a
- * QBluetoothServiceDiscoveryAgent (classic SDP, filtered on our service UUID)
- * is started every BLUETOOTH_SCAN_INTERVAL_MS milliseconds by an internal
- * timer (a scan already in progress is never restarted) and every service
- * found is reported with btPeerFound(bluetooth address, device name).
- * The local device address is filtered out to prevent self connections.
+ * Mirror of core/Broadcaster for the Bluetooth transport: every
+ * BLUETOOTH_SCAN_INTERVAL_MS milliseconds an internal timer starts a classic
+ * SDP scan filtered on our service UUID (a scan already in progress is never
+ * restarted) and every service found is reported with btPeerFound(bluetooth
+ * address, device name). The local device address is filtered out to prevent
+ * self connections.
+ *
+ * On macOS the scan runs in a QBluetoothServiceDiscoveryAgent; on Windows it
+ * is delegated to the native BtWinWorker (BluetoothFindFirstDevice inquiry
+ * plus a per device WSALookupService SDP query in the worker thread,
+ * docs/02-技术设计.md §2.6).
  */
 class BtDiscoverer : public QObject
 {
@@ -44,18 +55,35 @@ public:
 
   void setLocalAddress( const QBluetoothAddress& local_address );
 
+#if defined( Q_OS_WIN )
+  /*! The native worker doing the actual scanning (owned by BtManager). */
+  void setWinWorker( BtWinWorker* win_worker );
+#endif
+
 signals:
   void btPeerFound( const QBluetoothAddress& bt_address, const QString& device_name );
+#if !defined( Q_OS_WIN )
   void discoveryError( QBluetoothServiceDiscoveryAgent::Error error );
+#endif
 
 private slots:
+#if !defined( Q_OS_WIN )
   void onServiceDiscovered( const QBluetoothServiceInfo& service_info );
   void onDiscoveryFinished();
   void onDiscoveryError( QBluetoothServiceDiscoveryAgent::Error error );
+#else
+  void onWinPeerFound( quint64 bt_address, const QString& device_name );
+  void onWinScanFinished();
+#endif
   void startScan();
 
 private:
+#if !defined( Q_OS_WIN )
   QBluetoothServiceDiscoveryAgent* mp_agent;
+#else
+  BtWinWorker* mp_winWorker;
+  bool m_scanRequested;
+#endif
   QTimer* mp_scanTimer;
   QBluetoothAddress m_localAddress;
 
