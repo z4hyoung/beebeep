@@ -11,7 +11,7 @@
 ### 1. Visual Studio 2022 Community（提供 MSVC 编译器）
 1. 下载：https://visualstudio.microsoft.com/zh-hans/downloads/ → Community 2022（免费）
 2. 安装时勾选工作负载：**"使用 C++ 的桌面开发"**（默认勾选项保留即可）
-3. ⚠️ 关键：**必须用 MSVC 工具链，不能用 MinGW**——Windows 上 QtBluetooth 走 WinRT 后端，MinGW 构建的 Qt 不含蓝牙支持
+3. ⚠️ 更新（2026-11）：**MinGW 工具链也已可用**——蓝牙传输已改为原生 Win32 后端（`src/bluetooth/BtWinWorker.*`：BluetoothAPIs + AF_BTH 套接字），不再依赖 QtBluetooth 的 WinRT 后端；MinGW 构建（如 Qt 6.5.3 win64_mingw + MinGW 13.1）即可完整编译运行。MSVC 路径仍然有效，二选一即可
 
 ### 2. Qt 6（在线安装器，免费但需注册 Qt 账号）
 1. 注册账号：https://login.qt.io/register
