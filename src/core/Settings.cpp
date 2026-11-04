@@ -189,7 +189,9 @@ Settings::Settings()
   m_useReturnToSendMessage = true;
   m_tickIntervalCheckIdle = 13;
   m_tickIntervalCheckNetwork = 5;
-  m_tickIntervalBroadcasting = 0;
+  // YongBEEP: periodic discovery beacon (upstream default 0 = broadcast only once
+  // at startup, which makes two long-running instances unable to find each other)
+  m_tickIntervalBroadcasting = 30;
   m_broadcastToOfflineUsers = false;
   m_broadcastToLocalSubnetAlways = true;
 
