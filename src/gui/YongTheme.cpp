@@ -116,7 +116,8 @@ QString YongTheme::mainWindowQss()
     // ---- embedded GuiChat: message viewer + input area ----
     "#GuiChat { background: %3; }"
     "#GuiChatViewer { border: none; background: %3; color: %4; font-size: 14px; }"
-    "#GuiChatInputPanel { background: %1; border-top: 1px solid %2; }"
+    "#GuiChatInputPanel { background: %1; }"
+    "#GuiChatInputLine { background: %2; border: none; }"
     "#GuiChatInputToolbar { background: %1; }"
     "#GuiMessageEdit { border: none; background: %1; color: %4; font-size: 14px; }"
     "#GuiChatEmoticonsButton, #GuiChatAttachButton { border: none; background: transparent; }"

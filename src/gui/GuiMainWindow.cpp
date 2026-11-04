@@ -177,6 +177,7 @@ void GuiMainWindow::createGui()
   header_line->setObjectName( "GuiWeChatHeaderLine" );
   header_line->setFrameShape( QFrame::NoFrame );
   header_line->setFixedHeight( 1 );
+  header_line->setAttribute( Qt::WA_StyledBackground, true );
   right_layout->addWidget( header_line );
   right_layout->addWidget( chat_area, 1 );
 
@@ -189,7 +190,10 @@ void GuiMainWindow::createGui()
   splitter->addWidget( right_panel );
   splitter->setStretchFactor( 0, 0 );
   splitter->setStretchFactor( 1, 1 );
-  splitter->setSizes( QList<int>() << 280 << 640 );
+  int left_width = QSettings( QLatin1String( "YongBEEP" ), QLatin1String( "main" ) )
+                      .value( QLatin1String( "leftPanelWidth" ), 280 ).toInt();
+  left_width = qBound( 240, left_width, 380 );
+  splitter->setSizes( QList<int>() << left_width << qMax( 640, width() - left_width ) );
   setCentralWidget( splitter );
 
   // ---------- Tray icon: show/hide + quit only (PRD 3.4 cut list) ----------
@@ -1020,6 +1024,15 @@ void GuiMainWindow::closeEvent( QCloseEvent* e )
   {
     Settings::instance().setGuiGeometry( saveGeometry() );
     Settings::instance().save();
+  }
+
+  // YongBEEP: persist the session-list splitter width so a restart keeps the
+  // user's preferred layout (clamped to the WeChat-like 240-380 range).
+  if( QSplitter* main_splitter = findChild<QSplitter*>( QLatin1String( "GuiWeChatSplitter" ) ) )
+  {
+    QList<int> sizes = main_splitter->sizes();
+    if( !sizes.isEmpty() && sizes.first() > 0 )
+      QSettings( QLatin1String( "YongBEEP" ), QLatin1String( "main" ) ).setValue( QLatin1String( "leftPanelWidth" ), sizes.first() );
   }
 
   mp_trayIcon->hide();
