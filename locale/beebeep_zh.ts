@@ -1169,6 +1169,14 @@
         <translation>发送文件</translation>
     </message>
     <message>
+        <source>Send</source>
+        <translation>发送</translation>
+    </message>
+    <message>
+        <source>Write a message</source>
+        <translation>写消息…</translation>
+    </message>
+    <message>
         <location filename="../src/desktop/GuiChat.cpp" line="196"/>
         <source>Change font style</source>
         <translation>修改字体</translation>
@@ -6917,6 +6925,10 @@ Please select a different name.</source>
 <context>
     <name>ChatListModel</name>
     <message>
+        <source>You: </source>
+        <translation>你: </translation>
+    </message>
+    <message>
         <source>All users</source>
         <translation>所有用户</translation>
     </message>
@@ -6962,6 +6974,14 @@ Please select a different name.</source>
     <message>
         <source>+ Scan devices</source>
         <translation>＋ 扫描设备</translation>
+    </message>
+    <message>
+        <source>Scan devices</source>
+        <translation>扫描设备</translation>
+    </message>
+    <message>
+        <source>Search</source>
+        <translation>搜索</translation>
     </message>
     <message>
         <source>Bluetooth permission was denied. Enable it for %1 in the system privacy settings to chat over bluetooth.</source>

@@ -43,6 +43,10 @@ public:
 
   void takeScreenshot( const QString& file_path );
   inline GuiScanDevices* scanDevicesDialog() const;
+  // YongBEEP S4c debug hook (--demo-chat): select the chat, seed an input
+  // draft (active input/green send button) and put an unread badge on
+  // unread_chat_id so screenshots are deterministic.
+  void demoChatInputDraft( VNumber chat_id, const QString& draft, VNumber unread_chat_id = ID_INVALID, int unread_count = 0 );
 
 public slots:
   void loadSession();
@@ -107,6 +111,7 @@ private:
   ChatListModel* mp_chatListModel;
   QPushButton* mp_scanDevicesButton;
   QLabel* mp_headerName;
+  QLabel* mp_headerStatusDot;
   QLabel* mp_headerStatus;
   QStackedWidget* mp_chatStack;
   QLabel* mp_chatPlaceholder;

@@ -317,14 +317,58 @@ int main( int argc, char *argv[] )
         demo_chat_chat.addMessage( ChatMessage( demo_messages.at( demo_i ).first, m, ChatMessage::Chat, false ) );
       }
       // File message through the real path (system FileTransfer message with
-      // a clickable file link, rendered as the paperclip block).
+      // a clickable file link, rendered as the WeChat file card since S4c).
       Message demo_file_m( Message::System, ID_SYSTEM_MESSAGE,
-                           QStringLiteral( "<a href=\"file:///tmp/demo-report.docx\">报告.docx</a> 143KB ✓" ) );
+                           QStringLiteral( "<a href=\"file:///tmp/demo-report.docx\">季度报告.docx</a> 143KB ✓" ) );
       demo_chat_chat.addMessage( ChatMessage( ID_SYSTEM_MESSAGE, demo_file_m, ChatMessage::FileTransfer, false ) );
       Message sys_m( Message::System, ID_SYSTEM_MESSAGE, QObject::tr( "%1 is connected" ).arg( demo_user.name() ) );
       demo_chat_chat.addMessage( ChatMessage( ID_SYSTEM_MESSAGE, sys_m, ChatMessage::System, false ) );
       ChatManager::instance().setChat( demo_chat_chat );
+
+      // S4c: second peer with a private 1:1 chat - the newest chat gets
+      // selected, so the screenshot shows the WeChat 1:1 look (no sender
+      // names above bubbles) next to the unread badge on the default chat.
+      User demo_phone;
+      demo_phone.setId( 990002 );
+      demo_phone.setName( QStringLiteral( "Yong-iPhone" ) );
+      demo_phone.setStatus( User::Online );
+      demo_phone.setColor( QStringLiteral( "#07C160" ) );
+      UserManager::instance().setUser( demo_phone );
+
+      Group demo_private_group;
+      demo_private_group.setId( 990002 );
+      demo_private_group.setChatType( Group::PrivateChat );
+      demo_private_group.setPrivateId( QStringLiteral( "demo-private-990002" ) );
+      demo_private_group.setName( demo_phone.name() );
+      demo_private_group.addUser( ID_LOCAL_USER );
+      demo_private_group.addUser( demo_phone.id() );
+
+      Chat demo_private_chat;
+      demo_private_chat.setGroup( demo_private_group );
+      QList< QPair<VNumber, QString> > demo_private_messages;
+      demo_private_messages.append( qMakePair( demo_phone.id(), QStringLiteral( "这份是最终版吗？" ) ) );
+      demo_private_messages.append( qMakePair( ID_LOCAL_USER, QStringLiteral( "对，发你了，看下" ) ) );
+      demo_private_messages.append( qMakePair( demo_phone.id(), QStringLiteral( "好的，收到了 👍" ) ) );
+      for( int demo_i = 0; demo_i < demo_private_messages.size(); demo_i++ )
+      {
+        Message pm( Message::Chat, demo_private_messages.at( demo_i ).first, demo_private_messages.at( demo_i ).second );
+        demo_private_chat.addMessage( ChatMessage( demo_private_messages.at( demo_i ).first, pm, ChatMessage::Chat, false ) );
+      }
+      // Outgoing file message in the 1:1 chat (WeChat file card, S4c)
+      Message demo_own_file_m( Message::System, ID_SYSTEM_MESSAGE,
+                               QStringLiteral( "<a href=\"file:///tmp/demo-report.docx\">季度报告.docx</a> 143KB ✓" ) );
+      demo_private_chat.addMessage( ChatMessage( ID_SYSTEM_MESSAGE, demo_own_file_m, ChatMessage::FileTransfer, false ) );
+      demo_private_chat.setLastMessageTimestamp( QDateTime::currentDateTime() );
+      ChatManager::instance().setChat( demo_private_chat );
+
       QMetaObject::invokeMethod( &mw, "loadSession", Qt::QueuedConnection );
+      // After loadSession selects a chat: force-select the 1:1 demo chat,
+      // seed a draft line (active input + green send button) and put an
+      // unread badge on the default chat - deterministic screenshots.
+      QTimer::singleShot( 0, &mw, [&mw]()
+      {
+        mw.demoChatInputDraft( 990002, QStringLiteral( "好，稍后回复你" ), ID_DEFAULT_CHAT, 2 );
+      } );
       qDebug() << "Demo chat messages loaded in the default chat";
     }
   }

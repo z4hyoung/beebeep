@@ -57,6 +57,8 @@ public:
   bool appendChatMessage( const Chat&, const ChatMessage& );
   // YongBEEP hook: hide floating-window leftovers when embedded in the main window (S3-4a)
   void setCompactInputMode();
+  // YongBEEP S4c debug hook (--demo-chat): enable input + seed a draft line
+  void setDemoInputDraft( const QString& draft );
 
   inline QSplitter* chatSplitter() const;
   void editChatMembers();
@@ -120,6 +122,7 @@ protected:
 
 private slots:
   void sendMessage();
+  void updateSendButton(); // S4c: gray/green send button follows input content
   void checkWriting();
   void showEmoticonsPopup();
   void emoticonSelectedInPopup( const Emoticon& );
@@ -173,6 +176,7 @@ private:
   VNumber m_chatId;
   VNumber m_lastMessageUserId;
   QDateTime m_lastMessageTimestamp;
+  bool m_sendAllowedByState; // S4c: connection/membership part of the send button state
 
   QMenu* mp_menuContext;
   QMenu* mp_menuFilters;
