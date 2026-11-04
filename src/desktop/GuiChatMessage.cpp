@@ -27,12 +27,15 @@
 #include "ChatMessage.h"
 #include "IconManager.h"
 #include "Settings.h"
-#include "Settings.h"
 #include "UserManager.h"
+#include "YongTheme.h"
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QPainter>
+#include <QPainterPath>
 #include <QPixmap>
+#include <QRegularExpression>
 #include <QUrl>
 
 
@@ -47,48 +50,120 @@ static QString textImportantSuffix()
 }
 
 // ---------------------------------------------------------------------
-// YongBEEP S3-4b: WeChat-style bubble palette (PRD 4.1, ADR-D7: rich text
-// has no border-radius, square color blocks are the approved compromise).
-// Qt rich text cannot shrink-wrap a bgcolor <td> (it stretches to the full
-// cell), while a CSS background-color <span> hugs its text and stays
-// continuous across wrapped lines - but only when it sits inside a table
-// cell. So every bubble is: outer positioning table (avatar column + empty
-// 30% spacer to cap the bubble width) + <span> color block inside the
-// content cell. Verified with a standalone QTextBrowser test bench.
+// YongBEEP S3-4b / S4c: WeChat-style bubble palette (PRD 4.1, ADR-D7: rich
+// text has no border-radius, square color blocks are the approved
+// compromise). Qt rich text cannot shrink-wrap a bgcolor <td> (it stretches
+// to the full cell), while a CSS background-color <span> hugs its text and
+// stays continuous across wrapped lines - but only when it sits inside a
+// table cell. So every bubble is: outer positioning table (avatar column +
+// empty 40% spacer capping the bubble at ~60% of the chat width) + <span>
+// color block inside the content cell. S4c colors: own #95EC69, peer white
+// #FFFFFF on the #F5F5F5 chat background, text #191919 (light style only;
+// dark style keeps the S3-4b colors).
 // ---------------------------------------------------------------------
 static QString ownBubbleStyle()
 {
-  // WeChat green in light style; darker green with white text in dark style
+  // WeChat green with dark text in light style; darker green with white text in dark style
   return Settings::instance().useDarkStyle() ? QStringLiteral( "background-color:#3eb575;color:#ffffff" )
-                                             : QStringLiteral( "background-color:#95ec69" );
+                                             : QStringLiteral( "background-color:#95ec69;color:#191919" );
 }
 
 static QString peerBubbleStyle()
 {
-  return Settings::instance().useDarkStyle() ? QStringLiteral( "background-color:#3c4048" )
-                                             : QStringLiteral( "background-color:#f0f0f0" );
+  return Settings::instance().useDarkStyle() ? QStringLiteral( "background-color:#3c4048;color:#ffffff" )
+                                             : QStringLiteral( "background-color:#ffffff;color:#191919" );
 }
 
 static QString centeredInfoLine( const QString& text )
 {
-  return QString( "<div align=center><font color=%1 size=2>%2</font></div>" ).arg( Settings::instance().chatSystemTextColor(), text );
+  if( Settings::instance().useDarkStyle() )
+    return QString( "<div align=center><font color=%1 size=2>%2</font></div>" ).arg( Settings::instance().chatSystemTextColor(), text );
+  // S4c WeChat spec: centered 11px #B2B2B2 timestamp
+  return QString( "<div align=center><span style=\"font-size:%1px;color:%2\">%3</span></div>" )
+           .arg( YongTheme::fontTimestampPx() ).arg( YongTheme::textSecondary().name(), text );
 }
 
 // Caches the user avatar (Bee::avatarForUser: real photo or initials, the
 // same generator the conversation list uses) as a png in the data cache
 // folder so the HTML stream can reference it with a file:// url.
+// S4c: rendered at 2x (80px) with the corners rounded by 12px (2x of the
+// 6px WeChat avatar radius) so the 40x40 html image shows a rounded square.
 static QString avatarHtml( const User& u )
 {
+  const int html_avatar_size = YongTheme::avatarSizePx(); // 40
+  const int render_avatar_size = html_avatar_size * 2;
   const QString avatar_folder = Settings::instance().cacheFolder();
-  const QString avatar_path = QString( "%1/chat_avatar_%2.png" ).arg( avatar_folder, QString::number( static_cast<qulonglong>( u.isValid() ? u.id() : ID_INVALID ) ) );
+  const QString avatar_path = QString( "%1/chat_avatar_%2_r.png" ).arg( avatar_folder, QString::number( static_cast<qulonglong>( u.isValid() ? u.id() : ID_INVALID ) ) );
   if( !QFile::exists( avatar_path ) )
   {
     QDir().mkpath( avatar_folder );
-    QPixmap avatar_pixmap = Bee::avatarForUser( u, QSize( 96, 96 ), true );
-    if( avatar_pixmap.isNull() || !avatar_pixmap.save( avatar_path, "PNG" ) )
-      return IconManager::instance().toHtml( "user.png", "*", 24, 24 );
+    QPixmap avatar_pixmap = Bee::avatarForUser( u, QSize( render_avatar_size, render_avatar_size ), true );
+    if( !avatar_pixmap.isNull() )
+    {
+      QPixmap rounded_pixmap( render_avatar_size, render_avatar_size );
+      rounded_pixmap.fill( Qt::transparent );
+      QPainter painter( &rounded_pixmap );
+      QPainterPath clip_path;
+      clip_path.addRoundedRect( 0, 0, render_avatar_size, render_avatar_size,
+                                YongTheme::avatarRadiusPx() * 2.0, YongTheme::avatarRadiusPx() * 2.0 );
+      painter.setClipPath( clip_path );
+      painter.drawPixmap( 0, 0, avatar_pixmap );
+      painter.end();
+      if( !rounded_pixmap.save( avatar_path, "PNG" ) )
+        return IconManager::instance().toHtml( "user.png", "*", html_avatar_size, html_avatar_size );
+    }
+    else
+      return IconManager::instance().toHtml( "user.png", "*", html_avatar_size, html_avatar_size );
   }
-  return QString( "<img src='%1' width=24 height=24 border=0>" ).arg( QUrl::fromLocalFile( avatar_path ).toString() );
+  return QString( "<img src='%1' width=%2 height=%2 border=0>" ).arg( QUrl::fromLocalFile( avatar_path ).toString() ).arg( html_avatar_size );
+}
+
+// ---------------------------------------------------------------------
+// S4c: WeChat file message card - white block, 32px file-type icon on the
+// left, 13px file name (link stays clickable) and an 11px gray status line.
+// The incoming system message text is free-form ("name 143KB ..." or the
+// full transfer sentence); the <a href> link provides the file name, the
+// remaining text becomes the status line with ✓ green / ✗ red.
+// ---------------------------------------------------------------------
+static QString fileTransferCardHtml( const ChatMessage& cm )
+{
+  static const QRegularExpression link_rx( QStringLiteral( "<a href=\\\"([^\\\"]+)\\\">([^<]+)</a>" ) );
+  QRegularExpressionMatch match = link_rx.match( cm.message() );
+  if( !match.hasMatch() )
+    return QString();
+
+  const QString file_url = match.captured( 1 );
+  const QString file_name = match.captured( 2 );
+
+  QString rest_text = cm.message();
+  rest_text.remove( match.capturedStart(), match.capturedLength() );
+  rest_text.remove( QRegularExpression( QStringLiteral( "<img[^>]*>" ) ) );
+  rest_text = Bee::removeHtmlTags( rest_text ).simplified();
+
+  QString status_line = rest_text.toHtmlEscaped();
+  status_line.replace( QString::fromUtf8( "\xE2\x9C\x93" ), QString( "<font color=%1>\xE2\x9C\x93</font>" ).arg( YongTheme::brandGreen().name() ) ); // check mark
+  status_line.replace( QString::fromUtf8( "\xE2\x9C\x97" ), QString( "<font color=%1>\xE2\x9C\x97</font>" ).arg( YongTheme::unreadRed().name() ) ); // ballot x
+
+  const QString icon_html = YongTheme::svgHtmlIcon( YongTheme::fileIconNameForFile( file_name ), 32 );
+  if( icon_html.isEmpty() )
+    return QString();
+
+  const bool dark = Settings::instance().useDarkStyle();
+  const QString card_bgcolor = dark ? QStringLiteral( "#3c4048" ) : QStringLiteral( "#ffffff" );
+  const QString name_color = dark ? QStringLiteral( "#ffffff" ) : YongTheme::textPrimary().name();
+  const QString status_color = dark ? QStringLiteral( "#aaaaaa" ) : YongTheme::textSecondary().name();
+
+  return QString(
+           "<div align=center>"
+           "<table width=320 cellspacing=0 cellpadding=8 border=0 align=center><tr>"
+           "<td bgcolor=%1 width=48 align=center valign=middle>%2</td>"
+           "<td bgcolor=%1 valign=middle>"
+           "<span style=\"font-size:13px;color:%3\"><a href=\"%4\" style=\"text-decoration:none;color:%3\">%5</a></span><br>"
+           "<span style=\"font-size:11px;color:%6\">%7</span>"
+           "</td>"
+           "</tr></table>"
+           "</div><br>" )
+           .arg( card_bgcolor, icon_html, name_color, file_url, file_name.toHtmlEscaped(), status_color, status_line );
 }
 
 QString GuiChatMessage::datetimestampToString( const ChatMessage& cm, bool show_timestamp, bool show_datestamp )
@@ -122,7 +197,7 @@ QString GuiChatMessage::datetimestampToString( const ChatMessage& cm, bool show_
 
 QString GuiChatMessage::formatMessage( const User& u, const ChatMessage& cm, VNumber last_user_id, bool show_timestamp, bool show_datestamp,
                                        bool skip_system_message, bool show_message_group_by_user, bool use_your_name, bool use_chat_compact,
-                                       const QDateTime& last_message_timestamp )
+                                       const QDateTime& last_message_timestamp, bool chat_is_private )
 {
   Q_UNUSED( skip_system_message );
   Q_UNUSED( use_your_name );
@@ -159,19 +234,28 @@ QString GuiChatMessage::formatMessage( const User& u, const ChatMessage& cm, VNu
 
   // WeChat-like centered gray time separator: first shown message, >= 5 min
   // gap from the previous one or day change (PRD 4.1 "时间戳居中灰字").
+  // S4c: hh:mm on the same day, date + hh:mm on older days (no seconds).
   QString html_message = "";
   bool day_changed = last_message_timestamp.isValid() && last_message_timestamp.date() != cm.timestamp().date();
   if( show_timestamp && ( !last_message_timestamp.isValid() || day_changed || last_message_timestamp.secsTo( cm.timestamp() ) >= 300 ) )
   {
-    QString date_time_stamp = datetimestampToString( cm, true, show_datestamp || day_changed );
+    QDate msg_date = cm.timestamp().date();
+    QString date_time_stamp = cm.timestamp().time().toString( QStringLiteral( "hh:mm" ) );
+    if( msg_date != QDate::currentDate() )
+    {
+      QString date_part = msg_date.year() == QDate::currentDate().year() ? msg_date.toString( QStringLiteral( "MM-dd" ) )
+                                                                         : msg_date.toString( QStringLiteral( "yyyy-MM-dd" ) );
+      date_time_stamp.prepend( date_part + QLatin1Char( ' ' ) );
+    }
     if( !date_time_stamp.isEmpty() )
       html_message += centeredInfoLine( date_time_stamp );
   }
 
-  // Sender name line (peers only, hidden when grouped with the previous
-  // message of the same author; own bubbles carry no name like WeChat).
+  // Sender name line: peers only, and never in 1:1 chats - WeChat private
+  // chats show no names above the bubbles (S4c), the avatar is enough.
+  // Own bubbles never carry a name; grouped consecutive messages omit it too.
   QString name_line = "";
-  if( !own_message && !append_message_to_previous )
+  if( !own_message && !chat_is_private && !append_message_to_previous )
   {
     QString user_name = u.isValid() ? Bee::userNameToShow( u, true ) : QObject::tr( "Unknown" );
     if( cm.isFromAutoresponder() )
@@ -188,24 +272,25 @@ QString GuiChatMessage::formatMessage( const User& u, const ChatMessage& cm, VNu
                            text_formatted );
 
   // Outer positioning table: avatar column on the outer edge, empty spacer
-  // column (~30%) capping the bubble width, content cell with the span block.
+  // column (~40%) capping the bubble width at ~60% of the chat area (S4c),
+  // content cell with the span block. Avatars are 40x40 rounded squares.
   if( own_message )
   {
     html_message += QString( "<table width=100% cellspacing=0 cellpadding=0 border=0><tr>"
-                             "<td width=30%></td>"
+                             "<td width=40%></td>"
                              "<td align=right valign=top>%1</td>"
-                             "<td width=8></td>"
-                             "<td width=24 valign=top>%2</td>"
-                             "</tr></table><br>" ).arg( bubble, avatarHtml( u ) );
+                             "<td width=12></td>"
+                             "<td width=%3 valign=top>%2</td>"
+                             "</tr></table><br>" ).arg( bubble, avatarHtml( u ) ).arg( YongTheme::avatarSizePx() );
   }
   else
   {
     html_message += QString( "<table width=100% cellspacing=0 cellpadding=0 border=0><tr>"
-                             "<td width=24 valign=top>%2</td>"
-                             "<td width=8></td>"
+                             "<td width=%3 valign=top>%2</td>"
+                             "<td width=12></td>"
                              "<td align=left valign=top>%1</td>"
-                             "<td width=30%></td>"
-                             "</tr></table><br>" ).arg( name_line + bubble, avatarHtml( u ) );
+                             "<td width=40%></td>"
+                             "</tr></table><br>" ).arg( name_line + bubble, avatarHtml( u ) ).arg( YongTheme::avatarSizePx() );
   }
 
   if( cm.isImportant() )
@@ -222,8 +307,18 @@ QString GuiChatMessage::formatSystemMessage( const ChatMessage& cm, VNumber last
   if( cm.message().isEmpty() )
     return QString( "" );
 
-  // File transfer / voice lines: keep the clickable links and add a paperclip
-  // row inside a light color block (PRD 4.1 file bubble).
+  // File transfer lines: WeChat file card (S4c) - white block with a 32px
+  // file-type icon, 13px name and 11px gray status. Falls back to the
+  // centered paperclip block when no file link can be parsed.
+  if( cm.type() == ChatMessage::FileTransfer )
+  {
+    QString card_html = fileTransferCardHtml( cm );
+    if( !card_html.isEmpty() )
+      return card_html;
+  }
+
+  // Voice lines and unparsed file transfers: centered block with the
+  // clickable links (paperclip row, S3-4b).
   if( cm.type() == ChatMessage::FileTransfer || cm.type() == ChatMessage::Voice )
   {
     return QString( "<div align=center><span style=\"%1\">&nbsp;&#128206;&nbsp;%2%3&nbsp;</span></div><br>" )
@@ -286,7 +381,7 @@ QString GuiChatMessage::chatToHtml( const Chat& c, bool skip_file_transfers, boo
         if( u.isValid() )
           chat_users.set( u );
       }
-      html_text += formatMessage( u, cm, last_message_user_id, force_timestamp || Settings::instance().chatShowMessageTimestamp(), force_datestamp || Settings::instance().chatShowMessageDatestamp(), skip_system_message, false, true, use_chat_compact, last_message_timestamp );
+      html_text += formatMessage( u, cm, last_message_user_id, force_timestamp || Settings::instance().chatShowMessageTimestamp(), force_datestamp || Settings::instance().chatShowMessageDatestamp(), skip_system_message, false, true, use_chat_compact, last_message_timestamp, c.isPrivate() );
       last_message_timestamp = cm.timestamp();
     }
     last_message_user_id = cm.isImportant() ? ID_IMPORTANT_MESSAGE : cm.userId();

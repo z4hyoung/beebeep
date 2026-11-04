@@ -1,6 +1,12 @@
 
 INCLUDEPATH += $$PWD
 
+# YongBEEP S4c: WeChat macOS theme module (palette/QSS/svg icon helpers)
+HEADERS += gui/YongTheme.h
+SOURCES += gui/YongTheme.cpp
+# Hand-drawn SVG icon set (search/smile/paperclip/plus/bluetooth/file types)
+RESOURCES += gui/icons/yongbeep-icons.qrc
+
 HEADERS += gui/AudioManager.h \
   gui/Avatar.h \
   gui/ChatListItemDelegate.h \

@@ -13,6 +13,7 @@
 #include "Settings.h"
 #include "User.h"
 #include "UserManager.h"
+#include "YongTheme.h"
 
 #include <algorithm>
 
@@ -21,10 +22,26 @@ static QString LastMessageSummary( const Chat& c )
 {
   if( c.messages().isEmpty() )
     return "";
-  const ChatMessage& cm = c.messages().last();
-  QString txt = Bee::removeHtmlTags( cm.message() );
+  // WeChat shows the last real chat message, not the trailing system line
+  // (S4c); fall back to the very last message for chats with system only.
+  const ChatMessage* cm = Q_NULLPTR;
+  for( int i = c.messages().size() - 1; i >= 0; i-- )
+  {
+    if( !c.messages().at( i ).isFromSystem() )
+    {
+      cm = &c.messages().at( i );
+      break;
+    }
+  }
+  if( !cm )
+    cm = &c.messages().last();
+  QString txt = Bee::removeHtmlTags( cm->message() );
   txt.replace( QLatin1Char( '\n' ), QLatin1Char( ' ' ) );
-  return txt.simplified();
+  txt = txt.simplified();
+  // WeChat conversation list prefixes own messages with "You: " (S4c)
+  if( cm->isFromLocalUser() )
+    txt.prepend( ChatListModel::tr( "You: " ) );
+  return txt;
 }
 
 static QDateTime ChatActivityTime( const Chat& c )
@@ -85,7 +102,10 @@ QVariant ChatListModel::data( const QModelIndex& index, int role ) const
   case AvatarRole:
     {
       if( c.isDefault() )
-        return IconManager::instance().icon( "default-chat-online.png" );
+      {
+        // S4c: flat WeChat-style bubble tile replaces the glossy legacy icon
+        return YongTheme::svgIcon( "chat-bubble", YongTheme::brandGreen(), QColor(), YongTheme::avatarSizePx() );
+      }
       User peer = UserManager::instance().findUser( c.privateUserId() );
       if( peer.isValid() )
       {

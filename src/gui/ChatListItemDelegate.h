@@ -1,10 +1,11 @@
 //////////////////////////////////////////////////////////////////////
 //
-// YongBEEP — WeChat-style chat list item delegate (S3-4a)
+// YongBEEP — WeChat-style chat list item delegate (S3-4a, restyled S4c)
 //
-// Paints one conversation row: avatar (rounded), name (bold),
-// single-line last-message summary, relative time, red unread badge,
-// selected/hover highlight. Data comes from ChatListModel roles.
+// Paints one conversation row: avatar (rounded square, 6px radius),
+// name (14px/600), single-line 12px gray last-message summary,
+// 11px relative time, red unread badge (16px capsule, 99+ cap),
+// WeChat-gray selected/hover highlight. Colors come from YongTheme.
 //
 //////////////////////////////////////////////////////////////////////
 
@@ -26,7 +27,7 @@ public:
 private:
   int m_avatarSize;
   int m_rowHeight;
-  int m_badgeHeight;
+  int m_badgeSize;
 
 };
 

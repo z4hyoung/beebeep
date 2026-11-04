@@ -40,6 +40,9 @@ TEMPLATE = app
 TARGET = yongbeep
 
 QT += network xml widgets printsupport
+# YongBEEP S4c: QtSvg for YongTheme svg icon rendering (no svg image plugin
+# in the homebrew Qt build, icons render through QSvgRenderer directly).
+QT += svg
 # YongBEEP: classic bluetooth RFCOMM transport (docs/02-技术设计.md §2.6).
 QT += bluetooth
 

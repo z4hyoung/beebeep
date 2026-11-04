@@ -36,6 +36,7 @@
 #include "IconManager.h"
 #include "Settings.h"
 #include "ShortcutManager.h"
+#include "YongTheme.h"
 #ifdef BEEBEEP_USE_HUNSPELL
   #include "SpellChecker.h"
 #endif
@@ -68,11 +69,12 @@ GuiChat::GuiChat( QWidget *parent )
   QGridLayout* grid_layout = new QGridLayout( this );
   grid_layout->setSpacing( 0 );
   grid_layout->setObjectName( QString::fromUtf8( "grid_layout" ) );
-  grid_layout->setContentsMargins( 4, 4, 4, 4 );
+  grid_layout->setContentsMargins( 0, 0, 0, 0 );
 
   mp_splitter = new QSplitter( this );
   mp_splitter->setOrientation( Qt::Vertical );
   mp_splitter->setChildrenCollapsible( false );
+  mp_splitter->setHandleWidth( 1 );
   mp_splitter->addWidget( mp_frameChat );
   setupInputToolbar();
   QWidget* input_panel = new QWidget( this );
@@ -86,8 +88,8 @@ GuiChat::GuiChat( QWidget *parent )
 
   grid_layout->addWidget( mp_splitter, 1, 0, 1, 1 );
   QList<int> widget_sizes;
-  widget_sizes.append( 200 );
-  widget_sizes.append( 80 );
+  widget_sizes.append( 300 );
+  widget_sizes.append( 130 );
   mp_splitter->setSizes( widget_sizes );
 
   mp_teMessage->setFocusPolicy( Qt::StrongFocus );
@@ -98,6 +100,7 @@ GuiChat::GuiChat( QWidget *parent )
   mp_teMessage->setObjectName( "GuiMessageEdit" );
 
   mp_teChat->setObjectName( "GuiChatViewer" );
+  mp_teChat->document()->setDocumentMargin( 14 ); // WeChat breathing room around bubbles
   m_defaultChatPalette = mp_teChat->palette();
   m_defaultChatPalette.setColor( QPalette::Highlight, Qt::yellow );
   m_defaultChatPalette.setColor( QPalette::HighlightedText, Qt::black );
@@ -183,10 +186,28 @@ GuiChat::GuiChat( QWidget *parent )
   connect( mp_actRestoreDefaultFont, SIGNAL( triggered() ), this, SLOT( resetChatFontToDefault() ) );
 
   setChatFont( Settings::instance().chatFont() );
+  // S4c WeChat body text is 14px in the light theme (dark style untouched)
+  if( !Settings::instance().useDarkStyle() )
+  {
+    QFont chat_font = mp_teChat->font();
+    chat_font.setPixelSize( YongTheme::fontBodyPx() );
+    mp_teChat->setFont( chat_font );
+  }
   updateChatColors();
   updateOnSendingMessage();
 
-  mp_pbSend->setIcon( IconManager::instance().icon( "send.png" ) );
+  // S4c WeChat send button: small brand-green capsule with white "Send"
+  // text (36x26 minimum), gray and disabled while the input is empty.
+  m_sendAllowedByState = true;
+  mp_pbSend->setObjectName( "GuiChatSendButton" );
+  mp_pbSend->setText( tr( "Send" ) );
+  mp_pbSend->setIcon( QIcon() );
+  mp_pbSend->setFlat( true );
+  mp_pbSend->setFixedHeight( 26 );
+  mp_pbSend->setMinimumWidth( 36 );
+  mp_pbSend->setCursor( Qt::PointingHandCursor );
+  connect( mp_teMessage, SIGNAL( textChanged() ), this, SLOT( updateSendButton() ) );
+  updateSendButton();
 
 #ifdef BEEBEEP_USE_SHAREDESKTOP
   mp_actShareDesktop = new QAction( IconManager::instance().icon( "desktop-share.png" ), tr( "Share your desktop" ), this );
@@ -214,36 +235,52 @@ void GuiChat::setCompactInputMode()
   mp_pbRecordVoiceMessage->hide();
 }
 
-// YongBEEP S3-4b: WeChat-style input toolbar row [emoji][attach] above the
-// message edit (PRD 4.1). The emoji button opens the existing GuiEmoticons
-// picker embedded in a lightweight popup frame; the attach button reuses the
-// GuiChat::sendFile() chain (file dialog -> sendFileFromChatRequest ->
-// Core::sendFilesFromChat, inline over bluetooth when needed).
+// YongBEEP S4c debug helper (--demo-chat + --screenshot only): the demo core
+// is never connected, which would leave the input disabled and the send
+// button gray in every screenshot. Force-enable the input and seed a draft
+// line so the shots show the real WeChat active state (green send button,
+// per-chat draft restore).
+void GuiChat::setDemoInputDraft( const QString& draft )
+{
+  m_sendAllowedByState = true;
+  mp_teMessage->setEnabled( true );
+  mp_teMessage->setToolTip( QString() );
+  mp_teMessage->setPlaceholderText( tr( "Write a message" ) );
+  if( !draft.isEmpty() )
+    mp_teMessage->setPlainText( draft );
+  updateSendButton();
+}
+
+// YongBEEP S3-4b / S4c: WeChat-style input toolbar row [smile][paperclip]
+// above the message edit (PRD 4.1). 20px hand-drawn SVG line icons, gray
+// #7F7F7F with a #191919 hover state (YongTheme). The smile button opens the
+// existing GuiEmoticons picker embedded in a lightweight popup frame; the
+// paperclip reuses the GuiChat::sendFile() chain (file dialog ->
+// sendFileFromChatRequest -> Core::sendFilesFromChat, inline over bluetooth
+// when needed).
 void GuiChat::setupInputToolbar()
 {
   mp_inputToolbar = new QWidget( this );
   mp_inputToolbar->setObjectName( "GuiChatInputToolbar" );
   QHBoxLayout* toolbar_layout = new QHBoxLayout( mp_inputToolbar );
-  toolbar_layout->setContentsMargins( 6, 2, 6, 0 );
-  toolbar_layout->setSpacing( 2 );
+  toolbar_layout->setContentsMargins( 12, 6, 12, 0 );
+  toolbar_layout->setSpacing( 8 );
 
   mp_tbEmoticons = new QToolButton( mp_inputToolbar );
   mp_tbEmoticons->setObjectName( "GuiChatEmoticonsButton" );
-  mp_tbEmoticons->setText( QString::fromUtf8( "\xF0\x9F\x98\x80" ) );
+  mp_tbEmoticons->setIcon( YongTheme::svgIcon( "smile", YongTheme::iconGray(), YongTheme::textPrimary(), YongTheme::toolbarIconPx() ) );
+  mp_tbEmoticons->setIconSize( QSize( YongTheme::toolbarIconPx(), YongTheme::toolbarIconPx() ) );
   mp_tbEmoticons->setToolTip( tr( "Insert an emoticon" ) );
   mp_tbEmoticons->setAutoRaise( true );
-  QFont emoticon_font = mp_tbEmoticons->font();
-  emoticon_font.setPointSizeF( emoticon_font.pointSizeF() * 1.2 );
-  mp_tbEmoticons->setFont( emoticon_font );
+  mp_tbEmoticons->setCursor( Qt::PointingHandCursor );
 
   mp_tbAttach = new QToolButton( mp_inputToolbar );
   mp_tbAttach->setObjectName( "GuiChatAttachButton" );
-  mp_tbAttach->setText( QString::fromUtf8( "\xF0\x9F\x93\x8E" ) );
+  mp_tbAttach->setIcon( YongTheme::svgIcon( "paperclip", YongTheme::iconGray(), YongTheme::textPrimary(), YongTheme::toolbarIconPx() ) );
+  mp_tbAttach->setIconSize( QSize( YongTheme::toolbarIconPx(), YongTheme::toolbarIconPx() ) );
   mp_tbAttach->setToolTip( tr( "Send a file" ) );
   mp_tbAttach->setAutoRaise( true );
-  QFont attach_font = mp_tbAttach->font();
-  attach_font.setPointSizeF( attach_font.pointSizeF() * 1.2 );
-  mp_tbAttach->setFont( attach_font );
+  mp_tbAttach->setCursor( Qt::PointingHandCursor );
 
   toolbar_layout->addWidget( mp_tbEmoticons );
   toolbar_layout->addWidget( mp_tbAttach );
@@ -380,7 +417,7 @@ void GuiChat::updateActions( const Chat& c, bool is_connected, int connected_use
   if( !is_connected )
   {
     mp_teMessage->setEnabled( false );
-    mp_pbSend->setEnabled( false );
+    m_sendAllowedByState = false;
     mp_actSendTextCode->setEnabled( false );
     mp_teMessage->setToolTip( tr( "You are not connected" ) );
   }
@@ -389,28 +426,28 @@ void GuiChat::updateActions( const Chat& c, bool is_connected, int connected_use
     if( Settings::instance().disableSendMessage() )
     {
       mp_teMessage->setEnabled( false );
-      mp_pbSend->setEnabled( false );
+      m_sendAllowedByState = false;
       mp_actSendTextCode->setEnabled( false );
       mp_teMessage->setToolTip( tr( "Send messages is disabled" ) );
     }
     else if( c.isDefault() && !Settings::instance().chatWithAllUsersIsEnabled() )
     {
       mp_teMessage->setEnabled( false );
-      mp_pbSend->setEnabled( false );
+      m_sendAllowedByState = false;
       mp_actSendTextCode->setEnabled( false );
       mp_teMessage->setToolTip( tr( "Chat with all users is disabled" ) );
     }
     else if( c.isPrivate() && Settings::instance().disablePrivateChats() )
     {
       mp_teMessage->setEnabled( false );
-      mp_pbSend->setEnabled( false );
+      m_sendAllowedByState = false;
       mp_actSendTextCode->setEnabled( false );
       mp_teMessage->setToolTip( tr( "Private chat is disabled" ) );
     }
     else
     {
       mp_teMessage->setEnabled( local_user_is_member );
-      mp_pbSend->setEnabled( local_user_is_member );
+      m_sendAllowedByState = local_user_is_member;
       mp_actSendTextCode->setEnabled( local_user_is_member );
       if( local_user_is_member )
         mp_teMessage->setToolTip( "" );
@@ -418,6 +455,7 @@ void GuiChat::updateActions( const Chat& c, bool is_connected, int connected_use
         mp_teMessage->setToolTip( tr( "You have left this chat" ) );
     }
   }
+  updateSendButton();
 
   if( mp_teMessage->isEnabled() )
   {
@@ -456,6 +494,15 @@ void GuiChat::updateActions( const Chat& c, bool is_connected, int connected_use
   else
     mp_pbRecordVoiceMessage->setToolTip( tr( "Record voice message" ) );
 #endif
+}
+
+// S4c WeChat send button state: enabled only when the chat allows sending
+// (connection/membership, set by updateActions) AND the input is not empty.
+// The QSS turns the button gray (#E5E5E5) while disabled.
+void GuiChat::updateSendButton()
+{
+  bool has_text = mp_teMessage->document() && !mp_teMessage->document()->isEmpty();
+  mp_pbSend->setEnabled( m_sendAllowedByState && has_text );
 }
 
 void GuiChat::customContextMenu( const QPoint& p )
@@ -635,7 +682,8 @@ QString GuiChat::chatMessageToText( const ChatMessage& cm )
     }
     s = GuiChatMessage::formatMessage( u, cm, m_lastMessageUserId, Settings::instance().chatShowMessageTimestamp(), Settings::instance().chatShowMessageDatestamp(), false,
                                        Settings::instance().showMessagesGroupByUser(), m_chatId == ID_DEFAULT_CHAT ? true : Settings::instance().chatUseYourNameInsteadOfYou(),
-                                       Settings::instance().chatCompact(), m_lastMessageTimestamp );
+                                       Settings::instance().chatCompact(), m_lastMessageTimestamp,
+                                       m_chatId != ID_DEFAULT_CHAT /* WeChat 1:1 chats show no sender name (S4c) */ );
     m_lastMessageTimestamp = cm.timestamp();
   }
   else
@@ -870,12 +918,28 @@ void GuiChat::selectFont()
 
 void GuiChat::updateChatColors()
 {
-  QString background_color = m_chatId == ID_DEFAULT_CHAT ? Settings::instance().defaultChatBackgroundColor() : Settings::instance().chatBackgroundColor();
-  QString text_color = Settings::instance().chatFontColor() != Settings::instance().chatDefaultTextColor() ? Settings::instance().chatFontColor(): Settings::instance().chatDefaultTextColor();
-  mp_teMessage->setTextColor( text_color );
-  mp_teMessage->setStyleSheet( QString( "#GuiMessageEdit { background-color: %1; color: %2; }" ).arg( background_color, text_color ) );
-  mp_teChat->setStyleSheet( QString( "#GuiChatViewer { background-color: %1; color: %2; }" ).arg( background_color, Settings::instance().chatDefaultTextColor() ) );
-  // No css for bee-quote because stylesheet is only applied to new inserted HTML
+  if( Settings::instance().useDarkStyle() )
+  {
+    // Dark style keeps the pre-S4c settings-driven behavior.
+    QString background_color = m_chatId == ID_DEFAULT_CHAT ? Settings::instance().defaultChatBackgroundColor() : Settings::instance().chatBackgroundColor();
+    QString text_color = Settings::instance().chatFontColor() != Settings::instance().chatDefaultTextColor() ? Settings::instance().chatFontColor(): Settings::instance().chatDefaultTextColor();
+    mp_teMessage->setTextColor( text_color );
+    mp_teMessage->setStyleSheet( QString( "#GuiMessageEdit { background-color: %1; color: %2; }" ).arg( background_color, text_color ) );
+    mp_teChat->setStyleSheet( QString( "#GuiChatViewer { background-color: %1; color: %2; }" ).arg( background_color, Settings::instance().chatDefaultTextColor() ) );
+    // No css for bee-quote because stylesheet is only applied to new inserted HTML
+    return;
+  }
+
+  // S4c WeChat light theme: the chat area is #F5F5F5 with white input area,
+  // both styled by the YongTheme QSS on the main window. Clear the
+  // per-widget overrides so the QSS rules (#GuiChatViewer/#GuiMessageEdit)
+  // win, and keep the placeholder gray.
+  mp_teMessage->setStyleSheet( QString() );
+  mp_teChat->setStyleSheet( QString() );
+  mp_teMessage->setTextColor( YongTheme::textPrimary() );
+  QPalette message_palette = mp_teMessage->palette();
+  message_palette.setColor( QPalette::PlaceholderText, YongTheme::textSecondary() );
+  mp_teMessage->setPalette( message_palette );
 }
 
 void GuiChat::selectFontColor()

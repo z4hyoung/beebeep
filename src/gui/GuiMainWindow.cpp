@@ -28,6 +28,7 @@
 #include "Settings.h"
 #include "User.h"
 #include "UserManager.h"
+#include "YongTheme.h"
 
 #include <QApplication>
 #include <QCloseEvent>
@@ -68,10 +69,15 @@ GuiMainWindow::GuiMainWindow( QWidget* parent )
 
 void GuiMainWindow::createGui()
 {
-  // ---------- Left panel: search + conversation list ----------
+  // ---------- Left panel: search + conversation list (WeChat ~280px) ----------
   mp_searchBox = new QLineEdit( this );
-  mp_searchBox->setPlaceholderText( tr( "Search chat" ) );
+  mp_searchBox->setObjectName( "GuiWeChatSearchBox" );
+  mp_searchBox->setPlaceholderText( tr( "Search" ) );
   mp_searchBox->setClearButtonEnabled( true );
+  mp_searchBox->setFixedHeight( 28 );
+  // Leading magnifier icon inside the capsule (light gray, dark on focus)
+  mp_searchBox->addAction( YongTheme::svgIcon( "search", YongTheme::textSecondary(), YongTheme::iconGray(), 16 ),
+                           QLineEdit::LeadingPosition );
 
   mp_chatListModel = new ChatListModel( this );
   mp_chatListView = new QListView( this );
@@ -88,44 +94,79 @@ void GuiMainWindow::createGui()
 
   QWidget* left_panel = new QWidget( this );
   left_panel->setObjectName( "GuiWeChatLeftPanel" );
-  left_panel->setMinimumWidth( 200 );
+  left_panel->setMinimumWidth( 240 );
   left_panel->setMaximumWidth( 380 );
   QVBoxLayout* left_layout = new QVBoxLayout( left_panel );
-  left_layout->setContentsMargins( 8, 8, 8, 8 );
-  left_layout->setSpacing( 6 );
-  left_layout->addWidget( mp_searchBox );
+  left_layout->setContentsMargins( 0, 0, 0, 0 );
+  left_layout->setSpacing( 0 );
+
+  // Search capsule sits inset at the top of the list (WeChat macOS)
+  QWidget* search_container = new QWidget( left_panel );
+  search_container->setObjectName( "GuiWeChatSearchContainer" );
+  QHBoxLayout* search_layout = new QHBoxLayout( search_container );
+  search_layout->setContentsMargins( 12, 10, 12, 8 );
+  search_layout->setSpacing( 0 );
+  search_layout->addWidget( mp_searchBox );
+  left_layout->addWidget( search_container );
   left_layout->addWidget( mp_chatListView, 1 );
 
-  // Bottom of the left panel: bluetooth scan entry (PRD 4.1 "[＋ 扫描设备]")
-  mp_scanDevicesButton = new QPushButton( tr( "+ Scan devices" ), left_panel );
+  // Bottom of the left panel: bluetooth scan entry (PRD 4.1 "[＋ 扫描设备]"),
+  // WeChat-style flat green text button with a small bluetooth glyph
+  QWidget* scan_container = new QWidget( left_panel );
+  scan_container->setObjectName( "GuiWeChatScanContainer" );
+  QHBoxLayout* scan_layout = new QHBoxLayout( scan_container );
+  scan_layout->setContentsMargins( 12, 8, 12, 10 );
+  scan_layout->setSpacing( 0 );
+  mp_scanDevicesButton = new QPushButton( tr( "Scan devices" ), scan_container );
   mp_scanDevicesButton->setObjectName( "GuiWeChatScanDevicesButton" );
-  left_layout->addWidget( mp_scanDevicesButton );
+  mp_scanDevicesButton->setIcon( YongTheme::svgIcon( "bluetooth", YongTheme::brandGreen(), QColor(), 14 ) );
+  mp_scanDevicesButton->setIconSize( QSize( 14, 14 ) );
+  mp_scanDevicesButton->setCursor( Qt::PointingHandCursor );
+  scan_layout->addWidget( mp_scanDevicesButton, 0, Qt::AlignHCenter );
+  left_layout->addWidget( scan_container );
 
   // ---------- Right panel: chat header + embedded GuiChat ----------
   mp_headerName = new QLabel( this );
   mp_headerName->setObjectName( "GuiWeChatHeaderName" );
   QFont header_font = mp_headerName->font();
-  header_font.setBold( true );
-  header_font.setPointSizeF( header_font.pointSizeF() * 1.1 );
+  header_font.setPixelSize( YongTheme::fontBodyPx() );
+  header_font.setWeight( QFont::DemiBold );
   mp_headerName->setFont( header_font );
+
+  // Connection status: 8px dot + 12px text (green/orange/gray, S4c spec)
+  mp_headerStatusDot = new QLabel( this );
+  mp_headerStatusDot->setObjectName( "GuiWeChatHeaderDot" );
+  mp_headerStatusDot->setFixedSize( 8, 8 );
+  mp_headerStatusDot->setStyleSheet( QString( "border-radius: 4px; background: %1;" ).arg( YongTheme::textSecondary().name() ) );
 
   mp_headerStatus = new QLabel( this );
   mp_headerStatus->setObjectName( "GuiWeChatHeaderStatus" );
+  QFont status_font = mp_headerStatus->font();
+  status_font.setPixelSize( YongTheme::fontAuxPx() );
+  mp_headerStatus->setFont( status_font );
 
   QWidget* header_panel = new QWidget( this );
   header_panel->setObjectName( "GuiWeChatHeader" );
   QHBoxLayout* header_layout = new QHBoxLayout( header_panel );
-  header_layout->setContentsMargins( 14, 8, 14, 8 );
-  header_layout->setSpacing( 8 );
+  header_layout->setContentsMargins( 16, 10, 16, 10 );
+  header_layout->setSpacing( 6 );
   header_layout->addWidget( mp_headerName, 1 );
+  header_layout->addWidget( mp_headerStatusDot, 0, Qt::AlignVCenter );
   header_layout->addWidget( mp_headerStatus, 0, Qt::AlignVCenter );
 
   mp_chatPlaceholder = new QLabel( tr( "Select a chat to start messaging" ), this );
+  mp_chatPlaceholder->setObjectName( "GuiWeChatPlaceholder" );
   mp_chatPlaceholder->setAlignment( Qt::AlignCenter );
-  mp_chatPlaceholder->setStyleSheet( "color: #999999;" );
 
   mp_chatStack = new QStackedWidget( this );
   mp_chatStack->addWidget( mp_chatPlaceholder );
+
+  QWidget* chat_area = new QWidget( this );
+  chat_area->setObjectName( "GuiWeChatChatArea" );
+  QVBoxLayout* chat_area_layout = new QVBoxLayout( chat_area );
+  chat_area_layout->setContentsMargins( 0, 0, 0, 0 );
+  chat_area_layout->setSpacing( 0 );
+  chat_area_layout->addWidget( mp_chatStack, 1 );
 
   QWidget* right_panel = new QWidget( this );
   QVBoxLayout* right_layout = new QVBoxLayout( right_panel );
@@ -133,20 +174,22 @@ void GuiMainWindow::createGui()
   right_layout->setSpacing( 0 );
   right_layout->addWidget( header_panel );
   QFrame* header_line = new QFrame( right_panel );
-  header_line->setFrameShape( QFrame::HLine );
-  header_line->setStyleSheet( "color: #e0e0e0;" );
+  header_line->setObjectName( "GuiWeChatHeaderLine" );
+  header_line->setFrameShape( QFrame::NoFrame );
+  header_line->setFixedHeight( 1 );
   right_layout->addWidget( header_line );
-  right_layout->addWidget( mp_chatStack, 1 );
+  right_layout->addWidget( chat_area, 1 );
 
   // ---------- Splitter ----------
   QSplitter* splitter = new QSplitter( Qt::Horizontal, this );
   splitter->setObjectName( "GuiWeChatSplitter" );
   splitter->setChildrenCollapsible( false );
+  splitter->setHandleWidth( 1 );
   splitter->addWidget( left_panel );
   splitter->addWidget( right_panel );
   splitter->setStretchFactor( 0, 0 );
   splitter->setStretchFactor( 1, 1 );
-  splitter->setSizes( QList<int>() << 260 << 640 );
+  splitter->setSizes( QList<int>() << 280 << 640 );
   setCentralWidget( splitter );
 
   // ---------- Tray icon: show/hide + quit only (PRD 3.4 cut list) ----------
@@ -202,8 +245,7 @@ void GuiMainWindow::setupChatConnections( GuiChat* gui_chat )
 }
 
 
-GuiChat* GuiMainWindow::chatWidget( VNumber chat_id, bool create_if_missing )
-{
+GuiChat* GuiMainWindow::chatWidget( VNumber chat_id, bool create_if_missing ){
   GuiChat* gui_chat = m_chatWidgets.value( chat_id, Q_NULLPTR );
   if( gui_chat || !create_if_missing )
     return gui_chat;
@@ -219,6 +261,30 @@ GuiChat* GuiMainWindow::chatWidget( VNumber chat_id, bool create_if_missing )
   mp_chatStack->addWidget( gui_chat );
   m_chatWidgets.insert( chat_id, gui_chat );
   return gui_chat;
+}
+
+void GuiMainWindow::demoChatInputDraft( VNumber chat_id, const QString& draft, VNumber unread_chat_id, int unread_count )
+{
+  // Deterministic screenshot setup (S4c --demo-chat): select the given chat,
+  // seed the input draft, then add an unread badge to another chat.
+  showChat( chat_id );
+
+  GuiChat* gui_chat = chatWidget( chat_id, true );
+  if( gui_chat )
+    gui_chat->setDemoInputDraft( draft );
+
+  if( unread_chat_id != ID_INVALID && unread_count > 0 )
+  {
+    Chat c = ChatManager::instance().chat( unread_chat_id );
+    if( c.isValid() )
+    {
+      for( int i = 0; i < unread_count; i++ )
+        c.addUnreadMessage();
+      ChatManager::instance().setChat( c );
+    }
+  }
+
+  refreshChatList( true );
 }
 
 
@@ -332,41 +398,32 @@ void GuiMainWindow::updateChatHeader()
     }
   }
 
+  // Connection indicator (S4c WeChat spec): 8px status dot + plain 12px text,
+  // green online / orange connecting / gray offline - no emoji glyphs.
+  QColor status_color = YongTheme::textSecondary();
+  QString status_text = tr( "Disconnected" );
   if( peer_online )
   {
-    // U+1F7E2 large green circle
-    mp_headerStatus->setText( QString::fromUtf8( "\xF0\x9F\x9F\xA2 " ) + tr( "Connected" ) );
-    mp_headerStatus->setStyleSheet( "color: #1dad5a; font-weight: bold;" );
+    status_color = YongTheme::brandGreen();
+    status_text = tr( "Connected" );
   }
   else if( m_coreIsConnecting || (beeCore->btManager() && beeCore->btManager()->isActive()) )
   {
-    // U+1F7E1 large yellow circle
-    mp_headerStatus->setText( QString::fromUtf8( "\xF0\x9F\x9F\xA1 " ) + tr( "Connecting" ) );
-    mp_headerStatus->setStyleSheet( "color: #d99b00; font-weight: bold;" );
+    status_color = YongTheme::connectingOrange();
+    status_text = tr( "Connecting" );
   }
-  else
-  {
-    // U+1F534 large red circle
-    mp_headerStatus->setText( QString::fromUtf8( "\xF0\x9F\x94\xB4 " ) + tr( "Disconnected" ) );
-    mp_headerStatus->setStyleSheet( "color: #aaaaaa; font-weight: bold;" );
-  }
+
+  mp_headerStatusDot->setStyleSheet( QString( "border-radius: 4px; background: %1;" ).arg( status_color.name() ) );
+  mp_headerStatus->setText( status_text );
+  mp_headerStatus->setStyleSheet( QString( "color: %1; background: transparent;" ).arg( status_color.name() ) );
 }
 
 
 void GuiMainWindow::updateWindowTitle()
 {
-  // Title status dot (PRD 4.1, S3-4b): green with connected peers, yellow
-  // while the core is starting or the bluetooth discovery/listener runs,
-  // red when disconnected. Refreshed on userConnectionStatusChanged and on
-  // Core connected/disconnected.
-  QString status_glyph;
-  if( beeCore->isConnected() && beeCore->connectedUsers() > 0 )
-    status_glyph = QString::fromUtf8( "\xF0\x9F\x9F\xA2" ); // green circle
-  else if( m_coreIsConnecting || (beeCore->btManager() && beeCore->btManager()->isActive()) )
-    status_glyph = QString::fromUtf8( "\xF0\x9F\x9F\xA1" ); // yellow circle
-  else
-    status_glyph = QString::fromUtf8( "\xF0\x9F\x94\xB4" ); // red circle
-  setWindowTitle( QString( "%1 %2" ).arg( status_glyph, Settings::instance().programName() ) );
+  // S4c WeChat spec: keep the title bar native and clean - the connection
+  // state lives in the chat header status dot, no emoji glyph in the title.
+  setWindowTitle( Settings::instance().programName() );
 }
 
 
@@ -930,9 +987,17 @@ void GuiMainWindow::loadStyle()
     beeApp->setStyle( p_style );
 
   if( Settings::instance().useDarkStyle() )
+  {
     beeApp->setPalette( Bee::darkPalette() );
+    setStyleSheet( QString() ); // dark style keeps the pre-S4c look
+  }
   else
-    beeApp->resetPalette();
+  {
+    // S4c: force the light WeChat chrome (macOS dark mode would otherwise
+    // leak the dark system palette into the Fusion style).
+    beeApp->setPalette( YongTheme::lightPalette() );
+    setStyleSheet( YongTheme::mainWindowQss() );
+  }
 }
 
 

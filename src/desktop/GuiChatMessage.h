@@ -42,9 +42,11 @@ public:
   // YongBEEP S3-4b: WeChat-style bubble rendering (PRD 4.1 / ADR-D7 HTML color
   // blocks). last_message_timestamp drives the centered gray time separators
   // (shown on first message, on >=5min gaps or on day change, WeChat-like).
+  // S4c: chat_is_private suppresses the sender-name line - WeChat 1:1 chats
+  // show no names above the bubbles (avatar only).
   static QString formatMessage( const User&, const ChatMessage&, VNumber last_user_id, bool show_timestamp, bool show_datestamp, bool skip_system_message,
                                                                                        bool show_message_group_by_user, bool use_your_name, bool use_chat_compact,
-                                                                                       const QDateTime& last_message_timestamp = QDateTime() );
+                                                                                       const QDateTime& last_message_timestamp = QDateTime(), bool chat_is_private = false );
 
   static QString formatSystemMessage( const ChatMessage&, VNumber last_user_id, bool show_timestamp, bool show_datestamp, bool use_chat_compact );
 
