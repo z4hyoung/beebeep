@@ -232,6 +232,11 @@ void Broadcaster::sendBroadcast()
   m_isMulticastDatagramSent = false;
   if( !sendMulticastDatagram() )
     m_newBroadcastRequested = true;
+  // YongBEEP: also cycle the direct addresses from beehosts.ini even when the
+  // multicast datagram "succeeds" at socket level — macOS local-network privacy
+  // can silently drop multicast/broadcast while unicast beacons still get through.
+  if( !Settings::instance().broadcastAddressesInFileHosts().isEmpty() )
+    m_newBroadcastRequested = true;
 }
 
 bool Broadcaster::addNetworkAddress( const NetworkAddress& network_address, bool split_ipv4_address )
