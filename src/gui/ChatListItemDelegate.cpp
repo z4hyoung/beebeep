@@ -83,7 +83,8 @@ void ChatListItemDelegate::paint( QPainter* painter, const QStyleOptionViewItem&
   // Timestamp (11px gray, top right, aligned with the name line)
   QString time_text = index.data( ChatListModel::TimeTextRole ).toString();
   int time_w = fm_time.horizontalAdvance( time_text );
-  QRect time_rect( row_rect.right() - time_w, option.rect.top() + 12, time_w, fm_time.height() );
+  // YongBEEP audit: 12px inset from the right edge for time (and badge below)
+  QRect time_rect( row_rect.right() - 12 - time_w, option.rect.top() + 12, time_w, fm_time.height() );
   painter->setFont( f_time );
   painter->setPen( YongTheme::textSecondary() );
   painter->drawText( time_rect, Qt::AlignRight | Qt::AlignVCenter, time_text );
@@ -97,7 +98,7 @@ void ChatListItemDelegate::paint( QPainter* painter, const QStyleOptionViewItem&
     QString badge_text = unread > 99 ? QStringLiteral( "99+" ) : QString::number( unread );
     int badge_w = qMax( m_badgeSize, fm_badge.horizontalAdvance( badge_text ) + 10 );
     int summary_center_y = text_top + fm_name.height() + text_gap + fm_aux.height() / 2;
-    QRect badge_rect( row_rect.right() - badge_w, summary_center_y - m_badgeSize / 2, badge_w, m_badgeSize );
+    QRect badge_rect( row_rect.right() - 12 - badge_w, summary_center_y - m_badgeSize / 2, badge_w, m_badgeSize );
     painter->setPen( Qt::NoPen );
     painter->setBrush( YongTheme::unreadRed() );
     painter->drawRoundedRect( badge_rect, m_badgeSize / 2.0, m_badgeSize / 2.0 );

@@ -88,6 +88,9 @@ void GuiMainWindow::createGui()
   mp_chatListView->setSelectionMode( QAbstractItemView::SingleSelection );
   mp_chatListView->setVerticalScrollMode( QAbstractItemView::ScrollPerPixel );
   mp_chatListView->setHorizontalScrollBarPolicy( Qt::ScrollBarAlwaysOff );
+  // YongBEEP: no scrollbar gutter next to the divider — a visible scrollbar
+  // slot read as a second, thicker vertical line beside the 1px divider
+  mp_chatListView->setVerticalScrollBarPolicy( Qt::ScrollBarAlwaysOff );
   mp_chatListView->setUniformItemSizes( true );
   mp_chatListView->setMouseTracking( true );
   mp_chatListView->setFrameShape( QFrame::NoFrame );
@@ -184,9 +187,15 @@ void GuiMainWindow::createGui()
   right_layout->setContentsMargins( 0, 0, 0, 0 );
   right_layout->setSpacing( 0 );
   right_layout->addWidget( header_panel );
-  // YongBEEP: header/input divider lines removed on user feedback — the
-  // white-header vs gray-chat vs white-input background contrast separates
-  // the zones cleanly (WeChat does the same without rules).
+  // YongBEEP audit: full-width header underline, consistent with the
+  // full-height vertical divider (user: lines are fine when they run edge
+  // to edge — truncated/inconsistent lines were the complaint)
+  QFrame* header_line = new QFrame( right_panel );
+  header_line->setObjectName( "GuiWeChatHeaderLine" );
+  header_line->setFrameShape( QFrame::NoFrame );
+  header_line->setFixedHeight( 1 );
+  header_line->setAttribute( Qt::WA_StyledBackground, true );
+  right_layout->addWidget( header_line );
   right_layout->addWidget( chat_area, 1 );
 
   // ---------- Splitter ----------

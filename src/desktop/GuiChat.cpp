@@ -53,10 +53,10 @@ GuiChat::GuiChat( QWidget *parent )
   setupUi( this );
   setObjectName( "GuiChat" );
   setAcceptDrops( true );
-  // YongBEEP: tighten the message grid margins so the input field sits
-  // close under the icon row (default 9px + editor frame read as a gap)
+  // YongBEEP: balanced message grid margins — icons stay near the field but
+  // the text keeps breathing room on top (2px left it pinned to the top)
   if( QLayout* msg_layout = mp_frameMessage->layout() )
-    msg_layout->setContentsMargins( 12, 2, 12, 6 );
+    msg_layout->setContentsMargins( 12, 6, 12, 8 );
 
   mp_inputToolbar = Q_NULLPTR;
   mp_tbEmoticons = Q_NULLPTR;
@@ -98,8 +98,14 @@ GuiChat::GuiChat( QWidget *parent )
   QVBoxLayout* input_panel_layout = new QVBoxLayout( input_panel );
   input_panel_layout->setContentsMargins( 0, 0, 0, 0 );
   input_panel_layout->setSpacing( 0 );
-  // YongBEEP: input divider line removed on user feedback (background
-  // contrast separates the zones; see GuiMainWindow header note)
+  // YongBEEP audit: full-width line above the input area, matching the
+  // header underline and the full-height vertical divider
+  QFrame* input_line = new QFrame( input_panel );
+  input_line->setObjectName( "GuiChatInputLine" );
+  input_line->setFrameShape( QFrame::NoFrame );
+  input_line->setFixedHeight( 1 );
+  input_line->setAttribute( Qt::WA_StyledBackground, true );
+  input_panel_layout->addWidget( input_line );
   input_panel_layout->addWidget( mp_inputToolbar );
   input_panel_layout->addWidget( mp_frameMessage );
   mp_splitter->addWidget( input_panel );

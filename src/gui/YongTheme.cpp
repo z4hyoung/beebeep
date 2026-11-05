@@ -107,6 +107,7 @@ QString YongTheme::mainWindowQss()
 
     // ---- chat header ----
     "#GuiWeChatHeader { background: %1; }"
+    "#GuiWeChatHeaderLine { background: %2; border: none; }"
 
     // ---- chat area ----
     "#GuiWeChatChatArea { background: %3; }"
@@ -116,6 +117,7 @@ QString YongTheme::mainWindowQss()
     "#GuiChat { background: %3; }"
     "#GuiChatViewer { border: none; background: %3; color: %4; font-size: 14px; }"
     "#GuiChatInputPanel { background: %1; }"
+    "#GuiChatInputLine { background: %2; border: none; }"
     "#GuiChatInputToolbar { background: %1; }"
     "#GuiMessageEdit { border: none; background: %1; color: %4; font-size: 14px; }"
     "#GuiChatEmoticonsButton, #GuiChatAttachButton, #GuiChatMarkdownButton { border: none; background: transparent; }"

@@ -79,8 +79,9 @@ class ChatMessageModel : public QAbstractListModel
 
 public:
   // Shared geometry constants (delegate paints with the same values)
-  enum { HorizontalMargin = 12, AvatarGap = 12, BubbleHPad = 10, BubbleVPad = 8,
-         RowBottomSpacing = 10, TimestampRowHeight = 26, NameRowHeight = 17,
+  // YongBEEP audit pass: roomier timestamp separators and bubble padding
+  enum { HorizontalMargin = 12, AvatarGap = 10, BubbleHPad = 12, BubbleVPad = 10,
+         RowBottomSpacing = 10, TimestampRowHeight = 36, NameRowHeight = 17,
          FileCardWidth = 240, FileCardHeight = 60 };
 
   explicit ChatMessageModel( QObject* parent = Q_NULLPTR );
