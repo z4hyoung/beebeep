@@ -94,19 +94,21 @@ void BtDiscoverer::start()
 
 void BtDiscoverer::startSingleScan()
 {
-#if !defined( Q_OS_WIN ) && !defined( Q_OS_MACOS )
-  // not reachable today (macOS guard returns earlier in start()); kept
-  // for symmetry if the guard is ever relaxed
-#endif
 #if defined( Q_OS_WIN )
   startScan();
 #else
-  // macOS manual scan: one inquiry, never restarted while active - the
-  // crash needs a RESTART racing in-flight IOBluetooth callbacks
-  if( mp_agent->isActive() )
-    return;
-  qDebug() << "BtDiscoverer manual scan started (macOS SDP crash guard path)";
-  mp_agent->start( QBluetoothServiceDiscoveryAgent::MinimalDiscovery );
+  // YongBEEP SDP crash guard (macOS): manual scans are disabled as well.
+  // The 11-05 23:21 crash hit this exact path - startSingleScan() ->
+  // QBluetoothServiceDiscoveryAgent::start(MinimalDiscovery) -> the darwin
+  // backend's DarwinBTSDPInquiry delivers sdpQueryComplete: into a freed
+  // object on the main queue (EXC_BAD_ACCESS, SIGSEGV at 0x10). The periodic
+  // timer is already suppressed in start()/startScan(); with this guard the
+  // whole discovery agent is never started on macOS. Bluetooth discovery is
+  // OFF on macOS until the Qt darwin backend is fixed or replaced with a
+  // native IOBluetoothDeviceInquiry implementation; the passive listener
+  // (BtListener) and outgoing RFCOMM connections keep working.
+  qDebug() << "BtDiscoverer manual scan disabled on macOS (SDP crash guard); discovery OFF, listener passive";
+  Q_UNUSED( mp_agent );
 #endif
 }
 
