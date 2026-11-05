@@ -1678,7 +1678,7 @@ void Settings::loadCommonSettings( QSettings* user_ini )
     m_fileTransferBufferSize -= mod_buffer_size;
   if( m_fileTransferBufferSize < 2048 )
     m_fileTransferBufferSize = 2048;
-  m_maxInlineFileSizeBytes = qMax( (FileSizeType)1024, commonValue( system_rc, user_ini, "MaxInlineFileSizeBytes", (qint64)m_maxInlineFileSizeBytes ).toLongLong() );
+  m_maxInlineFileSizeBytes = qMax( (FileSizeType)0, commonValue( system_rc, user_ini, "MaxInlineFileSizeBytes", (qint64)m_maxInlineFileSizeBytes ).toLongLong() ); // 0 = unlimited: clamp to non-negative only, the old 1024 floor broke the unlimited default
   bool automatic_file_name = commonValue( system_rc, user_ini, "SetAutomaticFileNameOnSave", m_useClassroomConfiguration ).toBool();
   if( automatic_file_name )
     m_onExistingFileAction = GenerateNewFileName;
