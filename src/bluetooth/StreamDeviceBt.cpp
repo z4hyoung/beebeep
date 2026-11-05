@@ -266,9 +266,12 @@ void StreamDeviceBt::connectToService( const QBluetoothAddress& bt_address )
   }
 
   // The SDP channel lookup plus the RFCOMM connect run in the worker thread;
-  // onWinConnectFinished() adopts the socket and emits connected() when the
-  // relaxed connection timeout of ConnectionSocket is still running.
+  // onWinConnectFinished() adopts the socket and emits connected() so that
+  // ConnectionSocket sends the question HELLO (one connection per instance,
+  // the address match inside the slot guards against foreign results).
   m_pendingAddress = bt_address.toUInt64();
+  disconnect( worker, &BtWinWorker::connectFinished, this, &StreamDeviceBt::onWinConnectFinished );
+  connect( worker, &BtWinWorker::connectFinished, this, &StreamDeviceBt::onWinConnectFinished );
   QMetaObject::invokeMethod( worker, "connectToPeer", Qt::QueuedConnection,
                              Q_ARG( quint64, m_pendingAddress ) );
 }
@@ -321,6 +324,8 @@ void StreamDeviceBt::onWinConnectFinished( quint64 bt_address, quintptr socket_h
     return; // result of another StreamDeviceBt instance
 
   m_pendingAddress = 0;
+  if( BtWinWorker* worker = BtWinWorker::instance() )
+    disconnect( worker, &BtWinWorker::connectFinished, this, &StreamDeviceBt::onWinConnectFinished );
 
   if( wsa_error != 0 )
   {
