@@ -389,11 +389,41 @@ int BeeApplication::idleTimeFromSystem()
 
 void BeeApplication::slotConnectionEstablished()
 {
-  qDebug() << "New instance is called by user. Show the main window";
   QLocalSocket* local_socket = mp_localServer->nextPendingConnection();
+  if( !local_socket )
+    return;
+
+  // YongBEEP IPC: the second instance may carry a command payload
+  // ("SENDMSG:<text>" or "READMSG") - read it before closing
+  if( local_socket->waitForReadyRead( 500 ) )
+  {
+    QByteArray cmd = local_socket->readAll();
+    QString cmd_str = QString::fromUtf8( cmd );
+    if( cmd_str.startsWith( "SENDMSG:" ) )
+    {
+      QString text = cmd_str.mid( 8 );
+      emit ipcSendMessage( text );
+      local_socket->write( "OK\n" );
+    }
+    else if( cmd_str.startsWith( "READMSG" ) )
+    {
+      emit ipcReadMessages();
+      // response is asynchronous; just acknowledge
+      local_socket->write( "ACK\n" );
+    }
+    else
+    {
+      emit showUp(); // default: no payload = classic "show window"
+    }
+  }
+  else
+  {
+    emit showUp();
+  }
+
+  local_socket->flush();
   local_socket->close();
   local_socket->deleteLater();
-  emit showUp();
 }
 
 QString BeeApplication::localServerName() const

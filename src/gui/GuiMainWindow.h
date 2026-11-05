@@ -86,6 +86,8 @@ private slots:
   void sendMessage( VNumber, const QString&, bool, bool = false );
   void sendFileFromChat( VNumber, const QString& );
   void sendFilesFromChat( VNumber, const QStringList& );
+  void onIpcSendMessage( const QString& text );
+  void onIpcReadMessages();
   void clearChat( VNumber );
   void openUrlFromChat( const QUrl&, VNumber );
   void trayIconActivated( QSystemTrayIcon::ActivationReason );

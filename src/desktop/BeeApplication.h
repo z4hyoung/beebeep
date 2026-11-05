@@ -80,6 +80,9 @@ signals:
   void sleepRequest();
   void wakeUpRequest();
   void networkConfigurationChanged();
+  /*! YongBEEP IPC: a second instance requested a message send / read */
+  void ipcSendMessage( const QString& text );
+  void ipcReadMessages();
 
 public slots:
   void checkIdle();
@@ -95,7 +98,9 @@ protected:
   int idleTimeFromMac();
 #endif
   bool isScreenSaverRunning();
+public:
   QString localServerName() const;
+private:
   void addSleepWatcher();
   void removeSleepWatcher();
   bool isDesktopLocked();

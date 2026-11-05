@@ -118,6 +118,39 @@ int main( int argc, char *argv[] )
 
   if( bee_app.otherInstanceExists() )
   {
+    // YongBEEP IPC: forward commands to the running instance
+    for( int i = 1; i < argc; ++i )
+    {
+      QString arg = QString::fromLocal8Bit( argv[i] );
+      if( arg == "--send-msg" && i + 1 < argc )
+      {
+        QLocalSocket sock;
+        sock.connectToServer( bee_app.localServerName() );
+        if( sock.waitForConnected( 2000 ) )
+        {
+          sock.write( ("SENDMSG:" + QString::fromLocal8Bit( argv[i+1] )).toUtf8() );
+          sock.waitForBytesWritten( 2000 );
+          sock.waitForReadyRead( 3000 );
+          qDebug() << "IPC:" << sock.readAll();
+        }
+        Settings::close();
+        return 0;
+      }
+      if( arg == "--read-msg" )
+      {
+        QLocalSocket sock;
+        sock.connectToServer( bee_app.localServerName() );
+        if( sock.waitForConnected( 2000 ) )
+        {
+          sock.write( "READMSG" );
+          sock.waitForBytesWritten( 2000 );
+          sock.waitForReadyRead( 3000 );
+          qDebug() << "IPC:" << sock.readAll();
+        }
+        Settings::close();
+        return 0;
+      }
+    }
     qDebug() << Settings::instance().programName() << "closed";
     Settings::close();
     return 0;

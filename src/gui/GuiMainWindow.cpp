@@ -228,6 +228,10 @@ void GuiMainWindow::createGui()
   connect( mp_trayIcon, SIGNAL( activated( QSystemTrayIcon::ActivationReason ) ), this, SLOT( trayIconActivated( QSystemTrayIcon::ActivationReason ) ) );
   connect( qApp, SIGNAL( focusChanged( QWidget*, QWidget* ) ), this, SLOT( onApplicationFocusChanged( QWidget*, QWidget* ) ) );
 
+  // YongBEEP IPC: handle --send-msg / --read-msg from a second instance
+  connect( beeApp, SIGNAL( ipcSendMessage( const QString& ) ), this, SLOT( onIpcSendMessage( const QString& ) ), Qt::QueuedConnection );
+  connect( beeApp, SIGNAL( ipcReadMessages() ), this, SLOT( onIpcReadMessages() ), Qt::QueuedConnection );
+
   statusBar()->hide();
   setMinimumSize( 680, 480 );
 }
@@ -698,6 +702,51 @@ void GuiMainWindow::sendFilesFromChat( VNumber chat_id, const QStringList& file_
   beeCore->sendFilesFromChat( c.id(), file_path_list );
 }
 
+
+void GuiMainWindow::onIpcSendMessage( const QString& text )
+{
+  // YongBEEP IPC (--send-msg): send to the chat of the first connected
+  // non-local user (this is a 1:1 messenger; default chat as fallback)
+  Chat c = ChatManager::instance().defaultChat();
+  const QList<User> users = UserManager::instance().userList().toList();
+  for( int i = 0; i < users.size(); ++i )
+  {
+    if( !users.at( i ).isLocal() && users.at( i ).isStatusConnected() )
+    {
+      Chat private_chat = ChatManager::instance().privateChatForUser( users.at( i ).id() );
+      if( private_chat.isValid() )
+      {
+        c = private_chat;
+        break;
+      }
+    }
+  }
+  if( !c.isValid() )
+    c = ChatManager::instance().defaultChat();
+  beeCore->sendChatMessage( c.id(), text, false, false, false );
+  refreshChatList( true );
+}
+
+void GuiMainWindow::onIpcReadMessages()
+{
+  // YongBEEP IPC (--read-msg): dump all unread to stdout via qDebug and
+  // mark them read (the cron agent parses the system log)
+  Chat c = ChatManager::instance().firstChatWithUnreadMessages();
+  while( c.isValid() )
+  {
+    const QList<ChatMessage> msgs = c.messages();
+    int to_read = c.unreadMessages();
+    for( int j = qMax( 0, msgs.size() - to_read ); j < msgs.size(); ++j )
+    {
+      const ChatMessage& cm = msgs.at( j );
+      User u = UserManager::instance().findUser( cm.userId() );
+      qDebug() << "YB_MSG:" << u.name() << "|" << cm.message();
+    }
+    beeCore->readAllMessagesInChat( c.id() );
+    c = ChatManager::instance().firstChatWithUnreadMessages();
+  }
+  refreshChatList( true );
+}
 
 void GuiMainWindow::clearChat( VNumber chat_id )
 {
