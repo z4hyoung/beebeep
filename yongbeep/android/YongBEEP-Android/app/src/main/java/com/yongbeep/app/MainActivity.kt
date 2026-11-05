@@ -1,26 +1,36 @@
 package com.yongbeep.app
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.yongbeep.app.core.CoreViewModel
+import com.yongbeep.app.ui.ChatPage
+import com.yongbeep.app.ui.SettingsPage
+import com.yongbeep.app.ui.SessionsPage
+import com.yongbeep.app.ui.YongColors
 
 /**
- * A1.1 壳工程：验证 Gradle/AGP/Compose 工具链 + 模拟器点亮。
- * A1.3：设置页接入 JNI 桥（libybcore.so + Qt6 运行库）真实核心。
+ * A1.1 壳工程 → A2 聊天 UI：
+ * 消息（会话列表）/设备（A3 占位）/设置 三页 + 会话内聊天页（返回键回）。
+ * 隐藏开发者入口：长按顶部标题弹 IP:Port 直连对话框（A1.4 验收路径）。
  */
 class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -33,174 +43,180 @@ class MainActivity : ComponentActivity() {
   }
 }
 
-// 微信色板（与桌面端 YongTheme 一致）
-private val YbGreen = Color(0xFF07C160)
-private val YbBubble = Color(0xFF95EC69)
-private val YbRed = Color(0xFFFA5151)
-private val YbInk = Color(0xFF191919)
-private val YbSub = Color(0xFFB2B2B2)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun YongBEEPApp() {
+  val viewModel: CoreViewModel = viewModel()
+  val state by viewModel.uiState.collectAsState()
   var tab by remember { mutableIntStateOf(0) }
+  var openSessionId by remember { mutableStateOf<Long?>(null) }
+  var showConnectDialog by remember { mutableStateOf(false) }
   val titles = listOf("消息", "设备", "设置")
-  Scaffold(
-    topBar = {
-      CenterAlignedTopAppBar(
-        title = { Text("YongBEEP", fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
-        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White)
-      )
-    },
-    bottomBar = {
-      NavigationBar(containerColor = Color.White) {
-        titles.forEachIndexed { i, t ->
-          NavigationBarItem(
-            selected = tab == i,
-            onClick = { tab = i },
-            icon = {
-              Text(
-                if (i == 0) "💬" else if (i == 1) "🔵" else "⚙️",
-                fontSize = 20.sp
-              )
-            },
-            label = { Text(t, fontSize = 11.sp) },
-            colors = NavigationBarItemDefaults.colors(
-              selectedTextColor = YbGreen, indicatorColor = Color(0xFFE8F8EF)
+
+  val openSession = openSessionId?.let { id -> state.sessions.firstOrNull { it.userId == id } }
+  if (openSessionId != null && openSession == null) {
+    // 会话被核心清掉（对端消失且无消息）：退回列表。
+    LaunchedEffect(openSessionId) { openSessionId = null }
+  }
+
+  if (openSession != null) {
+    ChatPage(
+      session = openSession,
+      coreRunning = state.coreRunning,
+      onBack = { openSessionId = null; viewModel.closeChat() },
+      onSend = { text, markdown -> viewModel.sendChat(openSession.userId, text, markdown) },
+    )
+  } else {
+    Scaffold(
+      topBar = {
+        CenterAlignedTopAppBar(
+          title = {
+            TitleWithLongPress(
+              text = if (tab == 0) "YongBEEP" else titles[tab],
+              onLongPress = { showConnectDialog = true },
             )
+          },
+          actions = {
+            // 右上角核心状态小圆点
+            Box(
+              Modifier
+                .padding(end = 16.dp)
+                .size(8.dp)
+                .background(
+                  if (state.coreRunning) YongColors.Green else Color(0xFFC9C9C9),
+                  CircleShape,
+                )
+            )
+          },
+          colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White)
+        )
+      },
+      bottomBar = {
+        NavigationBar(containerColor = Color.White) {
+          titles.forEachIndexed { i, t ->
+            NavigationBarItem(
+              selected = tab == i,
+              onClick = { tab = i },
+              icon = {
+                Text(
+                  if (i == 0) "💬" else if (i == 1) "🔵" else "⚙️",
+                  fontSize = 20.sp
+                )
+              },
+              label = { Text(t, fontSize = 11.sp) },
+              colors = NavigationBarItemDefaults.colors(
+                selectedTextColor = YongColors.Green, indicatorColor = Color(0xFFE8F8EF)
+              )
+            )
+          }
+        }
+      },
+      containerColor = YongColors.Bg
+    ) { pad ->
+      when (tab) {
+        0 -> Box(Modifier.padding(pad)) {
+          SessionsPage(
+            sessions = state.sessions,
+            onOpenSession = { id ->
+              openSessionId = id
+              viewModel.openChat(id)
+            },
+          )
+        }
+        1 -> PlaceholderPage(pad, "设备", "A3：扫描附近 YongBEEP 设备\n（蓝牙栈已在核心库就绪）")
+        else -> Box(Modifier.padding(pad)) {
+          SettingsPage(
+            state = state,
+            onStart = viewModel::startCore,
+            onStop = viewModel::stopCore,
           )
         }
       }
-    },
-    containerColor = Color(0xFFF7F7F7)
-  ) { pad ->
-    when (tab) {
-      0 -> A1ChatPage(pad)
-      1 -> PlaceholderPage(pad, "设备", "A3：扫描附近 YongBEEP 设备\n（蓝牙栈已在核心库就绪）")
-      else -> SettingsPage(pad)
     }
+  }
+
+  if (showConnectDialog) {
+    ConnectPeerDialog(
+      coreRunning = state.coreRunning,
+      onDismiss = { showConnectDialog = false },
+      onConnect = { ip, port ->
+        showConnectDialog = false
+        viewModel.connectPeer(ip, port)
+      },
+    )
   }
 }
 
-/** A1.4 最小验收页：连 IP:端口 + 发消息 + 事件回显（A2 换成正式聊天 UI）。 */
+/** 标题（长按 = 隐藏开发者直连入口，A1.4 验收路径）。 */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun A1ChatPage(pad: PaddingValues) {
-  val viewModel: CoreViewModel = viewModel()
-  val state by viewModel.uiState.collectAsState()
-  var host by remember { mutableStateOf("10.0.2.2") }
-  var port by remember { mutableStateOf("6475") }
-  var text by remember { mutableStateOf("") }
-  val listState = rememberScrollState()
-
-  Column(Modifier.fillMaxSize().padding(pad).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-    Text("A1.4 端到端验收", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = YbInk)
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-      OutlinedTextField(host, { host = it }, label = { Text("对端 IP") }, modifier = Modifier.weight(2f), singleLine = true)
-      OutlinedTextField(port, { port = it }, label = { Text("端口") }, modifier = Modifier.weight(1f), singleLine = true)
-    }
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-      Button(
-        onClick = { viewModel.connectPeer(host, port.toIntOrNull() ?: 6475) },
-        colors = ButtonDefaults.buttonColors(containerColor = YbGreen),
-        enabled = state.coreRunning
-      ) { Text("连接") }
-      Text("核心: ${if (state.coreRunning) "运行中 ✓" else "未启动"}", fontSize = 12.sp, color = YbSub, modifier = Modifier.align(Alignment.CenterVertically))
-    }
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-      OutlinedTextField(text, { text = it }, label = { Text("消息") }, modifier = Modifier.weight(1f), singleLine = true)
-      Button(
-        onClick = { if (text.isNotBlank()) { viewModel.sendChat(text); text = "" } },
-        colors = ButtonDefaults.buttonColors(containerColor = YbGreen),
-        enabled = state.coreRunning && text.isNotBlank()
-      ) { Text("发送") }
-    }
-    Text("事件流", fontSize = 12.sp, color = YbSub)
-    Column(Modifier.weight(1f).verticalScroll(listState).fillMaxWidth()) {
-      state.events.takeLast(200).reversed().forEach { ev ->
-        Text(ev, fontSize = 12.sp, color = when {
-          ev.contains("message_received") -> YbInk
-          ev.contains("error") -> YbRed
-          else -> YbSub
-        }, modifier = Modifier.padding(vertical = 2.dp))
-      }
-    }
-    LaunchedEffect(state.events.size) { listState.scrollTo(0) }
-  }
+private fun TitleWithLongPress(text: String, onLongPress: () -> Unit) {
+  Text(
+    text,
+    fontWeight = FontWeight.SemiBold,
+    fontSize = 17.sp,
+    modifier = Modifier.combinedClickable(onClick = {}, onLongClick = onLongPress),
+  )
 }
 
-/** A1.3 设置页：nativeVersion 真实返回值 + 核心状态 + 启停按钮 + 事件证据。 */
+/** 手动直连对话框：IP:Port（记忆上次输入；核心未运行时提示先启动）。 */
 @Composable
-fun SettingsPage(pad: PaddingValues) {
-  val viewModel: CoreViewModel = viewModel()
-  val state by viewModel.uiState.collectAsState()
+private fun ConnectPeerDialog(
+  coreRunning: Boolean,
+  onDismiss: () -> Unit,
+  onConnect: (ip: String, port: Int) -> Unit,
+) {
+  val context = LocalContext.current
+  val prefs = remember { context.getSharedPreferences("yongbeep", Context.MODE_PRIVATE) }
+  var ip by remember { mutableStateOf(prefs.getString("last_peer_ip", "") ?: "") }
+  var port by remember { mutableStateOf(prefs.getString("last_peer_port", "") ?: "") }
 
-  Column(
-    Modifier.fillMaxSize().padding(pad).padding(20.dp).verticalScroll(rememberScrollState()),
-    verticalArrangement = Arrangement.spacedBy(14.dp)
-  ) {
-    Text("核心引擎", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = YbInk)
-
-    Surface(color = Color.White, shape = MaterialTheme.shapes.medium, tonalElevation = 1.dp) {
-      Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SettingRow("核心版本", state.coreVersion, mono = true)
-        HorizontalDivider(color = Color(0xFFF0F0F0))
-        SettingRow("核心状态", if (state.coreRunning) "运行中" else "已停止",
-          valueColor = if (state.coreRunning) YbGreen else YbSub)
-        HorizontalDivider(color = Color(0xFFF0F0F0))
-        SettingRow("昵称", CoreViewModel.NICKNAME)
-        HorizontalDivider(color = Color(0xFFF0F0F0))
-        SettingRow("协议", "proto=96 · ECDH+Rijndael-256")
-      }
-    }
-
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-      Button(
-        onClick = viewModel::startCore,
-        enabled = !state.coreRunning,
-        colors = ButtonDefaults.buttonColors(containerColor = YbGreen),
-        modifier = Modifier.weight(1f),
-      ) { Text(if (state.coreRunning) "启动核心…" else "启动核心") }
-      OutlinedButton(
-        onClick = viewModel::stopCore,
-        enabled = state.coreRunning,
-        modifier = Modifier.weight(1f),
-      ) { Text("停止核心", color = YbRed) }
-    }
-
-    Text("核心事件", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = YbInk)
-    Surface(color = Color.White, shape = MaterialTheme.shapes.medium, tonalElevation = 1.dp) {
-      if (state.events.isEmpty()) {
-        Text(
-          "（尚无事件：点击「启动核心」后\nSettings load → Core::start → 事件回传）",
-          fontSize = 13.sp, color = YbSub, lineHeight = 20.sp,
-          modifier = Modifier.fillMaxWidth().padding(16.dp),
-        )
-      } else {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-          state.events.take(12).forEach { line ->
-            Text("· $line", fontSize = 12.sp, color = YbInk, lineHeight = 17.sp)
-          }
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = { Text("开发者直连", fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
+    text = {
+      Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (!coreRunning) {
+          Text("核心未运行：请先到设置页启动核心", fontSize = 12.sp, color = YongColors.Red)
         }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+          OutlinedTextField(
+            ip, { ip = it },
+            label = { Text("对端 IP") },
+            placeholder = { Text("10.0.2.2") },
+            singleLine = true,
+            modifier = Modifier.weight(2f),
+          )
+          OutlinedTextField(
+            port, { port = it },
+            label = { Text("端口") },
+            placeholder = { Text("6475") },
+            singleLine = true,
+            modifier = Modifier.weight(1f),
+          )
+        }
+        Text("与自动发现同一条连接路径（Core::checkNetworkAddress）", fontSize = 11.sp, color = YongColors.Sub)
       }
-    }
-
-    Text(
-      "YongBEEP for Android 0.1.0 · A1.3 JNI 冒烟",
-      fontSize = 11.sp, color = YbSub,
-      modifier = Modifier.align(Alignment.CenterHorizontally),
-    )
-  }
-}
-
-@Composable
-private fun SettingRow(label: String, value: String, mono: Boolean = false, valueColor: Color = YbInk) {
-  Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-    Text(label, fontSize = 14.sp, color = YbSub)
-    Text(
-      value, fontSize = 14.sp, color = valueColor, fontWeight = FontWeight.Medium,
-      fontFamily = if (mono) FontFamily.Monospace else FontFamily.Default,
-    )
-  }
+    },
+    confirmButton = {
+      TextButton(
+        onClick = {
+          val p = port.toIntOrNull() ?: 6475
+          prefs.edit()
+            .putString("last_peer_ip", ip)
+            .putString("last_peer_port", p.toString())
+            .apply()
+          onConnect(ip.ifBlank { "10.0.2.2" }, p)
+        },
+        enabled = coreRunning,
+      ) { Text("连接", color = if (coreRunning) YongColors.Green else YongColors.Sub, fontWeight = FontWeight.SemiBold) }
+    },
+    dismissButton = {
+      TextButton(onClick = onDismiss) { Text("取消", color = YongColors.Sub) }
+    },
+    containerColor = Color.White,
+    shape = RoundedCornerShape(14.dp),
+  )
 }
 
 @Composable
@@ -210,12 +226,12 @@ fun PlaceholderPage(pad: PaddingValues, title: String, body: String) {
     horizontalAlignment = Alignment.CenterHorizontally,
     verticalArrangement = Arrangement.Center
   ) {
-    Text(title, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = YbInk)
+    Text(title, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = YongColors.Ink)
     Spacer(Modifier.height(10.dp))
-    Text(body, fontSize = 14.sp, color = YbSub, lineHeight = 22.sp)
+    Text(body, fontSize = 14.sp, color = YongColors.Sub, lineHeight = 22.sp)
     Spacer(Modifier.height(18.dp))
-    Surface(color = YbBubble, shape = MaterialTheme.shapes.small) {
-      Text("  A1 · 工具链已点亮  ", fontSize = 13.sp, color = YbInk, modifier = Modifier.padding(8.dp))
+    Surface(color = YongColors.Bubble, shape = MaterialTheme.shapes.small) {
+      Text("  A3 · 敬请期待  ", fontSize = 13.sp, color = YongColors.Ink, modifier = Modifier.padding(8.dp))
     }
   }
 }

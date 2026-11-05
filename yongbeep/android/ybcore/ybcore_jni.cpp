@@ -13,11 +13,23 @@
 //     signal, forwarded to Java via AttachCurrentThread on the very
 //     same core thread:
 //       {"type":"started"} / {"type":"stopped"}
-//       {"type":"message_received","chat_id":..,"from_user_id":..,...}
-//       {"type":"message_sent",...}
+//       {"type":"message_received"|"message_sent",
+//        "chat_id":..,"from_user":..,"from_local":bool,
+//        "text":..,"markdown":bool,"timestamp":epoch_msecs}
+//       {"type":"message_system","chat_id":..,"text":..,
+//        "file_url"/"file_name"/"file_status" (file cards only),
+//        "timestamp":epoch_msecs}
+//       {"type":"chat_users_changed","users":[{user_id,name,status,
+//        connected,private_chat_id},...]}
 //       {"type":"user_online"|"user_offline"|"user_changed",...}
 //       {"type":"system_message","text":"..."}
-//       {"type":"error","stage":"..."}
+//       {"type":"connect_attempt",...} / {"type":"error","stage":"..."}
+//
+// A2 additions: chat-scoped system messages (file cards included) are
+// forwarded instead of dropped; a full connected-users snapshot rides
+// along every user change; messages carry from_local/from_user and an
+// epoch-msecs timestamp; sendChatMessageTo targets a user's private
+// chat (falls back to the default chat).
 //
 // Manual peer connection (A1.4 entry point): nativeConnectPeer goes
 // through Core::checkNetworkAddress(), the same protected slot the
@@ -29,6 +41,7 @@
 #include <jni.h>
 
 #include <QCoreApplication>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QMetaObject>
@@ -267,6 +280,22 @@ public slots:
     qDebug( "ybcore: sendChatMessage dispatched to %d chat(s)", sent );
   }
 
+  // A2: send to one user's private chat (created by the core when the
+  // user connected); broadcast to the default chat as a fallback.
+  void sendChatMessageTo( int user_id, const QString& text, bool markdown )
+  {
+    if( !mp_core )
+    {
+      qWarning( "ybcore: cannot send message, core is not running" );
+      return;
+    }
+    Chat c = ChatManager::instance().privateChatForUser( user_id );
+    VNumber chat_id = c.isValid() ? c.id() : ID_DEFAULT_CHAT;
+    int sent = mp_core->sendChatMessage( chat_id, text, false, false, false, markdown );
+    qDebug( "ybcore: sendChatMessageTo user %d via chat %lld -> %d chat(s)",
+            user_id, static_cast<qint64>( chat_id ), sent );
+  }
+
   void connectToPeer( const QString& ip, int port )
   {
     emitJson( QJsonObject{ { "type", "connect_attempt" }, { "ip", ip }, { "port", port } } );
@@ -288,47 +317,100 @@ public slots:
   }
 
 private:
-  void onUserChanged( const User& user )
+  static QString statusString( const User& user )
   {
-    QString status;
     switch( user.status() )
     {
-      case User::Offline: status = "offline"; break;
-      case User::Online: status = "online"; break;
-      case User::Busy: status = "busy"; break;
-      case User::Away: status = "away"; break;
-      default: status = "unknown"; break;
+      case User::Offline: return QStringLiteral( "offline" );
+      case User::Online: return QStringLiteral( "online" );
+      case User::Busy: return QStringLiteral( "busy" );
+      case User::Away: return QStringLiteral( "away" );
+      default: return QStringLiteral( "unknown" );
     }
+  }
+
+  void onUserChanged( const User& user )
+  {
     QString type = ( user.id() == ID_LOCAL_USER ) ? "local_user_changed"
                  : ( user.isStatusConnected() ? "user_online" : "user_offline" );
     emitJson( QJsonObject{ { "type", type },
                            { "user_id", static_cast<double>( user.id() ) },
                            { "name", user.name() },
-                           { "status", status } } );
+                           { "status", statusString( user ) } } );
+    emitChatUsersChanged();
+  }
+
+  // A2: authoritative snapshot of the (non-local) user roster, pushed on
+  // every user change. Kotlin keeps unread counts and message history;
+  // this list only drives session presence/name/private-chat mapping.
+  void emitChatUsersChanged()
+  {
+    QJsonArray users;
+    const QList<User> user_list = UserManager::instance().userList().toList();
+    for( const User& u : user_list )
+    {
+      if( !u.isValid() || u.isLocal() )
+        continue;
+      Chat c = ChatManager::instance().privateChatForUser( u.id() );
+      users.append( QJsonObject{ { "user_id", static_cast<double>( u.id() ) },
+                                 { "name", u.name() },
+                                 { "status", statusString( u ) },
+                                 { "connected", u.isStatusConnected() },
+                                 { "private_chat_id", static_cast<double>( c.isValid() ? c.id() : 0 ) } } );
+    }
+    emitJson( QJsonObject{ { "type", "chat_users_changed" }, { "users", users } } );
   }
 
   void onNewChatMessage( const Chat& chat, const ChatMessage& message )
   {
-    if( message.isFromSystem() )
-      return;  // system chatter arrives via newSystemStatusMessage / chat dispatch
-
     QJsonObject o;
     o.insert( "chat_id", static_cast<double>( chat.id() ) );
     o.insert( "chat_name", chat.name() );
-    o.insert( "text", message.message() );
-    o.insert( "markdown", message.isMarkdown() );
-    o.insert( "timestamp", message.timestamp().toString( Qt::ISODate ) );
+    o.insert( "timestamp", static_cast<double>( message.timestamp().toMSecsSinceEpoch() ) );
 
-    if( message.isFromLocalUser() )
+    if( message.isFromSystem() )
+    {
+      // A2: chat-scoped system chatter (user connected, file transfer
+      // status, ...). Desktop renders these as centered gray lines - or
+      // as a file card when it carries an <a href> link.
+      o.insert( "type", "message_system" );
+      static const QRegularExpression link_rx( QStringLiteral( "<a href=\\\"([^\\\"]+)\\\">([^<]+)</a>" ) );
+      QRegularExpressionMatch match = link_rx.match( message.message() );
+      if( message.isFileTransfer() && match.hasMatch() )
+      {
+        QString rest_text = message.message();
+        rest_text.remove( match.capturedStart(), match.capturedLength() );
+        rest_text.remove( QRegularExpression( QStringLiteral( "<img[^>]*>" ) ) );
+        o.insert( "file_url", match.captured( 1 ) );
+        o.insert( "file_name", match.captured( 2 ) );
+        o.insert( "file_status", stripHtml( rest_text ).simplified() );
+      }
+      o.insert( "text", stripHtml( message.message() ) );
+      emitJson( o );
+      return;
+    }
+
+    const bool from_local = message.isFromLocalUser();
+    User u = UserManager::instance().findUser( message.userId() );
+    const QString from_name = from_local
+      ? Settings::instance().localUser().name()
+      : ( u.isValid() ? u.name() : QString( "user #%1" ).arg( message.userId() ) );
+
+    // Markdown keeps the raw text; plain messages may carry wire HTML
+    // (links/emoticons) which is stripped down to its inner text.
+    o.insert( "text", message.isMarkdown() ? message.message() : stripHtml( message.message() ) );
+    o.insert( "markdown", message.isMarkdown() );
+    o.insert( "from_user", from_name );
+    o.insert( "from_local", from_local );
+    if( from_local )
     {
       o.insert( "type", "message_sent" );
     }
     else
     {
-      User u = UserManager::instance().findUser( message.userId() );
       o.insert( "type", "message_received" );
       o.insert( "from_user_id", static_cast<double>( message.userId() ) );
-      o.insert( "from_user_name", u.isValid() ? u.name() : QString( "user #%1" ).arg( message.userId() ) );
+      o.insert( "from_user_name", from_name );
     }
     emitJson( o );
   }
@@ -427,6 +509,17 @@ Java_com_yongbeep_app_core_CoreBridge_nativeSend( JNIEnv* env, jobject, jstring 
   if( !g_runner )
     return;
   QMetaObject::invokeMethod( g_runner, "sendChatMessage", Qt::QueuedConnection,
+                             Q_ARG( QString, jstringToQString( env, text ) ),
+                             Q_ARG( bool, markdown != JNI_FALSE ) );
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_yongbeep_app_core_CoreBridge_nativeSendTo( JNIEnv* env, jobject, jlong user_id, jstring text, jboolean markdown )
+{
+  if( !g_runner )
+    return;
+  QMetaObject::invokeMethod( g_runner, "sendChatMessageTo", Qt::QueuedConnection,
+                             Q_ARG( int, static_cast<int>( user_id ) ),
                              Q_ARG( QString, jstringToQString( env, text ) ),
                              Q_ARG( bool, markdown != JNI_FALSE ) );
 }

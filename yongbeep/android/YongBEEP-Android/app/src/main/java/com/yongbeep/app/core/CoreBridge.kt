@@ -63,6 +63,11 @@ object CoreBridge {
         if (initialized) nativeSend(text, markdown)
     }
 
+    /** A2：定向发送——走该用户的私聊 chat（无则回退默认 chat 广播）。 */
+    fun sendTo(userId: Long, text: String, markdown: Boolean) {
+        if (initialized) nativeSendTo(userId, text, markdown)
+    }
+
     fun connectPeer(ip: String, port: Int) {
         ensureInit()
         nativeConnectPeer(ip, port)
@@ -80,6 +85,7 @@ object CoreBridge {
     external fun nativeStart(nickname: String)
     external fun nativeStop()
     external fun nativeSend(text: String, markdown: Boolean)
+    external fun nativeSendTo(userId: Long, text: String, markdown: Boolean)
     external fun nativeVersion(): String
     external fun nativeConnectPeer(ip: String, port: Int)
 }
