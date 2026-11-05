@@ -74,6 +74,12 @@ void ChatListItemDelegate::paint( QPainter* painter, const QStyleOptionViewItem&
   QFontMetrics fm_time( f_time );
   QFontMetrics fm_badge( f_badge );
 
+  // YongBEEP: the name+summary text block is vertically CENTERED in the row
+  // (it used to hug the top, misaligned with the centered avatar)
+  const int text_gap = 2;
+  const int text_block_h = fm_name.height() + text_gap + fm_aux.height();
+  const int text_top = option.rect.top() + ( m_rowHeight - text_block_h ) / 2;
+
   // Timestamp (11px gray, top right, aligned with the name line)
   QString time_text = index.data( ChatListModel::TimeTextRole ).toString();
   int time_w = fm_time.horizontalAdvance( time_text );
@@ -82,14 +88,16 @@ void ChatListItemDelegate::paint( QPainter* painter, const QStyleOptionViewItem&
   painter->setPen( YongTheme::textSecondary() );
   painter->drawText( time_rect, Qt::AlignRight | Qt::AlignVCenter, time_text );
 
-  // Unread badge (red capsule, vertically centered on the row, no badge at 0)
+  // Unread badge (red capsule, bottom right on the summary line — WeChat
+  // layout; the old mid-row position overlapped the top-right timestamp)
   int unread = index.data( ChatListModel::UnreadRole ).toInt();
   int badge_left = row_rect.right() + 1;
   if( unread > 0 )
   {
     QString badge_text = unread > 99 ? QStringLiteral( "99+" ) : QString::number( unread );
     int badge_w = qMax( m_badgeSize, fm_badge.horizontalAdvance( badge_text ) + 10 );
-    QRect badge_rect( row_rect.right() - badge_w, option.rect.center().y() - m_badgeSize / 2 - 4, badge_w, m_badgeSize );
+    int summary_center_y = text_top + fm_name.height() + text_gap + fm_aux.height() / 2;
+    QRect badge_rect( row_rect.right() - badge_w, summary_center_y - m_badgeSize / 2, badge_w, m_badgeSize );
     painter->setPen( Qt::NoPen );
     painter->setBrush( YongTheme::unreadRed() );
     painter->drawRoundedRect( badge_rect, m_badgeSize / 2.0, m_badgeSize / 2.0 );
@@ -104,7 +112,7 @@ void ChatListItemDelegate::paint( QPainter* painter, const QStyleOptionViewItem&
   QString name_text = index.data( ChatListModel::NameRole ).toString();
   painter->setFont( f_name );
   painter->setPen( YongTheme::textPrimary() );
-  QRect name_rect( text_left, option.rect.top() + 9, qMax( 20, name_right - text_left ), fm_name.height() );
+  QRect name_rect( text_left, text_top, qMax( 20, name_right - text_left ), fm_name.height() );
   painter->drawText( name_rect, Qt::AlignLeft | Qt::AlignVCenter,
                      fm_name.elidedText( name_text, Qt::ElideRight, name_rect.width() ) );
 
@@ -113,7 +121,7 @@ void ChatListItemDelegate::paint( QPainter* painter, const QStyleOptionViewItem&
   int summary_right = unread > 0 ? badge_left - 8 : row_rect.right();
   painter->setFont( f_aux );
   painter->setPen( YongTheme::textSecondary() );
-  QRect summary_rect( text_left, name_rect.bottom() - 2, qMax( 20, summary_right - text_left ), fm_aux.height() + 2 );
+  QRect summary_rect( text_left, name_rect.bottom() + text_gap - 1, qMax( 20, summary_right - text_left ), fm_aux.height() );
   painter->drawText( summary_rect, Qt::AlignLeft | Qt::AlignVCenter,
                      fm_aux.elidedText( summary_text, Qt::ElideRight, summary_rect.width() ) );
 

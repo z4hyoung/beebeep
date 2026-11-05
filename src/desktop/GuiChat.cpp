@@ -94,15 +94,8 @@ GuiChat::GuiChat( QWidget *parent )
   QVBoxLayout* input_panel_layout = new QVBoxLayout( input_panel );
   input_panel_layout->setContentsMargins( 0, 0, 0, 0 );
   input_panel_layout->setSpacing( 0 );
-  // YongBEEP: explicit divider line above the input area (QSS border-top on a
-  // plain QWidget is not reliably painted through the cascade; a 1px QFrame
-  // with background renders everywhere — same approach as the header line)
-  QFrame* input_line = new QFrame( input_panel );
-  input_line->setObjectName( "GuiChatInputLine" );
-  input_line->setFrameShape( QFrame::NoFrame );
-  input_line->setFixedHeight( 1 );
-  input_line->setAttribute( Qt::WA_StyledBackground, true );
-  input_panel_layout->addWidget( input_line );
+  // YongBEEP: input divider line removed on user feedback (background
+  // contrast separates the zones; see GuiMainWindow header note)
   input_panel_layout->addWidget( mp_inputToolbar );
   input_panel_layout->addWidget( mp_frameMessage );
   mp_splitter->addWidget( input_panel );

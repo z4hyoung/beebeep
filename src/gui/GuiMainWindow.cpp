@@ -150,9 +150,17 @@ void GuiMainWindow::createGui()
   QHBoxLayout* header_layout = new QHBoxLayout( header_panel );
   header_layout->setContentsMargins( 16, 10, 16, 10 );
   header_layout->setSpacing( 6 );
+  // YongBEEP: dot + status text grouped in their own centered box so every
+  // element shares one centerline regardless of per-label height differences
+  QWidget* status_group = new QWidget( header_panel );
+  QHBoxLayout* status_layout = new QHBoxLayout( status_group );
+  status_layout->setContentsMargins( 0, 0, 0, 0 );
+  status_layout->setSpacing( 5 );
+  status_layout->addWidget( mp_headerStatusDot, 0, Qt::AlignVCenter );
+  status_layout->addWidget( mp_headerStatus, 0, Qt::AlignVCenter );
+  mp_headerName->setAlignment( Qt::AlignVCenter );
   header_layout->addWidget( mp_headerName, 1 );
-  header_layout->addWidget( mp_headerStatusDot, 0, Qt::AlignVCenter );
-  header_layout->addWidget( mp_headerStatus, 0, Qt::AlignVCenter );
+  header_layout->addWidget( status_group, 0, Qt::AlignVCenter );
 
   mp_chatPlaceholder = new QLabel( tr( "Select a chat to start messaging" ), this );
   mp_chatPlaceholder->setObjectName( "GuiWeChatPlaceholder" );
@@ -173,12 +181,9 @@ void GuiMainWindow::createGui()
   right_layout->setContentsMargins( 0, 0, 0, 0 );
   right_layout->setSpacing( 0 );
   right_layout->addWidget( header_panel );
-  QFrame* header_line = new QFrame( right_panel );
-  header_line->setObjectName( "GuiWeChatHeaderLine" );
-  header_line->setFrameShape( QFrame::NoFrame );
-  header_line->setFixedHeight( 1 );
-  header_line->setAttribute( Qt::WA_StyledBackground, true );
-  right_layout->addWidget( header_line );
+  // YongBEEP: header/input divider lines removed on user feedback — the
+  // white-header vs gray-chat vs white-input background contrast separates
+  // the zones cleanly (WeChat does the same without rules).
   right_layout->addWidget( chat_area, 1 );
 
   // ---------- Splitter ----------
