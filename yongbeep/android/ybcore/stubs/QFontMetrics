@@ -1,0 +1,38 @@
+//------------------------------------------------------------------
+// ybcore Android stub for <QFontMetrics>.
+//
+// src/core/Settings.cpp (Settings::Settings -> setChatFont -> fm.height())
+// and src/gui/Avatar.cpp (nickname avatar shrink loop -> horizontalAdvance)
+// instantiate QFontMetrics. The real QtGui QFontMetrics reaches the
+// QFontDatabase, which hard-aborts with "Must construct a QGuiApplication
+// before accessing QFontDatabase" - but the Android core deliberately
+// runs on a plain QCoreApplication (no platform plugin, no QGuiApplication).
+//
+// Config.h includes <QtGui> (real umbrella, defines the real class)
+// BEFORE <QtWidgets> (our stub umbrella, included last). Including this
+// file from the stub umbrella therefore only redirects the QFontMetrics
+// tokens written by the compiled project sources: Qt's own headers are
+// already parsed and never see the macro.
+//------------------------------------------------------------------
+#ifndef YBCORE_STUB_QFONTMETRICS_H
+#define YBCORE_STUB_QFONTMETRICS_H
+
+#include <QFont>
+#include <QString>
+
+class YbStubFontMetrics
+{
+public:
+  explicit YbStubFontMetrics( const QFont& = QFont() ) {}
+
+  // Deterministic, database-free answers close to the desktop defaults
+  // (emoticon-in-chat then resolves to 24px, in-edit to 16px).
+  int height() const { return 16; }
+  int ascent() const { return 13; }
+  int descent() const { return 3; }
+  int horizontalAdvance( const QString&, int = 0 ) const { return 8; }
+};
+
+#define QFontMetrics YbStubFontMetrics
+
+#endif // YBCORE_STUB_QFONTMETRICS_H

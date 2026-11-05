@@ -1,0 +1,19 @@
+//------------------------------------------------------------------
+// ybcore Android stub umbrella for <QtWidgets>.
+//
+// src/core/Config.h includes <QtWidgets> unconditionally. QtWidgets is
+// not linked into libybcore, so this stub umbrella pulls in the few
+// widget classes referenced by the compiled core sources (QApplication
+// statics in Settings.cpp/Avatar.cpp, BeeUtils.cpp window/combo/color
+// helpers). Add more stub headers here as needed.
+//------------------------------------------------------------------
+#ifndef YBCORE_STUB_QTWIDGETS_H
+#define YBCORE_STUB_QTWIDGETS_H
+
+#include "QApplication"
+#include "QWidget"
+#include "QComboBox"
+#include "QColorDialog"
+#include "QFontMetrics"
+
+#endif // YBCORE_STUB_QTWIDGETS_H

@@ -1,0 +1,11 @@
+# Android 构建产物（由 build.sh / gradlew 再生）
+ybcore/build/
+YongBEEP-Android/.gradle/
+YongBEEP-Android/build/
+YongBEEP-Android/app/build/
+YongBEEP-Android/app/libs/
+YongBEEP-Android/local.properties
+YongBEEP-Android/.idea/
+a0-smoke/build/
+*.apk
+*.so

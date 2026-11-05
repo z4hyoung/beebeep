@@ -1,0 +1,42 @@
+//------------------------------------------------------------------
+// ybcore Android stub for <QWidget> (QtWidgets).
+//
+// Only BeeUtils.cpp (window helpers: showUp/raiseOnTop/
+// setWindowStaysOnTop/setBackgroundColor/removeContextHelpButton)
+// touches QWidget in the compiled core set, and those helpers are
+// never invoked on Android. This stub satisfies the member calls.
+//------------------------------------------------------------------
+#ifndef YBCORE_STUB_QWIDGET_H
+#define YBCORE_STUB_QWIDGET_H
+
+#include <QObject>
+#include <QPalette>
+
+class QWidget : public QObject
+{
+public:
+  QWidget( QWidget* parent = Q_NULLPTR, Qt::WindowFlags f = Qt::WindowFlags() )
+    : QObject( parent ), m_windowFlags( f ), m_visible( false ), m_minimized( false ) {}
+
+  Qt::WindowFlags windowFlags() const { return m_windowFlags; }
+  void setWindowFlags( Qt::WindowFlags f ) { m_windowFlags = f; }
+
+  bool isVisible() const { return m_visible; }
+  bool isMinimized() const { return m_minimized; }
+
+  void show() { m_visible = true; }
+  void hide() { m_visible = false; }
+  void showNormal() { m_visible = true; m_minimized = false; }
+  void raise() {}
+
+  QPalette palette() const { return m_palette; }
+  void setPalette( const QPalette& pal ) { m_palette = pal; }
+
+private:
+  Qt::WindowFlags m_windowFlags;
+  bool m_visible;
+  bool m_minimized;
+  QPalette m_palette;
+};
+
+#endif // YBCORE_STUB_QWIDGET_H

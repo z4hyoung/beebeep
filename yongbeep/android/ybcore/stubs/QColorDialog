@@ -1,0 +1,23 @@
+//------------------------------------------------------------------
+// ybcore Android stub for <QColorDialog> (QtWidgets).
+//
+// Bee::selectColor() calls QColorDialog::getColor(); no color dialog
+// exists in the headless core - return an invalid color.
+//------------------------------------------------------------------
+#ifndef YBCORE_STUB_QCOLORDIALOG_H
+#define YBCORE_STUB_QCOLORDIALOG_H
+
+#include "QWidget"
+#include <QColor>
+
+class QColorDialog : public QWidget
+{
+public:
+  static QColor getColor( const QColor& initial = QColor(), QWidget* parent = Q_NULLPTR )
+  {
+    Q_UNUSED( parent );
+    return initial;
+  }
+};
+
+#endif // YBCORE_STUB_QCOLORDIALOG_H

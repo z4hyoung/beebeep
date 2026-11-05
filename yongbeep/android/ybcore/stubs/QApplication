@@ -1,0 +1,37 @@
+//------------------------------------------------------------------
+// ybcore Android stub for <QApplication> (QtWidgets).
+//
+// src/core/Log.cpp and src/core/Settings.cpp include <QApplication>
+// and Settings.cpp / BeeUtils.cpp / CoreConnection.cpp / BtManager.cpp
+// / Avatar.cpp use QApplication::font(), QApplication::applicationDirPath(),
+// qApp->applicationFilePath(), qApp->translate(), qApp->palette(),
+// qApp->checkPermission() / qApp->requestPermission().
+// QtWidgets must not be linked, so this stub derives from the real
+// QCoreApplication: everything instance-based (translate, permissions,
+// applicationFilePath) keeps working against whatever QCoreApplication
+// the host app created, while the few GUI-isms (font, palette) return
+// defaults. The qApp macro mirrors Qt's own definition.
+//------------------------------------------------------------------
+#ifndef YBCORE_STUB_QAPPLICATION_H
+#define YBCORE_STUB_QAPPLICATION_H
+
+#include <QCoreApplication>
+#include <QFont>
+#include <QPalette>
+#include <QString>
+
+class QApplication : public QCoreApplication
+{
+public:
+  QApplication( int& argc, char** argv ) : QCoreApplication( argc, argv ) {}
+
+  static QFont font() { return QFont(); }
+  static QPalette palette() { return QPalette(); }
+  static QString applicationDirPath() { return QCoreApplication::applicationDirPath(); }
+
+  using QCoreApplication::translate;
+};
+
+#define qApp (static_cast<QApplication*>(QCoreApplication::instance()))
+
+#endif // YBCORE_STUB_QAPPLICATION_H

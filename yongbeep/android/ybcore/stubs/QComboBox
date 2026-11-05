@@ -1,0 +1,25 @@
+//------------------------------------------------------------------
+// ybcore Android stub for <QComboBox> (QtWidgets).
+//
+// BeeUtils.cpp implements Bee::comboBoxData()/Bee::selectComboBoxData()
+// against QComboBox; the only real callers live in the disabled
+// voicechat settings page. Stub keeps the item API shape.
+//------------------------------------------------------------------
+#ifndef YBCORE_STUB_QCOMBOBOX_H
+#define YBCORE_STUB_QCOMBOBOX_H
+
+#include "QWidget"
+#include <QVariant>
+
+class QComboBox : public QWidget
+{
+public:
+  QComboBox( QWidget* parent = Q_NULLPTR ) : QWidget( parent ) {}
+
+  int currentIndex() const { return -1; }
+  QVariant itemData( int index ) const { Q_UNUSED( index ); return QVariant(); }
+  int findData( const QVariant& data ) const { Q_UNUSED( data ); return -1; }
+  void setCurrentIndex( int index ) { Q_UNUSED( index ); }
+};
+
+#endif // YBCORE_STUB_QCOMBOBOX_H
