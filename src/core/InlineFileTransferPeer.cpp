@@ -291,7 +291,22 @@ void InlineFileTransferPeer::checkDownloadChunk( quint32 chunk_index, quint32 to
     return;
   }
 
-  if( chunk_index != m_chunkIndex )
+  // YongBEEP: tolerate duplicate/stale chunks. The sender may resend a chunk
+  // (peer timeout retry, a retried offer on another transport, or two transfer
+  // paths racing). Treating any out-of-order chunk as fatal killed transfers
+  // that were actually progressing - e.g. "out of order inline chunk received
+  // (1 instead of 2)" was a resent chunk 0 after chunk 0 was already stored.
+  if( chunk_index < m_chunkIndex )
+  {
+    qWarning() << qPrintable( name() ) << "ignores duplicate inline chunk" << ( chunk_index + 1 )
+               << "already received up to" << m_chunkIndex;
+    // Re-ACK it so a stop-and-wait peer waiting on this chunk can move on.
+    if( isDownload() )
+      sendChunkAck( chunk_index, byte_offset, chunk_size );
+    return;
+  }
+
+  if( chunk_index > m_chunkIndex )
   {
     setError( tr( "Out of order inline chunk received (%1 instead of %2)" ).arg( chunk_index + 1 ).arg( m_chunkIndex + 1 ) );
     return;
