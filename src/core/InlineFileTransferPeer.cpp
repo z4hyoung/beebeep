@@ -141,6 +141,11 @@ bool InlineFileTransferPeer::sendChunkMessage()
   {
     if( !sendSingleChunk() )
       return false;
+    // Advance past the chunk just handed to the connection: sendSingleChunk()
+    // builds the message from m_chunkIndex, the window condition above paces
+    // how far ahead of m_ackIndex it may run. Without this the uploader
+    // re-sent chunk 0 forever (lost in the sliding window refactor).
+    m_chunkIndex++;
   }
   return true;
 }
