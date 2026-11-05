@@ -131,7 +131,10 @@ QString YongTheme::mainWindowQss()
     "#GuiChatSendButton:disabled { background: %7; color: #999999; }"
 
     // ---- splitters: invisible, panels carry their own dividers ----
-    "QSplitter::handle { background: transparent; }"
+    // YongBEEP: a real 1px divider between the session list and the chat
+    // column, running the FULL height — the pure color boundary "broke"
+    // wherever the white input area met the white list panel
+    "QSplitter::handle { background: %2; border: none; }"
   ).arg( windowBackground().name(),       // 1 white
          separator().name(),              // 2 #E7E7E7
          chatAreaBackground().name(),     // 3 #F5F5F5

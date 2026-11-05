@@ -161,6 +161,9 @@ void GuiMainWindow::createGui()
   mp_headerName->setAlignment( Qt::AlignVCenter );
   header_layout->addWidget( mp_headerName, 1 );
   header_layout->addWidget( status_group, 0, Qt::AlignVCenter );
+  // YongBEEP: fixed-height labels so name/dot/status truly share a centerline
+  mp_headerName->setFixedHeight( 24 );
+  mp_headerStatus->setFixedHeight( 18 );
 
   mp_chatPlaceholder = new QLabel( tr( "Select a chat to start messaging" ), this );
   mp_chatPlaceholder->setObjectName( "GuiWeChatPlaceholder" );

@@ -492,7 +492,7 @@ void ChatMessageModel::buildDocument( ChatMessageItem* item ) const
     aux_font.setPixelSize( Settings::instance().useDarkStyle() ? YongTheme::fontAuxPx() : YongTheme::fontTimestampPx() + 1 );
     doc->setDefaultFont( aux_font );
     QColor line_color = Settings::instance().useDarkStyle() ? QColor( Settings::instance().chatSystemTextColor() ) : YongTheme::textSecondary();
-    doc->setDefaultStyleSheet( QStringLiteral( "body { color: %1; } a { color: %2; }" )
+    doc->setDefaultStyleSheet( QStringLiteral( "body { color: %1; } a { color: %2; } img { vertical-align: middle; }" )
                                  .arg( line_color.name(), YongTheme::linkBlue().name() ) );
     doc->setHtml( item->contentHtml );
   }
@@ -510,7 +510,7 @@ void ChatMessageModel::buildDocument( ChatMessageItem* item ) const
   else
   {
     QColor text_color = bubbleTextColor();
-    doc->setDefaultStyleSheet( QStringLiteral( "body { color: %1; } a { color: %2; }" )
+    doc->setDefaultStyleSheet( QStringLiteral( "body { color: %1; } a { color: %2; } img { vertical-align: middle; }" )
                                  .arg( text_color.name(), YongTheme::linkBlue().name() ) );
     doc->setHtml( item->contentHtml );
   }

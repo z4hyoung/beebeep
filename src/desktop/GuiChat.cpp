@@ -53,6 +53,10 @@ GuiChat::GuiChat( QWidget *parent )
   setupUi( this );
   setObjectName( "GuiChat" );
   setAcceptDrops( true );
+  // YongBEEP: tighten the message grid margins so the input field sits
+  // close under the icon row (default 9px + editor frame read as a gap)
+  if( QLayout* msg_layout = mp_frameMessage->layout() )
+    msg_layout->setContentsMargins( 12, 2, 12, 6 );
 
   mp_inputToolbar = Q_NULLPTR;
   mp_tbEmoticons = Q_NULLPTR;
@@ -309,7 +313,9 @@ void GuiChat::setupInputToolbar()
   mp_inputToolbar = new QWidget( this );
   mp_inputToolbar->setObjectName( "GuiChatInputToolbar" );
   QHBoxLayout* toolbar_layout = new QHBoxLayout( mp_inputToolbar );
-  toolbar_layout->setContentsMargins( 12, 6, 12, 0 );
+  // YongBEEP: tight icon row (the old 6+9px gap left the icons floating
+  // ~20px above the input field — read as misalignment)
+  toolbar_layout->setContentsMargins( 12, 4, 12, 0 );
   toolbar_layout->setSpacing( 8 );
 
   mp_tbEmoticons = new QToolButton( mp_inputToolbar );
