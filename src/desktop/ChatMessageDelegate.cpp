@@ -200,10 +200,11 @@ void ChatMessageDelegate::paint( QPainter* painter, const QStyleOptionViewItem& 
     const qreal content_top = option.rect.top() + ( item->showTimestamp ? ChatMessageModel::TimestampRowHeight : 0 );
     QRectF card_rect = fileCardRect( item, option.rect, content_top, row_width );
 
-    // WeChat file card: white rounded block + 1px border
+    // WeChat file card: white rounded block, NO border (WeChat separates by
+    // fill contrast alone; a 1px outline read as floating gray lines)
     QPainterPath card_path;
     card_path.addRoundedRect( card_rect, YongTheme::bubbleRadiusPx(), YongTheme::bubbleRadiusPx() );
-    painter->setPen( QPen( dark ? QColor( 0x2a, 0x2a, 0x2a ) : YongTheme::separator(), 1.0 ) );
+    painter->setPen( Qt::NoPen );
     painter->setBrush( dark ? QColor( 0x3c, 0x40, 0x48 ) : YongTheme::bubbleWhite() );
     painter->drawPath( card_path );
 
@@ -218,10 +219,13 @@ void ChatMessageDelegate::paint( QPainter* painter, const QStyleOptionViewItem& 
     painter->setPen( dark ? QColor( 0xff, 0xff, 0xff ) : YongTheme::textPrimary() );
     QString file_name = name_fm.elidedText( item->fileName, Qt::ElideMiddle,
                                             card_rect.width() - 14 - 32 - 12 - 10 );
-    painter->drawText( QPointF( card_rect.left() + 60, card_rect.top() + 25 ), file_name );
+    // YongBEEP: name+status drawn as a vertically centered group so they
+    // align with the centered icon (fixed offsets left them ~3px high)
+    const qreal cy = card_rect.center().y();
+    painter->drawText( QPointF( card_rect.left() + 60, cy - 4 ), file_name );
 
     drawStatusLine( painter, item->fileStatus,
-                    QRectF( card_rect.left() + 60, card_rect.top() + 29, card_rect.width() - 70, 14 ),
+                    QRectF( card_rect.left() + 60, cy + 1, card_rect.width() - 70, 14 ),
                     dark ? QColor( 0xaa, 0xaa, 0xaa ) : YongTheme::textSecondary() );
 
     painter->restore();
@@ -264,17 +268,14 @@ void ChatMessageDelegate::paint( QPainter* painter, const QStyleOptionViewItem& 
   if( !item->avatar.isNull() )
     painter->drawPixmap( avatar_rect, item->avatar );
 
-  // true rounded bubble (r=8): own green on the right, peer white + 1px
-  // border on the left - painted with QPainter, no HTML tables
+  // true rounded bubble (r=8): own green right, peer white left - fill only,
+  // NO outline (WeChat separates by contrast; borders read as gray lines)
   QRectF bubble_rect = bubbleRect( item, option.rect, y, row_width );
   QPainterPath bubble_path;
   bubble_path.addRoundedRect( bubble_rect, YongTheme::bubbleRadiusPx(), YongTheme::bubbleRadiusPx() );
   QColor bubble_color = item->ownMessage ? ( dark ? QColor( 0x3e, 0xb5, 0x75 ) : YongTheme::bubbleGreen() )
                                          : ( dark ? QColor( 0x3c, 0x40, 0x48 ) : YongTheme::bubbleWhite() );
-  if( !item->ownMessage && !dark )
-    painter->setPen( QPen( YongTheme::separator(), 1.0 ) );
-  else
-    painter->setPen( Qt::NoPen );
+  painter->setPen( Qt::NoPen );
   painter->setBrush( bubble_color );
   painter->drawPath( bubble_path );
 
