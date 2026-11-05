@@ -525,7 +525,10 @@ void GuiMainWindow::onNewChatMessage( const Chat& c, const ChatMessage& cm )
   }
   else
   {
-    if( !cm.isFromLocalUser() )
+    // YongBEEP: alert only for real chat text - connection/system messages
+    // ("user online/offline") fired on every bluetooth reconnect cycle and
+    // produced phantom periodic notifications with nobody writing
+    if( !cm.isFromLocalUser() && !cm.isFromSystem() )
       showAlertForMessage( c, cm );
     refreshChatList( true );
   }

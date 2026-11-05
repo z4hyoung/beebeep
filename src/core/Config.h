@@ -66,7 +66,11 @@ const char BLUETOOTH_SERVICE_NAME[] = "YongBEEP";
 // SDP queries/platforms, so the synthetic peer identity uses a fixed pseudo
 // port (the BT MAC is the real key, see core-transport.md section G.2 item 5).
 const quint16 BLUETOOTH_FAKE_PEER_PORT = 64750;
-const int BLUETOOTH_SCAN_INTERVAL_MS = 10000;
+// YongBEEP: 10s SDP re-inquiries crashed on macOS (Qt's DarwinBTSDPInquiry
+// callback firing into a restarted agent - see crash reports 11-04/11-05);
+// 30s spacing plus the connect-pause below keeps discovery away from the
+// teardown window while a peer link is up
+const int BLUETOOTH_SCAN_INTERVAL_MS = 30000;
 
 // Connection I/O
 typedef quint16 DATA_BLOCK_SIZE_16;

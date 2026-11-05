@@ -17,6 +17,11 @@
 #include "BtDiscoverer.h"
 #include "Config.h"
 #include "StreamDeviceBt.h"
+#include "Core.h"
+#include "User.h"
+#include "UserManager.h"
+#include "UserList.h"
+#include <QList>
 #include <QtBluetooth/QBluetoothServiceInfo>
 #include <QTimer>
 
@@ -99,6 +104,20 @@ void BtDiscoverer::setLocalAddress( const QBluetoothAddress& local_address )
 
 void BtDiscoverer::startScan()
 {
+  // YongBEEP: pause SDP discovery while a peer is connected (this is a 1:1
+  // messenger, there is nothing more to find) - SDP re-inquiries on macOS
+  // risk the DarwinBTSDPInquiry teardown race that crashed the app (all
+  // three crash reports of 2026-11-04/05 die in sdpQueryComplete)
+  if( beeCore && beeCore->isConnected() )
+  {
+    const QList<User>& users = UserManager::instance().userList().toList();
+    for( int i = 0; i < users.size(); ++i )
+    {
+      if( users.at( i ).isStatusConnected() )
+        return;
+    }
+  }
+
 #if !defined( Q_OS_WIN )
   if( mp_agent->isActive() )
     return;
