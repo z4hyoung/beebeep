@@ -661,6 +661,21 @@ void BtWinWorker::scanForPeers( quint64 local_address )
 
 void BtWinWorker::connectToPeer( quint64 bt_address )
 {
+  // Resolve the RFCOMM channel with an explicit SDP query first. Letting the
+  // stack resolve serviceClassId inside connect() proved unreliable on some
+  // radios (Intel stack: "invalid parameter" or a plain timeout), while the
+  // manual query plus a port based connect is the documented pattern.
+  quint32 channel = 0;
+  QString service_name;
+  if( !sdpQueryServiceChannel( bt_address, *static_cast<GUID*>( serviceGuid() ), &channel, &service_name ) )
+  {
+    qWarning() << "BtWinWorker: no YongBEEP service found on" << Qt::hex << bt_address;
+    emit connectFinished( bt_address, 0, WSASERVICE_NOT_FOUND );
+    return;
+  }
+
+  qDebug() << "BtWinWorker: connecting to" << Qt::hex << bt_address << "on channel" << channel << "for service" << service_name;
+
   SOCKET s = ::socket( AF_BTH, SOCK_STREAM, BTHPROTO_RFCOMM );
   if( s == INVALID_SOCKET )
   {
@@ -668,12 +683,10 @@ void BtWinWorker::connectToPeer( quint64 bt_address )
     return;
   }
 
-  GUID* service_guid = static_cast<GUID*>( serviceGuid() );
-
   SOCKADDR_BTH peer_sa = {};
   peer_sa.addressFamily = AF_BTH;
   peer_sa.btAddr = bt_address;
-  peer_sa.serviceClassId = *service_guid; // the stack resolves the channel with an SDP query
+  peer_sa.port = channel; // RFCOMM channel from the SDP record
 
   u_long non_blocking = 1;
   ioctlsocket( s, FIONBIO, &non_blocking );
