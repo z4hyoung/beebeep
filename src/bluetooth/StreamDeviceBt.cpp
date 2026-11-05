@@ -348,6 +348,16 @@ void StreamDeviceBt::onWinConnectFinished( quint64 bt_address, quintptr socket_h
 
 void StreamDeviceBt::onNativeError( int wsa_error )
 {
+  // Transient by design: the win32 bluetooth stack reports WSAEWOULDBLOCK
+  // whenever the RFCOMM flow control is exhausted; NativeBtSocket::writeData()
+  // already waits through it, and tearing the connection down here would kill
+  // a healthy transfer (seen live with the first 87 KB chunk).
+  if( wsa_error == WSAEWOULDBLOCK )
+  {
+    qDebug() << "StreamDeviceBt ignores a transient WSAEWOULDBLOCK";
+    return;
+  }
+
   // WSA error codes mapped onto the QAbstractSocket set used by Core.
   QAbstractSocket::SocketError mapped_error = QAbstractSocket::UnknownSocketError;
 

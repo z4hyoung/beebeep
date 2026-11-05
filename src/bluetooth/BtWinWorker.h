@@ -23,6 +23,7 @@
 #include <QtCore/QThread>
 
 class QSocketNotifier;
+class QByteArray;
 
 #if defined( Q_OS_WIN )
 
@@ -70,14 +71,18 @@ protected:
 
 private slots:
   void onReadActivated();
+  void onWriteActivated();
 
 private:
   void emitNativeError( int wsa_error );
+  void flushWriteBuffer();
 
   void* m_socket;              // SOCKET stored as void* to keep the header clean
   quint64 m_peerAddress;
   State m_state;
   QSocketNotifier* mp_readNotifier;
+  QSocketNotifier* mp_writeNotifier;
+  QByteArray m_writeBuffer;    // pending bytes drained by the write notifier
 
 };
 

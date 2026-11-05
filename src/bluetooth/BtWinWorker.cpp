@@ -186,7 +186,7 @@ namespace
 
 NativeBtSocket::NativeBtSocket( QObject* parent )
   : QIODevice( parent ), m_socket( reinterpret_cast<void*>( INVALID_SOCKET ) ), m_peerAddress( 0 ),
-    m_state( UnconnectedState ), mp_readNotifier( Q_NULLPTR )
+    m_state( UnconnectedState ), mp_readNotifier( Q_NULLPTR ), mp_writeNotifier( Q_NULLPTR )
 {
 }
 
@@ -207,17 +207,23 @@ bool NativeBtSocket::adoptConnectedSocket( qintptr socket_handle, quint64 peer_a
   m_peerAddress = peer_address;
   m_state = ConnectedState;
 
-  // Blocking socket: writes are handed to the stack directly. A large send
-  // can block the GUI thread briefly; accepted as a v1 limitation of the
-  // native transport (chat sized blocks stay well under 100 ms).
-  u_long blocking = 0;
-  ioctlsocket( s, FIONBIO, &blocking );
+  // Non-blocking socket: reads are bounded by FIONREAD in readData() and
+  // writes go through the internal buffer drained by the write notifier, so
+  // neither direction can ever freeze the GUI thread (mandatory for long
+  // inline transfers over the slow RFCOMM link).
+  u_long non_blocking = 1;
+  ioctlsocket( s, FIONBIO, &non_blocking );
 
+  m_writeBuffer.clear();
   setOpenMode( QIODevice::ReadWrite | QIODevice::Unbuffered );
 
   mp_readNotifier = new QSocketNotifier( static_cast<qintptr>( s ), QSocketNotifier::Type::Read, this );
   connect( mp_readNotifier, &QSocketNotifier::activated, this, &NativeBtSocket::onReadActivated );
   mp_readNotifier->setEnabled( true );
+
+  mp_writeNotifier = new QSocketNotifier( static_cast<qintptr>( s ), QSocketNotifier::Type::Write, this );
+  connect( mp_writeNotifier, &QSocketNotifier::activated, this, &NativeBtSocket::onWriteActivated );
+  mp_writeNotifier->setEnabled( false );
 
   return true;
 }
@@ -246,6 +252,15 @@ void NativeBtSocket::closeSocket()
     mp_readNotifier = Q_NULLPTR;
   }
 
+  if( mp_writeNotifier )
+  {
+    mp_writeNotifier->setEnabled( false );
+    mp_writeNotifier->deleteLater();
+    mp_writeNotifier = Q_NULLPTR;
+  }
+
+  m_writeBuffer.clear();
+
   SOCKET s = reinterpret_cast<SOCKET>( m_socket );
   if( s != INVALID_SOCKET )
   {
@@ -267,7 +282,8 @@ void NativeBtSocket::onReadActivated()
   if( s == INVALID_SOCKET )
     return;
 
-  // Peek one byte to distinguish "data arrived" from "peer closed".
+  // The notifier fired, so the socket is readable: the peek cannot block and
+  // distinguishes "data arrived" from "peer closed" (EOF reads readable too).
   char peek_byte = 0;
   int peek_result = ::recv( s, &peek_byte, 1, MSG_PEEK );
 
@@ -283,13 +299,37 @@ void NativeBtSocket::onReadActivated()
     emitNativeError( WSAGetLastError() );
 }
 
+void NativeBtSocket::onWriteActivated()
+{
+  if( reinterpret_cast<SOCKET>( m_socket ) == INVALID_SOCKET )
+    return;
+  flushWriteBuffer();
+}
+
 qint64 NativeBtSocket::readData( char* data, qint64 max_size )
 {
   SOCKET s = reinterpret_cast<SOCKET>( m_socket );
   if( s == INVALID_SOCKET )
     return -1;
 
-  int bytes_read = ::recv( s, data, static_cast<int>( qMin<qint64>( max_size, 1 << 20 ) ), 0 );
+  // Never block the GUI thread: QIODevice may call readData more than once
+  // per readyRead (transaction machinery reading ahead), and a plain recv()
+  // on a blocking socket would then hang until the peer sends more - seen
+  // live as a three minute frozen event loop ended by the bluetooth stack
+  // watchdog. Bound every recv() to the bytes that have already arrived:
+  // returning 0 with nothing pending is safe here, the next readyRead
+  // retries the transaction (same behaviour as the previous WSAEWOULDBLOCK
+  // return, which small transfers exercised successfully).
+  u_long pending = 0;
+  if( ioctlsocket( s, FIONREAD, &pending ) != 0 )
+    pending = 0;
+
+  if( pending == 0 )
+    return 0; // nothing pending: remote close is detected by onReadActivated
+              // (the notifier fires for EOF too, where the peek cannot block)
+
+  int to_read = static_cast<int>( qMin<qint64>( qMin<qint64>( max_size, 1 << 20 ), static_cast<qint64>( pending ) ) );
+  int bytes_read = ::recv( s, data, to_read, 0 );
 
   if( bytes_read == 0 )
   {
@@ -313,25 +353,46 @@ qint64 NativeBtSocket::readData( char* data, qint64 max_size )
 
 qint64 NativeBtSocket::writeData( const char* data, qint64 max_size )
 {
-  SOCKET s = reinterpret_cast<SOCKET>( m_socket );
-  if( s == INVALID_SOCKET )
+  // Non-blocking socket with an internal write buffer (see
+  // adoptConnectedSocket): send() moves what fits into the stack right now,
+  // the rest is queued and drained by the write notifier as the RFCOMM flow
+  // control frees credits. write() therefore never blocks the GUI thread even
+  // during a multi hundred megabyte inline transfer, and WSAEWOULDBLOCK is a
+  // normal pacing signal (the win32 bluetooth stack reports it even on
+  // blocking sockets once the credits are exhausted).
+  if( reinterpret_cast<SOCKET>( m_socket ) == INVALID_SOCKET )
     return -1;
 
-  qint64 total_sent = 0;
-  while( total_sent < max_size )
+  m_writeBuffer.append( data, static_cast<int>( max_size ) );
+  flushWriteBuffer();
+  return max_size;
+}
+
+void NativeBtSocket::flushWriteBuffer()
+{
+  SOCKET s = reinterpret_cast<SOCKET>( m_socket );
+
+  while( !m_writeBuffer.isEmpty() )
   {
-    int chunk_size = static_cast<int>( qMin<qint64>( max_size - total_sent, 1 << 20 ) );
-    int sent = ::send( s, data + total_sent, chunk_size, 0 );
-    if( sent == SOCKET_ERROR )
+    int sent = ::send( s, m_writeBuffer.constData(), m_writeBuffer.size(), 0 );
+    if( sent > 0 )
     {
-      emitNativeError( WSAGetLastError() );
-      return total_sent > 0 ? total_sent : -1;
+      m_writeBuffer.remove( 0, sent );
+      continue;
     }
-    total_sent += sent;
+
+    if( sent == 0 )
+      break; // orderly shutdown reported as zero: leave the buffer alone
+
+    int wsa_error = WSAGetLastError();
+    if( wsa_error == WSAEWOULDBLOCK || wsa_error == WSAEINTR )
+      break; // flow control exhausted: the write notifier will resume
+    emitNativeError( wsa_error );
+    return;
   }
 
-  // QIODevice::write() emits bytesWritten() for the amount returned here.
-  return total_sent;
+  if( mp_writeNotifier )
+    mp_writeNotifier->setEnabled( !m_writeBuffer.isEmpty() );
 }
 
 void NativeBtSocket::emitNativeError( int wsa_error )
