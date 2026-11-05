@@ -514,6 +514,18 @@ void GuiMainWindow::onNewChatMessage( const Chat& c, const ChatMessage& cm )
   if( !c.isValid() )
     return;
 
+  // YongBEEP: system/connection messages ("user online/offline", transfer
+  // info) must never put the tray into the blinking state - the blink is
+  // for unread HUMAN text only
+  if( cm.isFromSystem() )
+  {
+    GuiChat* gui_chat = m_chatWidgets.value( c.id(), Q_NULLPTR );
+    if( gui_chat && gui_chat->chatId() == c.id() )
+      gui_chat->appendChatMessage( c, cm );
+    refreshChatList( true );
+    return;
+  }
+
   GuiChat* gui_chat = m_chatWidgets.value( c.id(), Q_NULLPTR );
   if( gui_chat && gui_chat->chatId() == c.id() )
     gui_chat->appendChatMessage( c, cm );
@@ -522,6 +534,10 @@ void GuiMainWindow::onNewChatMessage( const Chat& c, const ChatMessage& cm )
   {
     beeCore->readAllMessagesInChat( c.id() );
     refreshChatList( true );
+    // YongBEEP: reading the chat must also stop the tray blink - on macOS
+    // the tray click opens the menu only, so the old "toggle to clear"
+    // path never ran and the icon flashed forever
+    mp_trayIcon->setUnreadMessages( c.id(), 0 );
   }
   else
   {
@@ -616,6 +632,11 @@ void GuiMainWindow::onCoreConnected()
   updateWindowTitle();
   updateChatHeader();
   refreshChatList( true );
+  // YongBEEP: coming online is not a message - never enter blink state
+  // for connection system messages (the periodic "flashing with nobody
+  // writing" bug: system messages set the message icon and nothing
+  // cleared it while the user sat in a different chat)
+  mp_trayIcon->setDefaultIcon();
 }
 
 
