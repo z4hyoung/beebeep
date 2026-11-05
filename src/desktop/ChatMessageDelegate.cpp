@@ -224,16 +224,43 @@ void ChatMessageDelegate::paint( QPainter* painter, const QStyleOptionViewItem& 
     const qreal cy = card_rect.center().y();
     painter->drawText( QPointF( card_rect.left() + 60, cy - 4 ), file_name );
 
-    // live "15M / 100M" while transferring, static status otherwise
+    // live "15M / 100M · 156 KB/s" + progress bar while transferring,
+    // static status otherwise
     QString status = item->fileStatus;
-    if( item->fileProgressTotal > 0 && item->fileProgressBytes < item->fileProgressTotal )
+    const bool transferring = item->fileProgressTotal > 0 && item->fileProgressBytes < item->fileProgressTotal;
+    if( transferring )
+    {
       status = QStringLiteral( "%1 / %2" )
                  .arg( Bee::bytesToString( item->fileProgressBytes ) )
                  .arg( Bee::bytesToString( item->fileProgressTotal ) );
+      if( item->fileProgressElapsed > 500 && item->fileProgressBytes > 0 )
+        status += QStringLiteral( " \xc2\xb7 %1/s" ).arg( Bee::bytesToString( item->fileProgressBytes * 1000 / item->fileProgressElapsed ) );
+    }
 
     drawStatusLine( painter, status,
                     QRectF( card_rect.left() + 60, cy + 1, card_rect.width() - 70, 14 ),
                     dark ? QColor( 0xaa, 0xaa, 0xaa ) : YongTheme::textSecondary() );
+
+    if( transferring )
+    {
+      // YongBEEP: thin rounded progress bar along the card bottom edge,
+      // WeChat green fill on a light track (works for both transports).
+      const qreal bar_margin = 14.0;
+      const qreal bar_height = 3.0;
+      QRectF track_rect( card_rect.left() + bar_margin, card_rect.bottom() - 6.0,
+                         card_rect.width() - bar_margin * 2.0, bar_height );
+      painter->setPen( Qt::NoPen );
+      painter->setBrush( dark ? QColor( 0x54, 0x58, 0x60 ) : YongTheme::separator() );
+      painter->drawRoundedRect( track_rect, bar_height / 2.0, bar_height / 2.0 );
+      const qreal ratio = qBound<qreal>( 0.0, qreal( item->fileProgressBytes ) / qreal( item->fileProgressTotal ), 1.0 );
+      if( ratio > 0.0 )
+      {
+        QRectF fill_rect = track_rect;
+        fill_rect.setWidth( track_rect.width() * ratio );
+        painter->setBrush( YongTheme::brandGreen() );
+        painter->drawRoundedRect( fill_rect, bar_height / 2.0, bar_height / 2.0 );
+      }
+    }
 
     painter->restore();
     return;

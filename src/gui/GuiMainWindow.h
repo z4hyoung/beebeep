@@ -103,6 +103,9 @@ private:
   void createGui();
   void setupCoreConnections();
   void setupChatConnections( GuiChat* );
+  /*! Test automation (docs/03-测试方案.md M2/M3): auto-send a file to the
+   * first connected peer when YONGBEEP_AUTOSEND_FILE is set. */
+  void setupQaAutoSend();
   GuiChat* chatWidget( VNumber chat_id, bool create_if_missing );
   void selectFirstChat();
   void refreshChatList( bool restore_selection );

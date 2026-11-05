@@ -124,8 +124,12 @@ bool Core::downloadFile( VNumber user_id, const FileInfo& fi, bool show_message 
   if( show_message )
   {
     icon_html = IconManager::instance().toHtml( "download.png", "*F*" );
+    // YongBEEP: the link turns this system message into a chat FileCard, so
+    // the download progress of BOTH transports (inline and 6476 TCP) becomes
+    // visible in real time through ChatMessageModel::updateFileProgress().
+    QUrl file_url = QUrl::fromLocalFile( fi.path() );
     dispatchSystemMessage( chat_to_show_message.isValid() ? chat_to_show_message.id() : ID_DEFAULT_CHAT, u.id(), tr( "%1 Downloading %2 from %3." )
-                         .arg( icon_html, fi.name(), Bee::userNameToShow( u, true ) ),
+                         .arg( icon_html, QString( "<a href=\"%1\">%2</a>" ).arg( file_url.toString(), fi.name() ), Bee::userNameToShow( u, true ) ),
                          chat_to_show_message.isValid() ? DispatchToChat : DispatchToDefaultAndPrivateChat, ChatMessage::FileTransfer, false );
   }
 

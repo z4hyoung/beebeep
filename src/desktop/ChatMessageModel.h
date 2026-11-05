@@ -60,6 +60,7 @@ public:
   QString fileStatus;
   FileSizeType fileProgressBytes;  // live "15M / 100M" progress (0 = not transferring)
   FileSizeType fileProgressTotal;
+  qint64 fileProgressElapsed;      // ms since the transfer started (for the speed text)
 
   QPixmap avatar;             // rounded, 2x for retina
   QIcon fileIcon;
@@ -97,7 +98,7 @@ public:
 
   /*! YongBEEP: live "15M / 100M" progress on file cards. Matches the card
    * by file name + total size (the card carries no protocol file id). */
-  void updateFileProgress( const QString& file_name, FileSizeType bytes, FileSizeType total );
+  void updateFileProgress( const QString& file_name, FileSizeType bytes, FileSizeType total, qint64 elapsed );
 
   void setChatFont( const QFont& );
   void setViewportWidth( int );

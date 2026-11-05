@@ -25,7 +25,7 @@
 
 ChatMessageItem::ChatMessageItem()
   : kind( ChatMessageItem::SystemLine ), ownMessage( false ), showTimestamp( false ), showName( false ),
-    markdown( false ), fileProgressBytes( 0 ), fileProgressTotal( 0 ),
+    markdown( false ), fileProgressBytes( 0 ), fileProgressTotal( 0 ), fileProgressElapsed( 0 ),
     doc( Q_NULLPTR ), laidOutForWidth( -1.0 )
 {
 }
@@ -395,19 +395,27 @@ bool ChatMessageModel::appendMessage( const Chat& c, const ChatMessage& cm )
   return true;
 }
 
-void ChatMessageModel::updateFileProgress( const QString& file_name, FileSizeType bytes, FileSizeType total )
+void ChatMessageModel::updateFileProgress( const QString& file_name, FileSizeType bytes, FileSizeType total, qint64 elapsed )
 {
-  for( int i = 0; i < m_items.size(); ++i )
+  // YongBEEP: match the NEWEST card (scan backwards) by name plus total size:
+  // the size pins the match to this transfer, so two files sharing a name
+  // (or a retransfer of the same name with a different size) never cross-wire
+  // their progress. Cards still waiting for the first progress callback carry
+  // total == 0 and accept any total once.
+  for( int i = m_items.size() - 1; i >= 0; --i )
   {
     ChatMessageItem* item = m_items.at( i );
     if( item->kind != ChatMessageItem::FileCard || item->fileName != file_name )
       continue;
+    if( item->fileProgressTotal > 0 && item->fileProgressTotal != total )
+      continue; // same name, different transfer
     if( item->fileProgressBytes == bytes && item->fileProgressTotal == total )
       return;
     item->fileProgressBytes = bytes;
     item->fileProgressTotal = total;
+    item->fileProgressElapsed = elapsed;
     emit dataChanged( index( i, 0 ), index( i, 0 ) );
-    return; // newest matching card (a retransfer of the same name updates the last card only)
+    return;
   }
 }
 
