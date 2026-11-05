@@ -63,7 +63,45 @@ GuiMainWindow::GuiMainWindow( QWidget* parent )
 
   createGui();
   setupCoreConnections();
+  setupQaAutoSend();
   updateWindowTitle();
+}
+
+void GuiMainWindow::setupQaAutoSend()
+{
+  // Test automation for the dual-machine matrix (docs/03-测试方案.md M2/M3):
+  //   YONGBEEP_AUTOSEND_FILE=<path>  send this file once, as soon as a peer
+  //                                  is connected and authenticated
+  //   YONGBEEP_AUTOSEND_TO=<name>    restrict the peer by name substring
+  // Nothing happens without the environment variables.
+  const QString autosend_file = qEnvironmentVariable( "YONGBEEP_AUTOSEND_FILE" );
+  if( autosend_file.isEmpty() || !QFile::exists( autosend_file ) )
+    return;
+
+  QTimer* autosend_timer = new QTimer( this );
+  autosend_timer->setInterval( 3000 );
+  connect( autosend_timer, &QTimer::timeout, this, [this, autosend_timer, autosend_file]()
+  {
+    const QString name_filter = qEnvironmentVariable( "YONGBEEP_AUTOSEND_TO" );
+    const QList<User> user_list = UserManager::instance().userList().toList();
+    for( int i = 0; i < user_list.size(); ++i )
+    {
+      const User& u = user_list.at( i );
+      if( !u.isValid() || u.isLocal() || !u.isStatusConnected() )
+        continue;
+      if( !name_filter.isEmpty() && !u.name().contains( name_filter, Qt::CaseInsensitive ) )
+        continue;
+      Chat c = ChatManager::instance().privateChatForUser( u.id() );
+      if( !c.isValid() )
+        continue;
+      qWarning() << "QA AUTOSEND: sending" << autosend_file << "to" << qPrintable( u.path() );
+      beeCore->sendFilesFromChat( c.id(), QStringList() << autosend_file );
+      autosend_timer->stop();
+      autosend_timer->deleteLater();
+      return;
+    }
+  } );
+  autosend_timer->start();
 }
 
 
@@ -832,11 +870,21 @@ void GuiMainWindow::openUrlFromChat( const QUrl& url, VNumber chat_id )
 
 void GuiMainWindow::onFileTransferProgress( VNumber peer_id, const User& u, const FileInfo& fi, FileSizeType bytes, qint64 elapsed )
 {
-  Q_UNUSED( peer_id ); Q_UNUSED( u ); Q_UNUSED( elapsed );
-  // YongBEEP: forward the live progress to every open chat model so the
-  // file card can show "15M / 100M" (match by name+total size)
-  for( auto it = m_chatWidgets.begin(); it != m_chatWidgets.end(); ++it )
-    it.value()->fileProgressProxy( fi.name(), bytes, fi.size() );
+  Q_UNUSED( peer_id );
+  // YongBEEP: route the live progress to the chat the transfer belongs to
+  // (was broadcast to every open chat model, cross-wiring same-name files);
+  // the card shows "12.3M / 45.6M · 156 KB/s" while transferring.
+  if( !u.isValid() )
+    return;
+  Chat c = fi.chatPrivateId().isEmpty() ? ChatManager::instance().privateChatForUser( u.id() )
+                                        : ChatManager::instance().findChatByPrivateId( fi.chatPrivateId(), false, u.id() );
+  if( !c.isValid() )
+    c = ChatManager::instance().privateChatForUser( u.id() );
+  if( !c.isValid() )
+    return;
+  GuiChat* gui_chat = m_chatWidgets.value( c.id(), Q_NULLPTR );
+  if( gui_chat )
+    gui_chat->fileProgressProxy( fi.name(), bytes, fi.size(), elapsed );
 }
 
 void GuiMainWindow::onFileDownloadRequest( const User& u, const FileInfo& fi )
