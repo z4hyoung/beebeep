@@ -150,5 +150,9 @@ const VNumber ID_FILECHUNK_MESSAGE      = 27;
 // DATA_BLOCK_SIZE_32_LIMIT, and it is a natural multiple of the 16 byte
 // encryption block used by Protocol::fromMessage padding.
 const FileSizeType INLINE_FILE_CHUNK_SIZE = 65536;
+// YongBEEP: uploader sliding window (chunks in flight before an ACK is due).
+// Stop-and-wait cost one RTT per 64KiB chunk - over RFCOMM that added 1-2
+// minutes of pure waiting on a 100MB transfer.
+const int INLINE_FILE_WINDOW = 8;
 
 #endif // BEEBEEP_CONFIG_H

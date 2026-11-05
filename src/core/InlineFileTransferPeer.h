@@ -64,6 +64,7 @@ public:
 
 protected:
   bool sendChunkMessage();
+  bool sendSingleChunk();
   bool sendChunkAck( quint32 chunk_index, FileSizeType byte_offset, FileSizeType chunk_size );
   void checkUploadAck( quint32 chunk_index, quint32 total_chunks, FileSizeType byte_offset, FileSizeType chunk_size );
   void checkDownloadChunk( quint32 chunk_index, quint32 total_chunks, FileSizeType byte_offset, FileSizeType chunk_size, const QByteArray& chunk_bytes );
@@ -77,7 +78,8 @@ protected slots:
 
 protected:
   Connection* mp_connection;
-  quint32 m_chunkIndex;
+  quint32 m_chunkIndex;   // uploader: next chunk to SEND (window can run ahead)
+  quint32 m_ackIndex;     // uploader: next chunk ACK we are waiting for
   quint32 m_totalChunks;
 
 };

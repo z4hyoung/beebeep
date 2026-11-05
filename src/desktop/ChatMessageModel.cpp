@@ -25,7 +25,8 @@
 
 ChatMessageItem::ChatMessageItem()
   : kind( ChatMessageItem::SystemLine ), ownMessage( false ), showTimestamp( false ), showName( false ),
-    markdown( false ), doc( Q_NULLPTR ), laidOutForWidth( -1.0 )
+    markdown( false ), fileProgressBytes( 0 ), fileProgressTotal( 0 ),
+    doc( Q_NULLPTR ), laidOutForWidth( -1.0 )
 {
 }
 
@@ -392,6 +393,22 @@ bool ChatMessageModel::appendMessage( const Chat& c, const ChatMessage& cm )
     return false;
   appendBuiltItem( item );
   return true;
+}
+
+void ChatMessageModel::updateFileProgress( const QString& file_name, FileSizeType bytes, FileSizeType total )
+{
+  for( int i = 0; i < m_items.size(); ++i )
+  {
+    ChatMessageItem* item = m_items.at( i );
+    if( item->kind != ChatMessageItem::FileCard || item->fileName != file_name )
+      continue;
+    if( item->fileProgressBytes == bytes && item->fileProgressTotal == total )
+      return;
+    item->fileProgressBytes = bytes;
+    item->fileProgressTotal = total;
+    emit dataChanged( index( i, 0 ), index( i, 0 ) );
+    return; // newest matching card (a retransfer of the same name updates the last card only)
+  }
 }
 
 void ChatMessageModel::resetFromChat( const Chat& c )

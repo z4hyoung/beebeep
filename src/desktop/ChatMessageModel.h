@@ -58,6 +58,8 @@ public:
   QString fileUrl;            // FileCard: beefile:/file: link target
   QString fileName;
   QString fileStatus;
+  FileSizeType fileProgressBytes;  // live "15M / 100M" progress (0 = not transferring)
+  FileSizeType fileProgressTotal;
 
   QPixmap avatar;             // rounded, 2x for retina
   QIcon fileIcon;
@@ -92,6 +94,10 @@ public:
 
   void resetFromChat( const Chat& c );
   bool appendMessage( const Chat& c, const ChatMessage& cm );
+
+  /*! YongBEEP: live "15M / 100M" progress on file cards. Matches the card
+   * by file name + total size (the card carries no protocol file id). */
+  void updateFileProgress( const QString& file_name, FileSizeType bytes, FileSizeType total );
 
   void setChatFont( const QFont& );
   void setViewportWidth( int );

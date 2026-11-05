@@ -27,6 +27,7 @@
 
 #include "ui_GuiChat.h"
 #include "UserList.h"
+#include "ChatMessageModel.h"
 #include <QPersistentModelIndex>
 class Chat;
 class ChatMessage;
@@ -220,6 +221,11 @@ private:
 
   // YongBEEP S4e (chatview-v2): QListView + delegate message rendering
   ChatMessageModel* mp_messageModel;
+
+public:
+  /*! YongBEEP: live file-card progress passthrough ("15M / 100M"). */
+  inline void fileProgressProxy( const QString& name, FileSizeType bytes, FileSizeType total );
+
   ChatMessageDelegate* mp_messageDelegate;
   QPersistentModelIndex m_contextIndex; // message under the context menu
 
@@ -242,6 +248,8 @@ private:
 // Inline Functions
 inline VNumber GuiChat::chatId() const { return m_chatId; }
 inline QSplitter* GuiChat::chatSplitter() const { return mp_splitter; }
+inline void GuiChat::fileProgressProxy( const QString& name, FileSizeType bytes, FileSizeType total )
+{ mp_messageModel->updateFileProgress( name, bytes, total ); }
 #ifdef BEEBEEP_USE_VOICE_CHAT
 inline GuiVoicePlayer* GuiChat::guiVoicePlayer() { return mp_guiVoicePlayer; }
 #endif

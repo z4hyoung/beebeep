@@ -245,6 +245,8 @@ void GuiMainWindow::setupCoreConnections()
   connect( beeCore, SIGNAL( userConnectionStatusChanged( const User& ) ), this, SLOT( onUserConnectionStatusChanged( const User& ) ) );
   connect( beeCore, SIGNAL( savedChatListAvailable() ), this, SLOT( onSavedChatListAvailable() ) );
   connect( beeCore, SIGNAL( fileDownloadRequest( const User&, const FileInfo& ) ), this, SLOT( onFileDownloadRequest( const User&, const FileInfo& ) ) );
+  connect( beeCore, SIGNAL( fileTransferProgress( VNumber, const User&, const FileInfo&, FileSizeType, qint64 ) ),
+           this, SLOT( onFileTransferProgress( VNumber, const User&, const FileInfo&, FileSizeType, qint64 ) ) );
   connect( beeCore, SIGNAL( folderDownloadRequest( const User&, const QString&, const QList<FileInfo>& ) ), this, SLOT( onFolderDownloadRequest( const User&, const QString&, const QList<FileInfo>& ) ) );
   connect( beeCore, SIGNAL( newSystemStatusMessage( const QString&, int ) ), this, SLOT( showMessage( const QString&, int ) ) );
 
@@ -749,6 +751,15 @@ void GuiMainWindow::openUrlFromChat( const QUrl& url, VNumber chat_id )
   QDesktopServices::openUrl( url );
 }
 
+
+void GuiMainWindow::onFileTransferProgress( VNumber peer_id, const User& u, const FileInfo& fi, FileSizeType bytes, qint64 elapsed )
+{
+  Q_UNUSED( peer_id ); Q_UNUSED( u ); Q_UNUSED( elapsed );
+  // YongBEEP: forward the live progress to every open chat model so the
+  // file card can show "15M / 100M" (match by name+total size)
+  for( auto it = m_chatWidgets.begin(); it != m_chatWidgets.end(); ++it )
+    it.value()->fileProgressProxy( fi.name(), bytes, fi.size() );
+}
 
 void GuiMainWindow::onFileDownloadRequest( const User& u, const FileInfo& fi )
 {

@@ -439,7 +439,8 @@ bool Core::sendFileToUser( const User& u, const QString& file_path, const QStrin
     if( c )
     {
       const bool inline_transfer = c->isBluetoothTransport();
-      if( inline_transfer && file.size() > Settings::instance().maxInlineFileSizeBytes() )
+      const FileSizeType inline_cap = Settings::instance().maxInlineFileSizeBytes();
+      if( inline_transfer && inline_cap > 0 && file.size() > inline_cap )
       {
         // Bluetooth RFCOMM path with no IP network: the 6476 TCP channel is
         // unavailable and only files up to the inline threshold can travel in

@@ -224,7 +224,14 @@ void ChatMessageDelegate::paint( QPainter* painter, const QStyleOptionViewItem& 
     const qreal cy = card_rect.center().y();
     painter->drawText( QPointF( card_rect.left() + 60, cy - 4 ), file_name );
 
-    drawStatusLine( painter, item->fileStatus,
+    // live "15M / 100M" while transferring, static status otherwise
+    QString status = item->fileStatus;
+    if( item->fileProgressTotal > 0 && item->fileProgressBytes < item->fileProgressTotal )
+      status = QStringLiteral( "%1 / %2" )
+                 .arg( Bee::bytesToString( item->fileProgressBytes ) )
+                 .arg( Bee::bytesToString( item->fileProgressTotal ) );
+
+    drawStatusLine( painter, status,
                     QRectF( card_rect.left() + 60, cy + 1, card_rect.width() - 70, 14 ),
                     dark ? QColor( 0xaa, 0xaa, 0xaa ) : YongTheme::textSecondary() );
 

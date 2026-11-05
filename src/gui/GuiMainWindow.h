@@ -79,6 +79,7 @@ private slots:
   void onSavedChatListAvailable();
   void onFileDownloadRequest( const User&, const FileInfo& );
   void onFolderDownloadRequest( const User&, const QString&, const QList<FileInfo>& );
+  void onFileTransferProgress( VNumber, const User&, const FileInfo&, FileSizeType, qint64 );
   void showChat( VNumber chat_id );
   void chatActivated( const QModelIndex& );
   void filterTextChanged( const QString& );

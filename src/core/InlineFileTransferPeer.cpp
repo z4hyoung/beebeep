@@ -16,7 +16,7 @@
 
 
 InlineFileTransferPeer::InlineFileTransferPeer( QObject* parent )
-  : FileTransferPeer( parent ), mp_connection( Q_NULLPTR ), m_chunkIndex( 0 ), m_totalChunks( 0 )
+  : FileTransferPeer( parent ), mp_connection( Q_NULLPTR ), m_chunkIndex( 0 ), m_ackIndex( 0 ), m_totalChunks( 0 )
 {
   setObjectName( "InlineFileTransferPeer" );
 }
@@ -44,6 +44,7 @@ bool InlineFileTransferPeer::startInlineDownload( VNumber from_user_id, const Fi
   connect( mp_connection, SIGNAL( destroyed( QObject* ) ), this, SLOT( onInlineConnectionClosed() ) );
 
   m_chunkIndex = 0;
+  m_ackIndex = 0;
   m_totalChunks = fi.size() > 0 ? static_cast<quint32>( ( fi.size() + INLINE_FILE_CHUNK_SIZE - 1 ) / INLINE_FILE_CHUNK_SIZE ) : 0;
   m_bytesTransferred = 0;
   m_totalBytesTransferred = 0;
@@ -106,6 +107,7 @@ void InlineFileTransferPeer::onUploadAccepted()
   }
 
   m_chunkIndex = 0;
+  m_ackIndex = 0;
   m_totalChunks = m_file.size() > 0 ? static_cast<quint32>( ( m_file.size() + INLINE_FILE_CHUNK_SIZE - 1 ) / INLINE_FILE_CHUNK_SIZE ) : 0;
   if( m_totalChunks == 0 )
   {
@@ -122,6 +124,22 @@ void InlineFileTransferPeer::onUploadAccepted()
 }
 
 bool InlineFileTransferPeer::sendChunkMessage()
+{
+  // YongBEEP: fill the sliding window - send every chunk that fits into
+  // INLINE_FILE_WINDOW ahead of the last acknowledged one (stop-and-wait
+  // spent one RTT per 64KiB chunk; the transport is an ordered stream so
+  // ACKs arrive in order and duplicates are ignored in checkUploadAck)
+  while( m_state == FileTransferPeer::Transferring &&
+         m_chunkIndex < m_totalChunks &&
+         static_cast<int>( m_chunkIndex - m_ackIndex ) < INLINE_FILE_WINDOW )
+  {
+    if( !sendSingleChunk() )
+      return false;
+  }
+  return true;
+}
+
+bool InlineFileTransferPeer::sendSingleChunk()
 {
   if( m_state != FileTransferPeer::Transferring )
   {
@@ -218,18 +236,29 @@ void InlineFileTransferPeer::checkUploadAck( quint32 chunk_index, quint32 total_
     return;
   }
 
-  if( chunk_index != m_chunkIndex || total_chunks != m_totalChunks )
+  if( total_chunks != m_totalChunks )
   {
     setError( tr( "Invalid inline chunk confirmation received (%1 of %2)" ).arg( chunk_index + 1 ).arg( total_chunks ) );
     return;
   }
 
+  // YongBEEP sliding window: ACKs arrive in order on the reliable stream;
+  // anything below m_ackIndex is a duplicate, anything at/above the send
+  // cursor would be an ACK for a chunk we never sent
+  if( chunk_index < m_ackIndex )
+    return;
+
+  if( chunk_index >= m_chunkIndex )
+  {
+    setError( tr( "Invalid inline chunk confirmation received (%1 of %2)" ).arg( chunk_index + 1 ).arg( total_chunks ) );
+    return;
+  }
+
+  m_ackIndex = chunk_index + 1;
   m_totalBytesTransferred = byte_offset + chunk_size;
   showProgress();
 
-  m_chunkIndex++;
-
-  if( m_chunkIndex >= m_totalChunks )
+  if( m_ackIndex >= m_totalChunks )
   {
     setTransferCompleted();
     detachFromConnection();
