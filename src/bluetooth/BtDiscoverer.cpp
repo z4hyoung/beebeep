@@ -71,6 +71,13 @@ void BtDiscoverer::setWinWorker( BtWinWorker* win_worker )
 
 void BtDiscoverer::start()
 {
+#if defined( Q_OS_MACOS )
+  // YongBEEP SDP crash guard: on macOS the periodic timer stays OFF (see
+  // startScan); peers find US because BtListener listens passively, and
+  // the user can trigger a one-shot manual scan from the devices dialog.
+  qDebug() << "BtDiscoverer: periodic scan disabled on macOS (SDP crash guard); listener passive, manual scans only";
+  return;
+#else
   if( mp_scanTimer->isActive() )
     return;
 
@@ -82,6 +89,25 @@ void BtDiscoverer::start()
   qDebug() << "BtDiscoverer starts scanning for service" << BLUETOOTH_SERVICE_UUID << "every" << BLUETOOTH_SCAN_INTERVAL_MS << "ms";
   mp_scanTimer->start();
   startScan();
+#endif
+}
+
+void BtDiscoverer::startSingleScan()
+{
+#if !defined( Q_OS_WIN ) && !defined( Q_OS_MACOS )
+  // not reachable today (macOS guard returns earlier in start()); kept
+  // for symmetry if the guard is ever relaxed
+#endif
+#if defined( Q_OS_WIN )
+  startScan();
+#else
+  // macOS manual scan: one inquiry, never restarted while active - the
+  // crash needs a RESTART racing in-flight IOBluetooth callbacks
+  if( mp_agent->isActive() )
+    return;
+  qDebug() << "BtDiscoverer manual scan started (macOS SDP crash guard path)";
+  mp_agent->start( QBluetoothServiceDiscoveryAgent::MinimalDiscovery );
+#endif
 }
 
 void BtDiscoverer::stop()
@@ -104,13 +130,16 @@ void BtDiscoverer::setLocalAddress( const QBluetoothAddress& local_address )
 
 void BtDiscoverer::startScan()
 {
-  // YongBEEP: pause SDP discovery while a peer is connected (this is a 1:1
-  // messenger, there is nothing more to find) - SDP re-inquiries on macOS
-  // risk the DarwinBTSDPInquiry teardown race that crashed the app (all
-  // three crash reports of 2026-11-04/05 die in sdpQueryComplete)
-  if( beeCore && beeCore->isConnected() )
+  // YongBEEP: pause SDP discovery while ANY peer is connected (this is a
+  // 1:1 messenger, there is nothing more to find) - SDP re-inquiries on
+  // macOS race the DarwinBTSDPInquiry teardown and crash the app (4 crash
+  // reports 11-04/05, all identical in sdpQueryComplete).
+  // NOTE: Core::isConnected() only means "the listener is up", NOT "a peer
+  // is online" - the 22:17 build checked isConnected alone and still
+  // crashed at 22:27; the real check is the user list.
+  if( beeCore )
   {
-    const QList<User>& users = UserManager::instance().userList().toList();
+    const QList<User> users = UserManager::instance().userList().toList();
     for( int i = 0; i < users.size(); ++i )
     {
       if( users.at( i ).isStatusConnected() )
@@ -122,12 +151,20 @@ void BtDiscoverer::startScan()
   if( mp_agent->isActive() )
     return;
 
-  // MinimalDiscovery: the uuid filter already restricts the SDP browse to our service.
-  mp_agent->start( QBluetoothServiceDiscoveryAgent::MinimalDiscovery );
-#ifdef BEEBEEP_DEBUG
-  qDebug() << "BtDiscoverer scan started";
+  // YongBEEP hard kill-switch for the macOS SDP crash: QBluetooth's
+  // DarwinBTSDPInquiry callback delivers into a freed object whenever an
+  // inquiry is (re)started while IOBluetooth still holds results of the
+  // previous cycle. Even at 30s spacing this fired once more at 22:27.
+  // Until Qt fixes the backend, discovery on macOS runs ONLY when a
+  // manual scan is explicitly requested (BtManager::startSingleScan) and
+  // never from this periodic timer.
+#ifndef Q_OS_MACOS
+#error "This guard is macOS-only by design - remove the enclosing platform check if porting"
 #endif
-#else
+  qDebug() << "BtDiscoverer periodic scan suppressed on macOS (SDP crash guard); manual scans only";
+  return;
+#endif
+#if defined( Q_OS_WIN )
   // A cycle still running in the worker thread is skipped: the timer keeps
   // the cadence, the inquiry plus the SDP probes define the real duration.
   if( m_scanRequested || mp_winWorker == Q_NULLPTR )

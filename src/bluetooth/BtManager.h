@@ -55,6 +55,9 @@ public:
   /*! RFCOMM channel of our listening service (0 if not listening). */
   quint16 listenerPort() const;
 
+  /*! YongBEEP: one-shot manual scan (macOS SDP crash guard path). */
+  void triggerManualScan();
+
 signals:
   void btPeerFound( const QBluetoothAddress& bt_address, const QString& device_name );
   void newBtConnection( QObject* bt_socket );

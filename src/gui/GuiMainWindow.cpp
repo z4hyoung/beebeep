@@ -476,6 +476,11 @@ void GuiMainWindow::openScanDevicesDialog()
     connect( mp_scanDevices, SIGNAL( finished() ), this, SLOT( updateWindowTitle() ) );
   }
 
+  // YongBEEP macOS SDP crash guard: discovery is manual-only there - kick
+  // one safe single-shot scan every time the dialog opens
+  if( beeCore && beeCore->btManager() )
+    beeCore->btManager()->triggerManualScan();
+
   if( !mp_scanDevices->isVisible() )
   {
     mp_scanDevices->adjustSize();

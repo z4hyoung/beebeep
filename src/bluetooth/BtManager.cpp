@@ -202,3 +202,9 @@ quint16 BtManager::listenerPort() const
 {
   return mp_listener->isListening() ? mp_listener->serverPort() : 0;
 }
+
+void BtManager::triggerManualScan()
+{
+  if( mp_discoverer )
+    mp_discoverer->startSingleScan();
+}

@@ -50,6 +50,9 @@ public:
   explicit BtDiscoverer( QObject* parent = Q_NULLPTR );
 
   void start();
+  /*! YongBEEP: one-shot manual scan (macOS SDP crash guard: the periodic
+   * timer is disabled there; the devices dialog triggers this instead). */
+  void startSingleScan();
   void stop();
   inline bool isActive() const;
 
