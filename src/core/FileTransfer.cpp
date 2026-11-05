@@ -106,6 +106,21 @@ void FileTransfer::removeFilesToUser( VNumber user_id )
     }
   }
 
+  // YongBEEP: queued inline uploads (waiting for the remote GO) are dead the
+  // moment the message connection goes away: their offer message can never be
+  // answered. Cancel them here as well or they leak in queue until the
+  // accept timeout fires (Core::closeConnection severs the connection signals
+  // first, so the peer cannot notice the death by itself).
+  foreach( FileTransferPeer* transfer_peer, m_peers )
+  {
+    if( !transfer_peer->isDownload() && transfer_peer->remoteUserId() == user_id
+        && transfer_peer->isInQueue() && qobject_cast<InlineFileTransferPeer*>( transfer_peer ) )
+    {
+      cancelPeerTransfer( transfer_peer );
+      peer_counter++;
+    }
+  }
+
   if( peer_counter > 0 )
     qDebug() << peer_counter << "file transfer peers removed for user" << user_id;
 }

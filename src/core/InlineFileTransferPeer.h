@@ -75,6 +75,7 @@ protected:
 
 protected slots:
   void onInlineConnectionClosed();
+  void onInlineAcceptTimeout();
 
 protected:
   Connection* mp_connection;

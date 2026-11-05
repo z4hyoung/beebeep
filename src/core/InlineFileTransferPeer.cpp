@@ -13,6 +13,7 @@
 #include "InlineFileTransferPeer.h"
 #include "Protocol.h"
 #include "Settings.h"
+#include <QTimer>
 
 
 InlineFileTransferPeer::InlineFileTransferPeer( QObject* parent )
@@ -30,7 +31,12 @@ void InlineFileTransferPeer::setupInlineUpload( VNumber to_user_id, const FileIn
   connect( mp_connection, SIGNAL( disconnected() ), this, SLOT( onInlineConnectionClosed() ) );
   connect( mp_connection, SIGNAL( destroyed( QObject* ) ), this, SLOT( onInlineConnectionClosed() ) );
   // The offer (BEE-FILE + InlineFile) has already been sent by Core::sendFileToUser():
-  // stay in queue until the remote peer answers with the GO message.
+  // stay in queue until the remote peer answers with the GO message. If the
+  // request is lost (peer offline when the message connection was rebuilt or
+  // dropped) nothing would ever answer it: arm the same confirm timeout used
+  // by the 6476 channel so the transfer fails cleanly and can be re-sent
+  // (docs/03-测试方案.md M3-4).
+  QTimer::singleShot( Settings::instance().fileTransferConfirmTimeout(), this, SLOT( onInlineAcceptTimeout() ) );
   setInQueue();
 }
 
@@ -421,6 +427,18 @@ void InlineFileTransferPeer::onInlineConnectionClosed()
   // The message connection is going away: never touch it again.
   mp_connection = Q_NULLPTR;
   setError( tr( "Connection closed" ) );
+}
+
+void InlineFileTransferPeer::onInlineAcceptTimeout()
+{
+  if( m_state != FileTransferPeer::Queue )
+    return; // accepted and transferring (or already finished) long ago
+
+  // The offer message was lost, typically because the peer was offline when
+  // the file was sent: fail cleanly so the chat shows a "send it again" card
+  // instead of an upload card stuck on "Sending..." forever.
+  mp_connection = Q_NULLPTR;
+  setError( tr( "No answer from the remote peer (offline?): file can be sent again" ) );
 }
 
 void InlineFileTransferPeer::detachFromConnection()
