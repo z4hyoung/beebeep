@@ -480,7 +480,13 @@ void GuiMainWindow::updateChatHeader()
   if( peer_online )
   {
     status_color = YongTheme::brandGreen();
-    status_text = tr( "Connected" );
+    // YongBEEP: show the transport next to the online state - the RFCOMM
+    // inline path (bluetooth) or the LAN TCP channel.
+    if( c.isPrivate() )
+      status_text = beeCore->isUserConnectedByBluetooth( c.privateUserId() ) ? tr( "Connected · Bluetooth" )
+                                                                             : tr( "Connected · LAN" );
+    else
+      status_text = tr( "Connected" );
   }
   else if( m_coreIsConnecting || (beeCore->btManager() && beeCore->btManager()->isActive()) )
   {

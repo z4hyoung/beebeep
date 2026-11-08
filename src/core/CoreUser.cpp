@@ -354,6 +354,17 @@ bool Core::isUserConnected( VNumber user_id ) const
     return isConnected();
 }
 
+bool Core::isUserConnectedByBluetooth( VNumber user_id ) const
+{
+  // Transport of the active connection: the chat header shows whether the
+  // peer travels over the RFCOMM inline path or the LAN TCP channel.
+  if( user_id == ID_INVALID || user_id == ID_LOCAL_USER )
+    return false;
+
+  Connection* c = connection( user_id );
+  return c && c->isConnected() && c->isBluetoothTransport();
+}
+
 bool Core::isUserConnected( const NetworkAddress& na ) const
 {
   if( !isConnected() )

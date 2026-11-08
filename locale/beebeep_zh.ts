@@ -4559,6 +4559,16 @@ Please select a different name.</source>
         <translation>已连接</translation>
     </message>
     <message>
+        <location filename="../src/gui/GuiMainWindow.cpp" line="486"/>
+        <source>Connected · Bluetooth</source>
+        <translation>已连接 · 蓝牙</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/GuiMainWindow.cpp" line="488"/>
+        <source>Connected · LAN</source>
+        <translation>已连接 · 局域网</translation>
+    </message>
+    <message>
         <location filename="../src/gui/GuiMainWindow.cpp" line="427"/>
         <source>Connecting</source>
         <translation>连接中</translation>
