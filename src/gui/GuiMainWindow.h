@@ -96,6 +96,9 @@ private slots:
   void toggleVisibleFromTray();
   void quitFromTray();
   void confirmQuit();
+  void openProfileMenu();
+  void editLocalVCard();
+  void changeLocalNickname();
   void hideToTrayIcon();
   void showMessage( const QString&, int );
   void onApplicationFocusChanged( QWidget*, QWidget* );
@@ -123,6 +126,7 @@ private:
   QListView* mp_chatListView;
   ChatListModel* mp_chatListModel;
   QPushButton* mp_scanDevicesButton;
+  QPushButton* mp_profileButton;
   QPushButton* mp_quitButton;
   QLabel* mp_headerName;
   QLabel* mp_headerStatusDot;

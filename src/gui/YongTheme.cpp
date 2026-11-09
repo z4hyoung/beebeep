@@ -113,6 +113,14 @@ QString YongTheme::mainWindowQss()
     "#GuiWeChatQuitButton:hover { color: #FA5151; }"
     "#GuiWeChatQuitButton:pressed { color: #C24646; }"
 
+    // ---- profile entry (flat green text button, same family of scan entry) ----
+    "#GuiWeChatProfileButton {"
+    "  border: none; background: transparent; color: %5;"
+    "  font-size: 12px; padding: 6px 12px;"
+    "}"
+    "#GuiWeChatProfileButton:hover { color: #06AD56; }"
+    "#GuiWeChatProfileButton:pressed { color: #069047; }"
+
     // ---- chat header ----
     "#GuiWeChatHeader { background: %1; }"
     "#GuiWeChatHeaderLine { background: %2; border: none; }"

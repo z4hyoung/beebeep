@@ -4573,6 +4573,36 @@ Please select a different name.</source>
         <translation>退出 %1</translation>
     </message>
     <message>
+        <location filename="../src/gui/GuiMainWindow.cpp" line="165"/>
+        <source>Profile</source>
+        <translation>资料</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/GuiMainWindow.cpp" line="1140"/>
+        <source>Edit profile and avatar</source>
+        <translation>编辑资料和头像</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/GuiMainWindow.cpp" line="1141"/>
+        <source>Change nickname</source>
+        <translation>修改昵称</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/GuiMainWindow.cpp" line="1170"/>
+        <source>New nickname:</source>
+        <translation>新昵称：</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/GuiMainWindow.cpp" line="1180"/>
+        <source>Changing the nickname disconnects and reconnects all peers. Continue?</source>
+        <translation>修改昵称会断开并重连所有连接，继续吗？</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/GuiMainWindow.cpp" line="1188"/>
+        <source>Unable to change the nickname.</source>
+        <translation>无法修改昵称。</translation>
+    </message>
+    <message>
         <location filename="../src/gui/GuiMainWindow.cpp" line="1120"/>
         <source>Do you want to quit %1?</source>
         <translation>确定退出 %1 吗？</translation>
