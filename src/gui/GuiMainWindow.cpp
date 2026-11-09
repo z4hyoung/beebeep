@@ -289,6 +289,8 @@ void GuiMainWindow::setupCoreConnections()
   connect( beeCore, SIGNAL( fileDownloadRequest( const User&, const FileInfo& ) ), this, SLOT( onFileDownloadRequest( const User&, const FileInfo& ) ) );
   connect( beeCore, SIGNAL( fileTransferProgress( VNumber, const User&, const FileInfo&, FileSizeType, qint64 ) ),
            this, SLOT( onFileTransferProgress( VNumber, const User&, const FileInfo&, FileSizeType, qint64 ) ) );
+  connect( beeCore, SIGNAL( fileTransferMessage( VNumber, const User&, const FileInfo&, const QString&, FileTransferPeer::TransferState ) ),
+           this, SLOT( onFileTransferMessage( VNumber, const User&, const FileInfo&, const QString&, FileTransferPeer::TransferState ) ) );
   connect( beeCore, SIGNAL( folderDownloadRequest( const User&, const QString&, const QList<FileInfo>& ) ), this, SLOT( onFolderDownloadRequest( const User&, const QString&, const QList<FileInfo>& ) ) );
   connect( beeCore, SIGNAL( newSystemStatusMessage( const QString&, int ) ), this, SLOT( showMessage( const QString&, int ) ) );
 
@@ -891,6 +893,37 @@ void GuiMainWindow::onFileTransferProgress( VNumber peer_id, const User& u, cons
   GuiChat* gui_chat = m_chatWidgets.value( c.id(), Q_NULLPTR );
   if( gui_chat )
     gui_chat->fileProgressProxy( fi.name(), bytes, fi.size(), elapsed );
+}
+
+void GuiMainWindow::onFileTransferMessage( VNumber peer_id, const User& u, const FileInfo& fi, const QString& msg, FileTransferPeer::TransferState st )
+{
+  Q_UNUSED( peer_id );
+  // YongBEEP: stopped states morph the live card into its final status
+  // (Core already rewrote the persisted message - this refreshes the
+  // in-memory card without reloading the chat).
+  if( !u.isValid() || !FileTransferPeer::stateIsStopped( st ) )
+    return;
+
+  QString status;
+  if( st == FileTransferPeer::Completed )
+    status = fi.isDownload() ? tr( "Received \xc2\xb7 %1" ) : tr( "Sent \xc2\xb7 %1" );
+  else if( st == FileTransferPeer::Canceled )
+    status = tr( "Canceled" );
+  else
+    status = fi.isDownload() ? tr( "Failed \xc2\xb7 %1" ).arg( msg ) : tr( "Failed \xc2\xb7 can be sent again" );
+
+  if( st == FileTransferPeer::Completed )
+    status = status.arg( Bee::bytesToString( fi.size() ) );
+
+  Chat c = fi.chatPrivateId().isEmpty() ? ChatManager::instance().privateChatForUser( u.id() )
+                                        : ChatManager::instance().findChatByPrivateId( fi.chatPrivateId(), false, u.id() );
+  if( !c.isValid() )
+    c = ChatManager::instance().privateChatForUser( u.id() );
+  if( !c.isValid() )
+    return;
+  GuiChat* gui_chat = m_chatWidgets.value( c.id(), Q_NULLPTR );
+  if( gui_chat )
+    gui_chat->fileStatusProxy( fi.name(), fi.size(), status );
 }
 
 void GuiMainWindow::onFileDownloadRequest( const User& u, const FileInfo& fi )

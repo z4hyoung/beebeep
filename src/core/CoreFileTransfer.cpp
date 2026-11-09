@@ -128,8 +128,9 @@ bool Core::downloadFile( VNumber user_id, const FileInfo& fi, bool show_message 
     // the download progress of BOTH transports (inline and 6476 TCP) becomes
     // visible in real time through ChatMessageModel::updateFileProgress().
     QUrl file_url = QUrl::fromLocalFile( fi.path() );
+    QString live_marker = QString::fromLatin1( "<!--live-->" ); // YongBEEP: final-state rewrite marker
     dispatchSystemMessage( chat_to_show_message.isValid() ? chat_to_show_message.id() : ID_DEFAULT_CHAT, u.id(), tr( "%1 Downloading %2 from %3." )
-                         .arg( icon_html, QString( "<a href=\"%1\">%2</a>" ).arg( file_url.toString(), fi.name() ), Bee::userNameToShow( u, true ) ),
+                         .arg( icon_html, QString( "<a href=\"%1\">%2</a>" ).arg( file_url.toString(), fi.name() ), Bee::userNameToShow( u, true ) ) + live_marker,
                          chat_to_show_message.isValid() ? DispatchToChat : DispatchToDefaultAndPrivateChat, ChatMessage::FileTransfer, false );
   }
 
@@ -184,6 +185,42 @@ void Core::checkFileTransferMessage( VNumber peer_id, VNumber user_id, const Fil
   QString chat_voice_msg_html = "";
   ChatMessage chat_voice_msg;
   QUrl file_url = QUrl::fromLocalFile( fi.path() );
+
+  // YongBEEP: morph the live "Sending/Downloading" card into its final state
+  // - the frozen "Sending ..." text would otherwise lie forever, both in the
+  // live view and in the saved history. The stopped-state system line below
+  // is dispatched only when no live card was found (e.g. the app restarted
+  // while the transfer was running).
+  bool live_card_rewritten = false;
+  if( FileTransferPeer::stateIsStopped( ft_state ) )
+  {
+    QString final_card_html;
+    if( ft_state == FileTransferPeer::Completed )
+    {
+      QUrl folder_url = QUrl::fromLocalFile( fi.path() );
+      folder_url.setScheme( FileInfo::urlSchemeShowFileInFolder() );
+      QString name_html = QString( "<a href=\"%1\">%2</a>" ).arg( file_url.toString(), fi.name() );
+      QString open_html = QString( " " ) + tr( "Open %1." ).arg( QString( "<a href=\"%1\">%2</a>" ).arg( folder_url.toString(), tr( "folder" ) ) );
+      if( fi.isDownload() )
+        final_card_html = QString( "%1 %2" ).arg( icon_html, tr( "Received %1 from %2 (%3)." ).arg( name_html, Bee::userNameToShow( u, true ), Bee::bytesToString( fi.size() ) ) ) + open_html;
+      else
+        final_card_html = QString( "%1 %2" ).arg( icon_html, tr( "Sent %1 to %2 (%3)." ).arg( name_html, Bee::userNameToShow( u, true ), Bee::bytesToString( fi.size() ) ) ) + open_html;
+    }
+    else
+    {
+      final_card_html = QString( "%1 %2" ).arg( IconManager::instance().toHtml( "red-ball.png", "*F*" ),
+                           tr( "%1 of %2 not completed: %3." ).arg( action_txt, QString( "<a href=\"%1\">%2</a>" ).arg( file_url.toString(), fi.name() ), Bee::lowerFirstLetter( msg ) ) );
+      if( !fi.isDownload() )
+        final_card_html += QString( " " ) + tr( "File can be sent again." );
+    }
+
+    Chat live_card_chat = ChatManager::instance().findChatByPrivateId( fi.chatPrivateId(), false, u.id() );
+    if( live_card_chat.isValid() && live_card_chat.rewriteLiveFileCard( fi.name(), final_card_html ) )
+    {
+      ChatManager::instance().setChat( live_card_chat );
+      live_card_rewritten = true;
+    }
+  }
 
   if( FileTransferPeer::stateIsStopped( ft_state ) )
     sys_msg = QString( "%1 %2 %3 %4 %5: %6." ).arg( icon_html, action_txt, fi.isDownload() ? fi.name() : QString( "<a href=\"%1\">%2</a>" ).arg( file_url.toString(), fi.name() ), fi.isDownload() ? tr( "from" ) : tr( "to" ), Bee::userNameToShow( u, true ), Bee::lowerFirstLetter( msg ) );
@@ -253,11 +290,13 @@ void Core::checkFileTransferMessage( VNumber peer_id, VNumber user_id, const Fil
   }
   else
   {
-    if( !sys_msg.isEmpty() )
+    // YongBEEP: when the live card was rewritten the final state is already
+    // visible and persisted - skip the duplicate stopped/open lines.
+    if( !live_card_rewritten && !sys_msg.isEmpty() )
       dispatchSystemMessage( chat_to_show_message.isValid() ? chat_to_show_message.id() : ID_DEFAULT_CHAT, u.id(), sys_msg, chat_to_show_message.isValid() ? DispatchToChat : DispatchToDefaultAndPrivateChat, ChatMessage::FileTransfer, false );
     if( !sys_msg_img_preview.isEmpty() )
       dispatchSystemMessage( chat_to_show_message.isValid() ? chat_to_show_message.id() : ID_DEFAULT_CHAT, u.id(), sys_msg_img_preview, chat_to_show_message.isValid() ? DispatchToChat : DispatchToDefaultAndPrivateChat, ChatMessage::ImagePreview, true );
-    if( !sys_msg_open_file.isEmpty() )
+    if( !live_card_rewritten && !sys_msg_open_file.isEmpty() )
       dispatchSystemMessage( chat_to_show_message.isValid() ? chat_to_show_message.id() : ID_DEFAULT_CHAT, u.id(), sys_msg_open_file, chat_to_show_message.isValid() ? DispatchToChat : DispatchToDefaultAndPrivateChat, ChatMessage::FileTransfer, true );
   }
 
@@ -477,6 +516,7 @@ bool Core::sendFileToUser( const User& u, const QString& file_path, const QStrin
         file_url.setScheme( FileInfo::urlSchemeShowFileInFolder() );
         msg += QString( " " );
         msg += tr( "Open %1." ).arg( QString( "<a href=\"%1\">%2</a>" ).arg( file_url.toString(), tr( "folder" ) ) );
+        msg += QString::fromLatin1( "<!--live-->" ); // YongBEEP: final-state rewrite marker (language independent)
         dispatchSystemMessage( chat_selected.isValid() ? chat_selected.id() : ID_DEFAULT_CHAT, u.id(), msg,
                                chat_selected.isValid() ? DispatchToChat : DispatchToDefaultAndPrivateChat, ChatMessage::FileTransfer, true );
       }

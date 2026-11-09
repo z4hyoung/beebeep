@@ -59,6 +59,12 @@ public:
   inline void readAllMessages();
   inline const QList<ChatMessage>& messages() const;
   void addMessage( const ChatMessage& );
+  /*! YongBEEP: rewrite the newest live "Sending/Downloading ..." card of the
+   * given file into its final state. Live cards carry a language independent
+   * "<!--live-->" marker appended by the dispatch sites; the match is file
+   * name plus marker, and the rewrite replaces the whole text. The chat is
+   * flagged unsaved so the new text persists. */
+  bool rewriteLiveFileCard( const QString& file_name, const QString& new_html );
   void clearMessages();
   void clearSystemMessages();
   inline const QString& privateId() const;

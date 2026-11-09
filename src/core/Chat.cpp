@@ -120,6 +120,23 @@ int Chat::chatMessages() const
   return chat_messages;
 }
 
+bool Chat::rewriteLiveFileCard( const QString& file_name, const QString& new_html )
+{
+  static const QString c_liveMarker = QString::fromLatin1( "<!--live-->" );
+  for( int i = m_messages.size() - 1; i >= 0; --i )
+  {
+    ChatMessage& cm = m_messages[i];
+    if( cm.type() != ChatMessage::FileTransfer || !cm.message().contains( file_name ) )
+      continue;
+    if( !cm.message().contains( c_liveMarker ) )
+      continue; // already rewritten or a completion record of an older transfer
+    cm.setMessageText( new_html );
+    m_unsavedMessages = true;
+    return true;
+  }
+  return false;
+}
+
 void Chat::addMessage( const ChatMessage& cm )
 {
   if( !cm.isValid() )

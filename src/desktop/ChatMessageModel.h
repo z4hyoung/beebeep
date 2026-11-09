@@ -100,6 +100,10 @@ public:
    * by file name + total size (the card carries no protocol file id). */
   void updateFileProgress( const QString& file_name, FileSizeType bytes, FileSizeType total, qint64 elapsed );
 
+  /*! Morph a live file card into its final state (sent/received/failed):
+   * same newest-first name+size match as updateFileProgress. */
+  void updateFileStatus( const QString& file_name, FileSizeType total, const QString& status );
+
   void setChatFont( const QFont& );
   void setViewportWidth( int );
   inline int viewportWidth() const;

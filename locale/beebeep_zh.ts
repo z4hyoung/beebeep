@@ -475,6 +475,26 @@
         <translation>%1正在从%3下载%2.</translation>
     </message>
     <message>
+        <location filename="../src/core/CoreFileTransfer.cpp" line="200"/>
+        <source>Received %1 from %2 (%3).</source>
+        <translation>已从%2接收%1（%3）。</translation>
+    </message>
+    <message>
+        <location filename="../src/core/CoreFileTransfer.cpp" line="202"/>
+        <source>Sent %1 to %2 (%3).</source>
+        <translation>已发送%1给%2（%3）。</translation>
+    </message>
+    <message>
+        <location filename="../src/core/CoreFileTransfer.cpp" line="206"/>
+        <source>%1 of %2 not completed: %3.</source>
+        <translation>%1 %2未完成：%3。</translation>
+    </message>
+    <message>
+        <location filename="../src/core/CoreFileTransfer.cpp" line="209"/>
+        <source>File can be sent again.</source>
+        <translation>文件可重新发送。</translation>
+    </message>
+    <message>
         <location filename="../src/core/CoreFileTransfer.cpp" line="141"/>
         <source>%1 Unable to download %2 from %3: connection is not available.</source>
         <translation type="unfinished"></translation>
@@ -4567,6 +4587,31 @@ Please select a different name.</source>
         <location filename="../src/gui/GuiMainWindow.cpp" line="488"/>
         <source>Connected · LAN</source>
         <translation>已连接 · 局域网</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/GuiMainWindow.cpp" line="800"/>
+        <source>Received · %1</source>
+        <translation>已接收 · %1</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/GuiMainWindow.cpp" line="800"/>
+        <source>Sent · %1</source>
+        <translation>已发送 · %1</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/GuiMainWindow.cpp" line="802"/>
+        <source>Canceled</source>
+        <translation>已取消</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/GuiMainWindow.cpp" line="804"/>
+        <source>Failed · %1</source>
+        <translation>失败 · %1</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/GuiMainWindow.cpp" line="804"/>
+        <source>Failed · can be sent again</source>
+        <translation>发送失败 · 可重发</translation>
     </message>
     <message>
         <location filename="../src/gui/GuiMainWindow.cpp" line="427"/>

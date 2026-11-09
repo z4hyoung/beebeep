@@ -62,6 +62,11 @@ public:
   inline const QColor& textColor() const;
   inline ChatMessage::Type type() const;
 
+  /*! YongBEEP: live file cards are rewritten in place when the transfer
+   * completes or fails (the "Sending ..." text would otherwise stay frozen
+   * in the saved history forever). */
+  inline void setMessageText( const QString& new_text ) { m_message = new_text; }
+
   inline bool canBeSaved() const;
 
   inline bool isSourceCode() const;

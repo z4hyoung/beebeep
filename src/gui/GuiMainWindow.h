@@ -16,6 +16,7 @@
 
 #include "Config.h"
 #include "FileInfo.h"
+#include "FileTransferPeer.h"
 #include <QMainWindow>
 
 class Chat;
@@ -80,6 +81,7 @@ private slots:
   void onFileDownloadRequest( const User&, const FileInfo& );
   void onFolderDownloadRequest( const User&, const QString&, const QList<FileInfo>& );
   void onFileTransferProgress( VNumber, const User&, const FileInfo&, FileSizeType, qint64 );
+  void onFileTransferMessage( VNumber, const User&, const FileInfo&, const QString&, FileTransferPeer::TransferState );
   void showChat( VNumber chat_id );
   void chatActivated( const QModelIndex& );
   void filterTextChanged( const QString& );

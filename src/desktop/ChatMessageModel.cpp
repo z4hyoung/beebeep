@@ -244,6 +244,7 @@ ChatMessageItem* ChatMessageModel::createItem( const Chat& c, const ChatMessage&
         QString rest_text = cm.message();
         rest_text.remove( match.capturedStart(), match.capturedLength() );
         rest_text.remove( QRegularExpression( QStringLiteral( "<img[^>]*>" ) ) );
+        rest_text.remove( QRegularExpression( QStringLiteral( "<!--.*?-->" ) ) ); // YongBEEP live-card rewrite marker
         item->fileStatus = Bee::removeHtmlTags( rest_text ).simplified();
         item->fileIcon = YongTheme::svgIcon( YongTheme::fileIconNameForFile( item->fileName ), YongTheme::iconGray() );
         item->plainText = item->fileName + QLatin1Char( ' ' ) + item->fileStatus;
@@ -414,6 +415,24 @@ void ChatMessageModel::updateFileProgress( const QString& file_name, FileSizeTyp
     item->fileProgressBytes = bytes;
     item->fileProgressTotal = total;
     item->fileProgressElapsed = elapsed;
+    emit dataChanged( index( i, 0 ), index( i, 0 ) );
+    return;
+  }
+}
+
+void ChatMessageModel::updateFileStatus( const QString& file_name, FileSizeType total, const QString& status )
+{
+  // YongBEEP: same matching rules of updateFileProgress - newest card first,
+  // name plus total size pins the match to this transfer.
+  for( int i = m_items.size() - 1; i >= 0; --i )
+  {
+    ChatMessageItem* item = m_items.at( i );
+    if( item->kind != ChatMessageItem::FileCard || item->fileName != file_name )
+      continue;
+    if( item->fileProgressTotal > 0 && item->fileProgressTotal != total )
+      continue; // same name, different transfer
+    item->fileStatus = status;
+    item->fileProgressBytes = total; // finalize: the delegate stops the live bar
     emit dataChanged( index( i, 0 ), index( i, 0 ) );
     return;
   }
