@@ -115,23 +115,9 @@ void GuiSystemTray::showMessageInTray( const QString& msg, bool long_time )
 
 void GuiSystemTray::onTickEvent( int ticks )
 {
-  if( m_iconStatus == GuiSystemTray::Message )
-  {
-    if( ticks % 2 == 0 )
-    {
-#if defined( Q_OS_UNIX ) && !defined( Q_OS_MACOS )
-      setIcon( IconManager::instance().icon( "beebeep-tray.png" ) );
-#else
-      setIcon( IconManager::instance().icon( "beebeep.png" ) );
-#endif
-    }
-    else
-    {
-#if defined( Q_OS_UNIX ) && !defined( Q_OS_MACOS )
-      setIcon( IconManager::instance().icon( "beebeep-message-tray.png" ) );
-#else
-      setIcon( IconManager::instance().icon( "beebeep-message.png" ) );
-#endif
-    }
-  }
+  Q_UNUSED( ticks );
+  // YongBEEP: icon blinking removed entirely (user-reported as a bug).
+  // setMessageIcon() switches to the message icon once; reading the chat
+  // via setDefaultIcon() switches back. No periodic alternation - the
+  // static icon + dock badge convey unread state without the distraction.
 }
