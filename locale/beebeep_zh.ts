@@ -4568,6 +4568,16 @@ Please select a different name.</source>
         <translation>退出</translation>
     </message>
     <message>
+        <location filename="../src/gui/GuiMainWindow.cpp" line="170"/>
+        <source>Quit %1</source>
+        <translation>退出 %1</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/GuiMainWindow.cpp" line="1120"/>
+        <source>Do you want to quit %1?</source>
+        <translation>确定退出 %1 吗？</translation>
+    </message>
+    <message>
         <location filename="../src/gui/GuiMainWindow.cpp" line="392"/>
         <location filename="../src/gui/GuiMainWindow.cpp" line="660"/>
         <source>All users</source>

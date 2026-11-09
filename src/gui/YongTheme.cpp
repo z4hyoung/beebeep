@@ -105,6 +105,14 @@ QString YongTheme::mainWindowQss()
     "#GuiWeChatScanDevicesButton:hover { color: #06AD56; }"
     "#GuiWeChatScanDevicesButton:pressed { color: #069047; }"
 
+    // ---- quit entry (flat gray text button, red hover like WeChat danger) ----
+    "#GuiWeChatQuitButton {"
+    "  border: none; background: transparent; color: %6;"
+    "  font-size: 12px; padding: 6px 12px;"
+    "}"
+    "#GuiWeChatQuitButton:hover { color: #FA5151; }"
+    "#GuiWeChatQuitButton:pressed { color: #C24646; }"
+
     // ---- chat header ----
     "#GuiWeChatHeader { background: %1; }"
     "#GuiWeChatHeaderLine { background: %2; border: none; }"

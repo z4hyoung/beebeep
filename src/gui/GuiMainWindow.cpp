@@ -164,6 +164,15 @@ void GuiMainWindow::createGui()
   mp_scanDevicesButton->setIconSize( QSize( 14, 14 ) );
   mp_scanDevicesButton->setCursor( Qt::PointingHandCursor );
   scan_layout->addWidget( mp_scanDevicesButton, 0, Qt::AlignHCenter );
+  // YongBEEP: always reachable exit - the tray icon lands in the Windows 11
+  // overflow flyout, and the window close button hides to tray, so without
+  // this the app had no discoverable way to quit.
+  scan_layout->addStretch( 1 );
+  mp_quitButton = new QPushButton( tr( "Quit" ), scan_container );
+  mp_quitButton->setObjectName( "GuiWeChatQuitButton" );
+  mp_quitButton->setCursor( Qt::PointingHandCursor );
+  mp_quitButton->setToolTip( tr( "Quit %1" ).arg( Settings::instance().programName() ) );
+  scan_layout->addWidget( mp_quitButton, 0, Qt::AlignRight );
   left_layout->addWidget( scan_container );
 
   // ---------- Right panel: chat header + embedded GuiChat ----------
@@ -263,6 +272,7 @@ void GuiMainWindow::createGui()
   connect( mp_chatListView, SIGNAL( clicked( const QModelIndex& ) ), this, SLOT( chatActivated( const QModelIndex& ) ) );
   connect( mp_chatListView, SIGNAL( activated( const QModelIndex& ) ), this, SLOT( chatActivated( const QModelIndex& ) ) );
   connect( mp_scanDevicesButton, SIGNAL( clicked() ), this, SLOT( openScanDevicesDialog() ) );
+  connect( mp_quitButton, SIGNAL( clicked() ), this, SLOT( confirmQuit() ) );
   connect( mp_trayIcon, SIGNAL( activated( QSystemTrayIcon::ActivationReason ) ), this, SLOT( trayIconActivated( QSystemTrayIcon::ActivationReason ) ) );
   connect( qApp, SIGNAL( focusChanged( QWidget*, QWidget* ) ), this, SLOT( onApplicationFocusChanged( QWidget*, QWidget* ) ) );
 
@@ -1105,6 +1115,16 @@ void GuiMainWindow::toggleVisibleFromTray()
 void GuiMainWindow::quitFromTray()
 {
   forceShutdown();
+}
+
+void GuiMainWindow::confirmQuit()
+{
+  // The visible quit button deserves an explicit confirmation: an accidental
+  // click must not tear down the connection to the peers.
+  if( QMessageBox::question( this, Settings::instance().programName(),
+                             tr( "Do you want to quit %1?" ).arg( Settings::instance().programName() ),
+                             QMessageBox::Yes | QMessageBox::No, QMessageBox::No ) == QMessageBox::Yes )
+    quitFromTray();
 }
 
 
