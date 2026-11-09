@@ -399,6 +399,10 @@ void GuiMainWindow::showChat( VNumber chat_id )
     beeCore->readAllMessagesInChat( chat_id );
     gui_chat->ensureFocusInChat();
   }
+  // YongBEEP: entering any chat always resets the tray icon, even if the
+  // window was not active when the chat opened (the old path missed this
+  // case and the message icon stuck around after reading)
+  mp_trayIcon->setUnreadMessages( chat_id, 0 );
 }
 
 
