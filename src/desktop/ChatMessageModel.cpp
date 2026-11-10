@@ -18,6 +18,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QRegularExpression>
+#include <QTextBoundaryFinder>
 #include <QTextCursor>
 #include <QTextDocument>
 #include <QtDebug>
@@ -26,6 +27,7 @@
 ChatMessageItem::ChatMessageItem()
   : kind( ChatMessageItem::SystemLine ), ownMessage( false ), showTimestamp( false ), showName( false ),
     markdown( false ), fileProgressBytes( 0 ), fileProgressTotal( 0 ), fileProgressElapsed( 0 ),
+    selectionAnchor( -1 ), selectionPosition( -1 ),
     doc( Q_NULLPTR ), laidOutForWidth( -1.0 )
 {
 }
@@ -436,6 +438,75 @@ void ChatMessageModel::updateFileStatus( const QString& file_name, FileSizeType 
     emit dataChanged( index( i, 0 ), index( i, 0 ) );
     return;
   }
+}
+
+void ChatMessageModel::setItemSelection( int row, int anchor, int position )
+{
+  ChatMessageItem* item = itemAt( row );
+  if( !item )
+    return;
+  item->selectionAnchor = anchor;
+  item->selectionPosition = position;
+  emit dataChanged( index( row, 0 ), index( row, 0 ) );
+}
+
+void ChatMessageModel::clearAllSelections()
+{
+  for( int i = 0; i < m_items.size(); ++i )
+  {
+    ChatMessageItem* item = m_items.at( i );
+    if( item->selectionAnchor >= 0 )
+    {
+      item->selectionAnchor = -1;
+      item->selectionPosition = -1;
+      emit dataChanged( index( i, 0 ), index( i, 0 ) );
+    }
+  }
+}
+
+void ChatMessageModel::selectWordAt( int row, int position )
+{
+  ChatMessageItem* item = itemAt( row );
+  if( !item )
+    return;
+  ensureLayout( item );
+  if( !item->doc )
+    return;
+  const QString plain = item->doc->toPlainText();
+  if( position < 0 || position >= plain.size() )
+    return;
+  QTextBoundaryFinder finder( QTextBoundaryFinder::Word, plain );
+  finder.setPosition( position );
+  int start = finder.toPreviousBoundary();
+  if( start < 0 )
+    start = 0;
+  int end = finder.toNextBoundary();
+  if( end < 0 )
+    end = plain.size();
+  if( end > start )
+    setItemSelection( row, start, end );
+}
+
+bool ChatMessageModel::hasSelection( int row ) const
+{
+  ChatMessageItem* item = itemAt( row );
+  return item && item->selectionAnchor >= 0 && item->selectionPosition != item->selectionAnchor;
+}
+
+QString ChatMessageModel::selectedText( int row ) const
+{
+  ChatMessageItem* item = itemAt( row );
+  if( !item || !hasSelection( row ) )
+    return QString();
+  ensureLayout( item );
+  if( !item->doc )
+    return QString();
+  const QString plain = item->doc->toPlainText();
+  int start = qMin( item->selectionAnchor, item->selectionPosition );
+  int end = qMax( item->selectionAnchor, item->selectionPosition );
+  start = qBound( 0, start, plain.size() );
+  end = qBound( 0, end, plain.size() );
+  return plain.mid( start, end - start );
 }
 
 void ChatMessageModel::resetFromChat( const Chat& c )

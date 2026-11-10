@@ -228,7 +228,16 @@ public:
   inline void fileStatusProxy( const QString& name, FileSizeType total, const QString& status );
 
   ChatMessageDelegate* mp_messageDelegate;
+
+  /*! YongBEEP: copy the selected fragment (or the whole message as fallback). */
+  void copySelectionOrMessage();
+  void copySelectionToClipboard();
   QPersistentModelIndex m_contextIndex; // message under the context menu
+
+  // YongBEEP partial text selection (mouse drag in the message list)
+  bool m_selectionDragging;
+  QPersistentModelIndex m_selectionIndex;
+  int m_selectionAnchorPosition;
 
   QShortcut* mp_scFocusInChat;
   QShortcut* mp_scPrintChat;

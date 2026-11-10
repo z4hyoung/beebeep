@@ -35,6 +35,10 @@ public:
   // anchor (link) under a viewport position, for the context menu
   QUrl anchorAt( const QModelIndex& index, const QRect& row_rect, const QPoint& viewport_pos ) const;
 
+  // YongBEEP partial selection: text position inside the item document under
+  // a viewport position (-1 when outside the text area of the item)
+  int textPositionAt( const QModelIndex& index, const QRect& row_rect, const QPoint& viewport_pos ) const;
+
 signals:
   void urlActivated( const QUrl& url );
 
@@ -46,6 +50,7 @@ private:
   QRectF documentRect( const ChatMessageItem*, const QRect& row_rect, qreal content_top, int row_width ) const;
   QRectF fileCardRect( const ChatMessageItem*, const QRect& row_rect, qreal content_top, int row_width ) const;
   QUrl anchorInItem( const ChatMessageItem*, const QRect& row_rect, int row_width, const QPointF& row_pos ) const;
+  void drawDocumentWithSelection( QPainter*, ChatMessageItem*, const QStyleOptionViewItem&, const QRectF& clip_rect ) const;
   void drawStatusLine( QPainter*, const QString& status_text, const QRectF& line_rect, const QColor& base_color ) const;
 };
 

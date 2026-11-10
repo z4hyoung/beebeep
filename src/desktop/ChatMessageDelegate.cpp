@@ -14,6 +14,7 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
+#include <QTextCursor>
 #include <QTextDocument>
 #include <QtDebug>
 
@@ -124,9 +125,78 @@ QUrl ChatMessageDelegate::anchorAt( const QModelIndex& index, const QRect& row_r
   return anchorInItem( item, row_rect, row_rect.width(), row_pos );
 }
 
+int ChatMessageDelegate::textPositionAt( const QModelIndex& index, const QRect& row_rect, const QPoint& viewport_pos ) const
+{
+  ChatMessageItem* item = itemForIndex( index );
+  const ChatMessageModel* model = messageModel( index );
+  if( !item || !model )
+    return -1;
+
+  model->ensureLayout( item );
+  if( !item->doc )
+    return -1;
+
+  QPointF row_pos = QPointF( viewport_pos ) - QPointF( row_rect.topLeft() );
+
+  if( item->kind == ChatMessageItem::UserMessage )
+  {
+    qreal y = row_rect.top();
+    if( item->showTimestamp )
+      y += ChatMessageModel::TimestampRowHeight;
+    if( item->showName )
+      y += ChatMessageModel::NameRowHeight;
+    QRectF doc_rect = documentRect( item, row_rect, y, row_rect.width() );
+    if( !doc_rect.contains( row_pos ) )
+      return -1;
+    // FuzzyHit snaps to the nearest character - friendlier for a finger-sized
+    // drag than ExactHit, which misses the gaps between lines.
+    return static_cast<int>( item->doc->documentLayout()->hitTest( row_pos - doc_rect.topLeft(), Qt::FuzzyHit ) );
+  }
+
+  if( item->kind == ChatMessageItem::SystemLine || item->kind == ChatMessageItem::FreeFormDoc )
+  {
+    QPointF doc_pos = row_pos - QPointF( ChatMessageModel::HorizontalMargin, 0 );
+    if( doc_pos.x() < 0 || doc_pos.y() < 0 )
+      return -1;
+    return static_cast<int>( item->doc->documentLayout()->hitTest( doc_pos, Qt::FuzzyHit ) );
+  }
+
+  return -1;
+}
+
 // ---------------------------------------------------------------------
 // Painting
 // ---------------------------------------------------------------------
+
+void ChatMessageDelegate::drawDocumentWithSelection( QPainter* painter, ChatMessageItem* item, const QStyleOptionViewItem& option, const QRectF& clip_rect ) const
+{
+  // YongBEEP partial selection: draw through the document layout with a
+  // Selection context so the highlighted range gets a background (the plain
+  // QTextDocument::drawContents has no selection support).
+  if( item->doc && item->selectionAnchor >= 0 && item->selectionPosition != item->selectionAnchor )
+  {
+    int start = qMin( item->selectionAnchor, item->selectionPosition );
+    int end = qMax( item->selectionAnchor, item->selectionPosition );
+
+    QAbstractTextDocumentLayout::Selection selection;
+    selection.cursor = QTextCursor( item->doc );
+    selection.cursor.setPosition( start );
+    selection.cursor.setPosition( end, QTextCursor::KeepAnchor );
+    // WeChat-like soft blue highlight with dark text, readable on both the
+    // green own bubble and the white peer bubble
+    selection.format.setBackground( QColor( 0x8E, 0xC7, 0xF5 ) );
+    selection.format.setForeground( QColor( 0x10, 0x2A, 0x43 ) );
+
+    QAbstractTextDocumentLayout::PaintContext ctx;
+    ctx.clip = clip_rect;
+    ctx.selections.append( selection );
+    ctx.palette.setColor( QPalette::Text, option.palette.color( QPalette::Text ) );
+    item->doc->documentLayout()->draw( painter, ctx );
+    return;
+  }
+
+  item->doc->drawContents( painter, clip_rect );
+}
 
 void ChatMessageDelegate::drawStatusLine( QPainter* painter, const QString& status_text, const QRectF& line_rect, const QColor& base_color ) const
 {
@@ -271,7 +341,7 @@ void ChatMessageDelegate::paint( QPainter* painter, const QStyleOptionViewItem& 
     // centered gray system line / wide free-form document (saved history,
     // image previews): drawn directly on the chat background
     painter->translate( ChatMessageModel::HorizontalMargin, option.rect.top() );
-    item->doc->drawContents( painter, QRectF( 0, 0, model->viewportWidth() - 2 * ChatMessageModel::HorizontalMargin, item->docSize.height() ) );
+    drawDocumentWithSelection( painter, item, option, QRectF( 0, 0, model->viewportWidth() - 2 * ChatMessageModel::HorizontalMargin, item->docSize.height() ) );
     painter->restore();
     return;
   }
@@ -318,7 +388,7 @@ void ChatMessageDelegate::paint( QPainter* painter, const QStyleOptionViewItem& 
                       .adjusted( ChatMessageModel::BubbleHPad, ChatMessageModel::BubbleVPad,
                                  -ChatMessageModel::BubbleHPad, -ChatMessageModel::BubbleVPad );
   painter->translate( doc_rect.topLeft() );
-  item->doc->drawContents( painter, QRectF( 0, 0, doc_rect.width(), doc_rect.height() ) );
+  drawDocumentWithSelection( painter, item, option, QRectF( 0, 0, doc_rect.width(), doc_rect.height() ) );
 
   painter->restore();
 }

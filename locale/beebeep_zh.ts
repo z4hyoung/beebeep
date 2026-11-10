@@ -4578,6 +4578,11 @@ Please select a different name.</source>
         <translation>资料</translation>
     </message>
     <message>
+        <location filename="../src/desktop/GuiChat.cpp" line="615"/>
+        <source>Copy selection to clipboard</source>
+        <translation>复制选中的文字</translation>
+    </message>
+    <message>
         <location filename="../src/gui/GuiMainWindow.cpp" line="1140"/>
         <source>Edit profile and avatar</source>
         <translation>编辑资料和头像</translation>

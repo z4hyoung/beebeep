@@ -43,7 +43,10 @@
   #include "SpellChecker.h"
 #endif
 #include "UserManager.h"
+#include <QApplication>
+#include <QKeyEvent>
 #include <QListView>
+#include <QMouseEvent>
 #include <QScrollBar>
 
 
@@ -53,6 +56,8 @@ GuiChat::GuiChat( QWidget *parent )
   setupUi( this );
   setObjectName( "GuiChat" );
   setAcceptDrops( true );
+  m_selectionDragging = false;
+  m_selectionAnchorPosition = -1;
   // YongBEEP: balanced message grid margins — icons stay near the field but
   // the text keeps breathing room on top (2px left it pinned to the top)
   if( QLayout* msg_layout = mp_frameMessage->layout() )
@@ -268,7 +273,8 @@ void GuiChat::setupMessageList()
   mp_lvChat->setSpacing( 0 );
   mp_lvChat->setFocusPolicy( Qt::StrongFocus ); // keyboard events like CTRL+c
   mp_lvChat->setContextMenuPolicy( Qt::CustomContextMenu );
-  mp_lvChat->viewport()->installEventFilter( this ); // relayout on resize
+  mp_lvChat->viewport()->installEventFilter( this ); // relayout on resize + text selection drag
+  mp_lvChat->installEventFilter( this ); // CTRL+C selection copy
   mp_messageModel->setViewportWidth( qMax( 200, mp_lvChat->viewport()->width() ) );
 }
 
@@ -283,7 +289,119 @@ bool GuiChat::eventFilter( QObject* obj, QEvent* event )
       mp_lvChat->doItemsLayout(); // rebuild the cached item heights
     }
   }
+  else if( obj == mp_lvChat->viewport() && event->type() == QEvent::MouseButtonPress )
+  {
+    QMouseEvent* me = static_cast<QMouseEvent*>( event );
+    if( me->button() == Qt::LeftButton )
+    {
+      QModelIndex idx = mp_lvChat->indexAt( me->position().toPoint() );
+      int text_pos = idx.isValid() ? mp_messageDelegate->textPositionAt( idx, mp_lvChat->visualRect( idx ), me->position().toPoint() ) : -1;
+      if( text_pos >= 0 )
+      {
+        mp_messageModel->clearAllSelections();
+        m_selectionIndex = idx;
+        m_selectionAnchorPosition = text_pos;
+        mp_messageModel->setItemSelection( idx.row(), text_pos, text_pos );
+        m_selectionDragging = true;
+      }
+      else
+      {
+        mp_messageModel->clearAllSelections();
+        m_selectionIndex = QPersistentModelIndex();
+        m_selectionDragging = false;
+      }
+    }
+  }
+  else if( obj == mp_lvChat->viewport() && event->type() == QEvent::MouseMove && m_selectionDragging )
+  {
+    QMouseEvent* me = static_cast<QMouseEvent*>( event );
+    if( m_selectionIndex.isValid() )
+    {
+      QRect start_rect = mp_lvChat->visualRect( m_selectionIndex );
+      QModelIndex hover_idx = mp_lvChat->indexAt( me->position().toPoint() );
+      int text_pos;
+      if( hover_idx.row() == m_selectionIndex.row() )
+      {
+        text_pos = mp_messageDelegate->textPositionAt( m_selectionIndex, start_rect, me->position().toPoint() );
+      }
+      else
+      {
+        // WeChat-like confinement: dragging out of the start message clamps
+        // the selection to its last/first character position
+        QPoint clamp( start_rect.center().x(), me->position().toPoint().y() > start_rect.center().y() ? start_rect.bottom() - 2 : start_rect.top() + 2 );
+        text_pos = mp_messageDelegate->textPositionAt( m_selectionIndex, start_rect, clamp );
+      }
+      if( text_pos >= 0 )
+        mp_messageModel->setItemSelection( m_selectionIndex.row(), m_selectionAnchorPosition, text_pos );
+    }
+    return true; // the drag belongs to the selection, not to the view
+  }
+  else if( obj == mp_lvChat->viewport() && event->type() == QEvent::MouseButtonRelease && m_selectionDragging )
+  {
+    m_selectionDragging = false;
+    // a collapsed selection is a plain click: drop it so anchor activation
+    // (editorEvent on release) keeps working untouched
+    if( m_selectionIndex.isValid() && !mp_messageModel->hasSelection( m_selectionIndex.row() ) )
+    {
+      mp_messageModel->clearAllSelections();
+      m_selectionIndex = QPersistentModelIndex();
+    }
+  }
+  else if( obj == mp_lvChat->viewport() && event->type() == QEvent::MouseButtonDblClick )
+  {
+    QMouseEvent* me = static_cast<QMouseEvent*>( event );
+    QModelIndex idx = mp_lvChat->indexAt( me->position().toPoint() );
+    if( me->button() == Qt::LeftButton && idx.isValid() )
+    {
+      int text_pos = mp_messageDelegate->textPositionAt( idx, mp_lvChat->visualRect( idx ), me->position().toPoint() );
+      if( text_pos >= 0 )
+      {
+        mp_messageModel->clearAllSelections();
+        mp_messageModel->selectWordAt( idx.row(), text_pos );
+        m_selectionIndex = idx;
+        m_selectionDragging = false;
+        return true;
+      }
+    }
+  }
+  else if( obj == mp_lvChat && event->type() == QEvent::KeyPress )
+  {
+    QKeyEvent* ke = static_cast<QKeyEvent*>( event );
+    if( ke->matches( QKeySequence::Copy ) )
+    {
+      copySelectionOrMessage();
+      return true;
+    }
+  }
   return QWidget::eventFilter( obj, event );
+}
+
+void GuiChat::copySelectionOrMessage()
+{
+  // YongBEEP partial selection: the dragged fragment wins, the whole message
+  // of the context/current row is the fallback (old behavior)
+  if( m_selectionIndex.isValid() && mp_messageModel->hasSelection( m_selectionIndex.row() ) )
+  {
+    QString selected_text = mp_messageModel->selectedText( m_selectionIndex.row() );
+    if( !selected_text.isEmpty() )
+    {
+      QApplication::clipboard()->setText( selected_text );
+      return;
+    }
+  }
+  QModelIndex idx = m_contextIndex.isValid() ? QModelIndex( m_contextIndex ) : mp_lvChat->currentIndex();
+  if( idx.isValid() && !idx.data().toString().isEmpty() )
+    QApplication::clipboard()->setText( idx.data().toString() );
+}
+
+void GuiChat::copySelectionToClipboard()
+{
+  if( m_contextIndex.isValid() && mp_messageModel->hasSelection( m_contextIndex.row() ) )
+  {
+    QString selected_text = mp_messageModel->selectedText( m_contextIndex.row() );
+    if( !selected_text.isEmpty() )
+      QApplication::clipboard()->setText( selected_text );
+  }
 }
 
 void GuiChat::registerDemoMarkdownTexts( const QStringList& raw_texts )
@@ -601,6 +719,11 @@ void GuiChat::customContextMenu( const QPoint& p )
 
   if( m_contextIndex.isValid() )
   {
+    if( mp_messageModel->hasSelection( m_contextIndex.row() ) )
+    {
+      QAction* sel_act = mp_menuContext->addAction( IconManager::instance().icon( "copy.png" ), tr( "Copy selection to clipboard" ), this, SLOT( copySelectionToClipboard() ) );
+      sel_act->setEnabled( !mp_messageModel->selectedText( m_contextIndex.row() ).isEmpty() );
+    }
     QAction* act = mp_menuContext->addAction( IconManager::instance().icon( "copy.png" ), tr( "Copy to clipboard" ), this, SLOT( copyMessageToClipboard() ), QKeySequence::Copy );
     act->setEnabled( !m_contextIndex.data().toString().isEmpty() );
     mp_menuContext->addAction( IconManager::instance().icon( "quote.png" ), tr( "Quote message" ), this, SLOT( quoteMessageToInput() ) );

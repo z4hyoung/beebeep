@@ -62,6 +62,11 @@ public:
   FileSizeType fileProgressTotal;
   qint64 fileProgressElapsed;      // ms since the transfer started (for the speed text)
 
+  // YongBEEP partial text selection: text positions inside the laid out
+  // QTextDocument, -1 = nothing selected (anchor == position = collapsed)
+  int selectionAnchor;
+  int selectionPosition;
+
   QPixmap avatar;             // rounded, 2x for retina
   QIcon fileIcon;
 
@@ -103,6 +108,14 @@ public:
   /*! Morph a live file card into its final state (sent/received/failed):
    * same newest-first name+size match as updateFileProgress. */
   void updateFileStatus( const QString& file_name, FileSizeType total, const QString& status );
+
+  // --- YongBEEP partial text selection (delegate draws the highlight) ---
+  void setItemSelection( int row, int anchor, int position );
+  void clearAllSelections();
+  void selectWordAt( int row, int position );
+  bool hasSelection( int row ) const;
+  /*! Selected plain text of a row (empty when no selection). */
+  QString selectedText( int row ) const;
 
   void setChatFont( const QFont& );
   void setViewportWidth( int );
