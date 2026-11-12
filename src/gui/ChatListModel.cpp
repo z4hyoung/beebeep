@@ -9,6 +9,7 @@
 #include "Chat.h"
 #include "ChatManager.h"
 #include "ChatMessage.h"
+#include "Core.h"
 #include "IconManager.h"
 #include "Settings.h"
 #include "User.h"
@@ -122,6 +123,8 @@ QVariant ChatListModel::data( const QModelIndex& index, int role ) const
     return FormatChatTime( ChatActivityTime( c ) );
   case UnreadRole:
     return c.unreadMessages();
+  case TransportsRole:
+    return c.isPrivate() && beeCore ? int( beeCore->connectedTransports( c.privateUserId() ) ) : 0;
   default:
     return QVariant();
   }

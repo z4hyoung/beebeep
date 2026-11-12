@@ -4634,6 +4634,10 @@ Please select a different name.</source>
         <translation>已连接 · 局域网</translation>
     </message>
     <message>
+        <source>Connected · LAN + Bluetooth</source>
+        <translation>已连接 · 局域网 + 蓝牙</translation>
+    </message>
+    <message>
         <location filename="../src/gui/GuiMainWindow.cpp" line="800"/>
         <source>Received · %1</source>
         <translation>已接收 · %1</translation>

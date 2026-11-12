@@ -461,7 +461,7 @@ int Core::sendChatMessage( VNumber chat_id, const QString& msg, bool is_importan
 
   if( chat_id == ID_DEFAULT_CHAT && !Settings::instance().sendOfflineMessagesToDefaultChat() )
   {
-    foreach( Connection *user_connection, m_connections )
+    foreach( Connection *user_connection, preferredConnections() )
     {
       if( user_connection->sendMessage( m ) )
         messages_sent += 1;
@@ -1054,7 +1054,7 @@ bool Core::sendHelpMessage()
   Message m = Protocol::instance().helpRequestMessage( tr( "I need your help." ) );
 
   int users_contacted = 0;
-  foreach( Connection* c, m_connections )
+  foreach( Connection* c, preferredConnections() )
   {
     User u = UserManager::instance().findUser( c->userId() );
     if( u.isValid() && u.isHelper() && !u.isLocal() )

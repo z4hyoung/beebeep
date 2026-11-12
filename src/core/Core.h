@@ -90,9 +90,9 @@ public:
   bool changeLocalUser( const QString& );
   int connectedUsers() const;
   bool isUserConnected( VNumber ) const;
-  /*! Transport of the user's active connection: true = bluetooth RFCOMM,
-   * false = LAN TCP. Used by the chat header indicator. */
-  bool isUserConnectedByBluetooth( VNumber ) const;
+  enum Transport { Lan = 1, Bluetooth = 2 };
+  Q_DECLARE_FLAGS( Transports, Transport )
+  Transports connectedTransports( VNumber ) const;
   bool areUsersConnected( const QList<VNumber>& ) const;
   void setLocalUserStatus( int );
   void setLocalUserStatusDescription( int, const QString&, bool );
@@ -269,6 +269,8 @@ protected:
 
   /* CoreConnection */
   Connection* connection( VNumber user_id ) const;
+  Connection* connection( VNumber user_id, Transport ) const;
+  QList<Connection*> preferredConnections() const;
   bool hasConnection( const QHostAddress&, int ) const;
   void closeConnection( Connection* );
   void addConnectionReadyForUse( Connection*, const User& );

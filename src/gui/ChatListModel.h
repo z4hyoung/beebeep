@@ -30,7 +30,8 @@ public:
     NameRole,        // QString display name
     SummaryRole,     // QString plain-text last message (single line)
     TimeTextRole,    // QString relative time (hh:mm / Yesterday / MM-dd)
-    UnreadRole       // int unread badge count
+    UnreadRole,      // int unread badge count
+    TransportsRole   // Core::Transports, authenticated links for a private chat
   };
 
   explicit ChatListModel( QObject* parent = Q_NULLPTR );

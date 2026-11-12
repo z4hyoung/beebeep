@@ -43,12 +43,38 @@
 
 Connection* Core::connection( VNumber user_id ) const
 {
+  Connection* lan = connection( user_id, Lan );
+  return lan ? lan : connection( user_id, Bluetooth );
+}
+
+Connection* Core::connection( VNumber user_id, Transport transport ) const
+{
   foreach( Connection* c, m_connections )
   {
-    if( c->userId() == user_id )
+    if( c->userId() == user_id && c->isReadyForUse() && c->isConnected()
+        && c->isBluetoothTransport() == (transport == Bluetooth) )
       return c;
   }
   return Q_NULLPTR;
+}
+
+QList<Connection*> Core::preferredConnections() const
+{
+  QList<Connection*> routes;
+  QSet<VNumber> users;
+  for( Transport transport : { Lan, Bluetooth } )
+  {
+    foreach( Connection* c, m_connections )
+    {
+      if( c->isReadyForUse() && c->isConnected() && !users.contains( c->userId() )
+          && c->isBluetoothTransport() == (transport == Bluetooth) )
+      {
+        users.insert( c->userId() );
+        routes.append( c );
+      }
+    }
+  }
+  return routes;
 }
 
 bool Core::hasConnection( const QHostAddress& sender_ip, int sender_port ) const
@@ -234,7 +260,7 @@ void Core::addConnectionReadyForUse( Connection* c, const User& u )
 #ifdef BEEBEEP_DEBUG
   qDebug() << "Connection from" << qPrintable( c->networkAddress().toString() ) << "is ready for use by" << qPrintable( u.path() );
 #endif
-  c->setReadyForUse( u.id() );
+  c->setReadyForUse( u.id(), u.networkAddress() );
   connect( c, SIGNAL( newMessage( VNumber, const Message& ) ), this, SLOT( parseMessage( VNumber, const Message& ) ) );
 }
 
@@ -267,7 +293,14 @@ void Core::closeConnection( Connection *c )
   if( c->userId() != ID_INVALID )
   {
     User u = UserManager::instance().findUser( c->userId() );
-    if( u.isValid() )
+    Connection* remaining = connection( c->userId() );
+    if( u.isValid() && remaining )
+    {
+      u.setNetworkAddress( remaining->peerListenAddress() );
+      UserManager::instance().setUser( u );
+      emit userChanged( u );
+    }
+    else if( u.isValid() )
     {
       qDebug() << "User" << qPrintable( u.path() ) << "goes offline";
       u.setStatus( User::Offline );
@@ -300,7 +333,7 @@ void Core::closeConnection( Connection *c )
 #ifdef BEEBEEP_DEBUG
   qDebug() << "Deleting connection" << qPrintable( c->networkAddress().toString() );
 #endif
-  c->disconnect();
+  c->disconnect( this );
   c->abortConnection();
   c->deleteLater();
 }
@@ -401,6 +434,23 @@ void Core::checkUserAuthentication( const QByteArray& auth_byte_array )
 
     if( isUserConnected( user_found.id() ) )
     {
+      const Transport transport = c->isBluetoothTransport() ? Bluetooth : Lan;
+      Connection* existing = connection( user_found.id() );
+      if( !connection( user_found.id(), transport ) && !u.hash().isEmpty()
+          && u.hash() == user_found.hash() && u.accountPath() == user_found.accountPath()
+          && c->protocolVersion() == existing->protocolVersion() && c->isEncrypted() == existing->isEncrypted() )
+      {
+        u.setId( user_found.id() );
+        addConnectionReadyForUse( c, u );
+        if( transport == Lan )
+        {
+          user_found.setNetworkAddress( u.networkAddress() );
+          UserManager::instance().setUser( user_found );
+        }
+        qDebug() << "LAN and Bluetooth connected for user" << u.id();
+        emit userChanged( user_found );
+        return;
+      }
       if( user_path_changed )
       {
         if( Settings::instance().userRecognitionMethod() == Settings::RecognizeByAccountAndDomain )
@@ -432,6 +482,7 @@ void Core::checkUserAuthentication( const QByteArray& auth_byte_array )
           }
         }
         dispatchSystemMessage( ID_DEFAULT_CHAT, user_found.id(), sAlertMsg, DispatchToDefaultAndPrivateChat, ChatMessage::Connection, false );
+        closeConnection( c );
       }
       else
       {
@@ -565,17 +616,7 @@ void Core::checkUserAuthentication( const QByteArray& auth_byte_array )
 
 int Core::connectedUsers() const
 {
-  int connected_users = 0;
-  if( m_connections.isEmpty() )
-    return connected_users;
-
-  foreach( Connection* c, m_connections )
-  {
-    if( c->isConnected() && c->isReadyForUse() )
-      connected_users++;
-  }
-
-  return connected_users;
+  return preferredConnections().size();
 }
 
 void Core::checkConnectionPorts()

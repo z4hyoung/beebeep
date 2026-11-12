@@ -36,7 +36,8 @@ public:
   explicit Connection( QObject *parent = Q_NULLPTR );
 
   bool sendMessage( const Message& );
-  void setReadyForUse( VNumber );
+  void setReadyForUse( VNumber, const NetworkAddress& );
+  const NetworkAddress& peerListenAddress() const { return m_peerListenAddress; }
   inline bool isReadyForUse() const;
 
 signals:
@@ -46,6 +47,9 @@ protected slots:
   void parseData( const QByteArray& );
   void sendPing();
   void sendPong();
+
+private:
+  NetworkAddress m_peerListenAddress;
 
 };
 

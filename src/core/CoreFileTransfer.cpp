@@ -156,7 +156,7 @@ bool Core::downloadFile( VNumber user_id, const FileInfo& fi, bool show_message 
 
 bool Core::startInlineFileDownload( VNumber from_user_id, const FileInfo& fi )
 {
-  Connection* c = connection( from_user_id );
+  Connection* c = connection( from_user_id, Bluetooth );
   if( !c || !c->isConnected() )
   {
     qWarning() << "Unable to start the inline download of" << qPrintable( fi.name() ) << "because user" << from_user_id << "is not connected anymore";
@@ -565,7 +565,7 @@ void Core::refuseToDownloadFile( VNumber user_id, const FileInfo& fi, const QStr
                          .arg( IconManager::instance().toHtml( "red-ball.png", "*F*" ), fi.name(), Bee::userNameToShow( u, true ) ),
                          chat_to_show_message.isValid() ? DispatchToChat : DispatchToDefaultAndPrivateChat, ChatMessage::FileTransfer, false );
 
-  Connection* c = connection( u.id() );
+  Connection* c = was_inline_offer ? connection( u.id(), Bluetooth ) : connection( u.id() );
   if( !c )
   {
     qDebug() << qPrintable( u.path() ) << "is not connected. Unable to send file download refused message";
@@ -618,7 +618,7 @@ void Core::onFileTransferServerListening()
 void Core::sendFileShareRequestToAll()
 {
   Message file_share_request_message = Protocol::instance().fileShareRequestMessage();
-  foreach( Connection* c, m_connections )
+  foreach( Connection* c, preferredConnections() )
   {
     if( !FileShare::instance().userHasFileShareList( c->userId() ) )
       c->sendMessage( file_share_request_message );
@@ -642,7 +642,7 @@ void Core::sendFileShareListToAll()
   Message share_list_message = Protocol::instance().fileShareListMessage();
 
   int count = 0;
-  foreach( Connection* c, m_connections )
+  foreach( Connection* c, preferredConnections() )
   {
     if( count < Settings::instance().maxUsersToConnectInATick() )
     {

@@ -105,7 +105,7 @@ void Core::showUserVCardChanged( const User&, const VCard& )
 void Core::sendLocalUserStatus()
 {
   Message user_status_message = Protocol::instance().userStatusMessage( Settings::instance().localUser().status(), Settings::instance().localUser().statusDescription() );
-  foreach( Connection *c, m_connections )
+  foreach( Connection *c, preferredConnections() )
     c->sendMessage( user_status_message );
 }
 
@@ -354,15 +354,14 @@ bool Core::isUserConnected( VNumber user_id ) const
     return isConnected();
 }
 
-bool Core::isUserConnectedByBluetooth( VNumber user_id ) const
+Core::Transports Core::connectedTransports( VNumber user_id ) const
 {
-  // Transport of the active connection: the chat header shows whether the
-  // peer travels over the RFCOMM inline path or the LAN TCP channel.
-  if( user_id == ID_INVALID || user_id == ID_LOCAL_USER )
-    return false;
-
-  Connection* c = connection( user_id );
-  return c && c->isConnected() && c->isBluetoothTransport();
+  Transports transports;
+  if( connection( user_id, Lan ) )
+    transports |= Lan;
+  if( connection( user_id, Bluetooth ) )
+    transports |= Bluetooth;
+  return transports;
 }
 
 bool Core::isUserConnected( const NetworkAddress& na ) const
@@ -372,15 +371,12 @@ bool Core::isUserConnected( const NetworkAddress& na ) const
 
   foreach( Connection* c, m_connections )
   {
-    if( c->networkAddress() == na && (c->isConnecting() || c->isConnected()) )
+    if( (c->networkAddress() == na || (c->isReadyForUse() && c->peerListenAddress() == na))
+        && (c->isConnecting() || c->isConnected()) )
       return true;
   }
 
-  User u = UserManager::instance().findUserByNetworkAddress( na );
-  if( u.isValid() )
-    return isUserConnected( u.id() );
-  else
-    return false;
+  return false;
 }
 
 bool Core::areUsersConnected( const QList<VNumber>& users_id ) const
@@ -544,7 +540,7 @@ void Core::sendVCardToAllConnectedUsers()
   if( !isConnected() || m_connections.isEmpty() )
     return;
   int count = 0;
-  foreach( Connection* c, m_connections )
+  foreach( Connection* c, preferredConnections() )
   {
     Message m = Protocol::instance().localVCardMessage( c->protocolVersion() );
     if( count < Settings::instance().maxUsersToConnectInATick() )

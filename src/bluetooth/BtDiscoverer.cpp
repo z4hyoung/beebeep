@@ -17,10 +17,6 @@
 #include "BtDiscoverer.h"
 #include "Config.h"
 #include "StreamDeviceBt.h"
-#include "Core.h"
-#include "User.h"
-#include "UserManager.h"
-#include "UserList.h"
 #include <QList>
 #include <QtBluetooth/QBluetoothServiceInfo>
 #include <QTimer>
@@ -132,23 +128,6 @@ void BtDiscoverer::setLocalAddress( const QBluetoothAddress& local_address )
 
 void BtDiscoverer::startScan()
 {
-  // YongBEEP: pause SDP discovery while ANY peer is connected (this is a
-  // 1:1 messenger, there is nothing more to find) - SDP re-inquiries on
-  // macOS race the DarwinBTSDPInquiry teardown and crash the app (4 crash
-  // reports 11-04/05, all identical in sdpQueryComplete).
-  // NOTE: Core::isConnected() only means "the listener is up", NOT "a peer
-  // is online" - the 22:17 build checked isConnected alone and still
-  // crashed at 22:27; the real check is the user list.
-  if( beeCore )
-  {
-    const QList<User> users = UserManager::instance().userList().toList();
-    for( int i = 0; i < users.size(); ++i )
-    {
-      if( users.at( i ).isStatusConnected() )
-        return;
-    }
-  }
-
 #if !defined( Q_OS_WIN )
   if( mp_agent->isActive() )
     return;

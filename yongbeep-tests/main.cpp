@@ -12,6 +12,13 @@
 #include "Rijndael.h"
 #include "ECDH.h"
 #include "Config.h"
+#include "ChatListModel.h"
+#include "ChatManager.h"
+#include "Core.h"
+#include "Connection.h"
+#include "Settings.h"
+#include "StreamDeviceTcp.h"
+#include "UserManager.h"
 
 static int g_failed = 0, g_passed = 0;
 #define CHECK(cond, name) do { \
@@ -93,14 +100,104 @@ static void testEcdhSymmetry()
   CHECK( alice.sharedKey() == bob.sharedKey(), "ecdh symmetry" );
 }
 
+// Only the transport I/O is simulated. HELLO recognition, link selection,
+// contact presence and the avatar's model role all run the desktop code.
+class TestStream : public StreamDeviceTcp
+{
+public:
+  explicit TestStream( bool bluetooth ) : m_bluetooth( bluetooth ) {}
+  bool isBluetoothTransport() const override { return m_bluetooth; }
+  bool isOpen() const override { return true; }
+  bool isConnectedState() const override { return true; }
+  QHostAddress peerAddress() const override
+  {
+    return QHostAddress( m_bluetooth ? QStringLiteral( "fe80::1234" ) : QStringLiteral( "192.0.2.7" ) );
+  }
+  qint64 write( const QByteArray& bytes ) override { return bytes.size(); }
+private:
+  bool m_bluetooth;
+};
+
+class TestCore : public Core
+{
+public:
+  using Core::connection;
+  using Core::preferredConnections;
+  using Core::closeConnection;
+
+  Connection* openLink( bool bluetooth )
+  {
+    Connection* c = createConnection();
+    TestStream* stream = new TestStream( bluetooth );
+    c->setStreamDevice( stream );
+    setupNewConnection( c );
+    emit stream->connected();
+    return c;
+  }
+};
+
+static QByteArray peerHello( const QString& device_hash )
+{
+  QStringList fields = { "6475", "BadgePeer", QString::number( User::Online ), "", "badge-test", "",
+                         "1", device_hash };
+  Message hello( Message::Hello, 96, fields.join( QChar::LineSeparator ) );
+  hello.setData( QString::fromLatin1( Settings::instance().hash( "BadgePeer" ) ) );
+  return Protocol::instance().fromMessage( hello, 1 );
+}
+
+static void testConcurrentLinks( bool bluetooth_first )
+{
+  TestCore core;
+  const QByteArray hello = peerHello( "stable-device-hash" );
+  Connection* first = core.openLink( bluetooth_first );
+  emit first->authenticationRequested( hello );
+  const VNumber id = first->userId();
+  CHECK( id != ID_INVALID, "first HELLO accepted" );
+  if( id == ID_INVALID )
+    return;
+  ChatListModel model;
+  model.reload();
+  const VNumber chat_id = ChatManager::instance().privateChatForUser( id ).id();
+  QModelIndex index = model.index( model.rowOfChat( chat_id ), 0 );
+  auto badges = [&]() { return index.data( ChatListModel::TransportsRole ).toInt(); };
+  const Core::Transport first_type = bluetooth_first ? Core::Bluetooth : Core::Lan;
+  const Core::Transport second_type = bluetooth_first ? Core::Lan : Core::Bluetooth;
+  CHECK( badges() == first_type, "single transport badge" );
+
+  Connection* impostor = core.openLink( !bluetooth_first );
+  emit impostor->authenticationRequested( peerHello( "other-device-same-nickname" ) );
+  CHECK( impostor->userId() == ID_INVALID && badges() == first_type, "different device cannot attach a link" );
+  Connection* second = core.openLink( !bluetooth_first );
+  CHECK( badges() == first_type, "unverified transport has no badge" );
+  emit second->authenticationRequested( hello );
+  CHECK( second->userId() == id && core.connectedUsers() == 1, "two links, one contact" );
+  CHECK( badges() == (Core::Lan | Core::Bluetooth), "both authenticated badges" );
+  CHECK( core.connection( id ) == (bluetooth_first ? second : first), "prefer LAN in either connection order" );
+  CHECK( core.preferredConnections().size() == 1, "broadcast has one recipient" );
+  Connection* duplicate = core.openLink( !bluetooth_first );
+  emit duplicate->authenticationRequested( hello );
+  CHECK( duplicate->userId() == ID_INVALID && core.connectedUsers() == 1, "duplicate transport refused" );
+  core.closeConnection( first );
+  CHECK( badges() == second_type && core.connection( id ) == second, "remove only the lost link" );
+  CHECK( UserManager::instance().findUser( id ).isStatusConnected(), "contact remains online" );
+  CHECK( ChatManager::instance().privateChatForUser( id ).id() == chat_id, "conversation survives link loss" );
+  core.closeConnection( second );
+  CHECK( badges() == 0 && core.connectedUsers() == 0, "last link clears badges and count" );
+  CHECK( !UserManager::instance().findUser( id ).isStatusConnected(), "last link closed goes offline" );
+}
+
 int main( int argc, char** argv )
 {
-  QCoreApplication app( argc, argv );
+  qputenv( "QT_QPA_PLATFORM", "offscreen" );
+  QApplication app( argc, argv );
+  QStandardPaths::setTestModeEnabled( true );
   Protocol::instance(); // 单例初始化
   testMessageRoundtrip();
   testFileChunkRoundtrip();
   testRijndael();
   testEcdhSymmetry();
+  testConcurrentLinks( false );
+  testConcurrentLinks( true );
   qInfo() << "=== YongBEEP core unit tests:" << g_passed << "passed," << g_failed << "failed ===";
   return g_failed == 0 ? 0 : 1;
 }

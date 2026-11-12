@@ -12,6 +12,7 @@
 
 #include "ChatListItemDelegate.h"
 #include "ChatListModel.h"
+#include "Core.h"
 #include "YongTheme.h"
 
 #include <QPainter>
@@ -53,6 +54,28 @@ void ChatListItemDelegate::paint( QPainter* painter, const QStyleOptionViewItem&
     painter->setClipPath( avatar_clip );
     painter->drawPixmap( avatar_rect, avatar.pixmap( QSize( m_avatarSize, m_avatarSize ) ) );
     painter->restore();
+  }
+
+  // Anchor the badges to the avatar. The unread count stays on the far right.
+  const int transports = index.data( ChatListModel::TransportsRole ).toInt();
+  QRect badge( avatar_rect.right() - 11, avatar_rect.bottom() - 11, 16, 16 );
+  auto paint_link = [&]( const QIcon& glyph, const QColor& fill )
+  {
+    painter->setPen( QPen( Qt::white, 1.5 ) );
+    painter->setBrush( fill );
+    painter->drawEllipse( QRectF( badge ).adjusted( 0.75, 0.75, -0.75, -0.75 ) );
+    glyph.paint( painter, badge.adjusted( 2, 2, -2, -2 ) );
+    badge.translate( -16, 0 );
+  };
+  if( transports & Core::Bluetooth )
+  {
+    static const QIcon glyph = YongTheme::svgIcon( "link-bluetooth", Qt::white, QColor(), 12 );
+    paint_link( glyph, QColor( "#2563B9" ) );
+  }
+  if( transports & Core::Lan )
+  {
+    static const QIcon glyph = YongTheme::svgIcon( "link-lan", Qt::white, QColor(), 12 );
+    paint_link( glyph, QColor( "#147653" ) );
   }
 
   const int text_left = avatar_rect.right() + 10;

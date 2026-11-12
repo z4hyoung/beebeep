@@ -507,11 +507,13 @@ void GuiMainWindow::updateChatHeader()
   if( peer_online )
   {
     status_color = YongTheme::brandGreen();
-    // YongBEEP: show the transport next to the online state - the RFCOMM
-    // inline path (bluetooth) or the LAN TCP channel.
-    if( c.isPrivate() )
-      status_text = beeCore->isUserConnectedByBluetooth( c.privateUserId() ) ? tr( "Connected · Bluetooth" )
-                                                                             : tr( "Connected · LAN" );
+    const Core::Transports links = c.isPrivate() ? beeCore->connectedTransports( c.privateUserId() ) : Core::Transports();
+    if( links.testFlag( Core::Lan ) && links.testFlag( Core::Bluetooth ) )
+      status_text = tr( "Connected · LAN + Bluetooth" );
+    else if( links.testFlag( Core::Lan ) )
+      status_text = tr( "Connected · LAN" );
+    else if( links.testFlag( Core::Bluetooth ) )
+      status_text = tr( "Connected · Bluetooth" );
     else
       status_text = tr( "Connected" );
   }

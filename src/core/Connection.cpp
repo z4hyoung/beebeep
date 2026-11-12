@@ -87,8 +87,9 @@ void Connection::parseData( const QByteArray& message_data )
   }
 }
 
-void Connection::setReadyForUse( VNumber user_id )
+void Connection::setReadyForUse( VNumber user_id, const NetworkAddress& peer_listen_address )
 {
+  m_peerListenAddress = peer_listen_address;
   setUserId( user_id );
 }
 
