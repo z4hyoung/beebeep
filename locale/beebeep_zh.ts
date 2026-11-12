@@ -1944,6 +1944,22 @@ Please select a different name.</source>
 <context>
     <name>GuiEditVCard</name>
     <message>
+        <source>Crop avatar</source>
+        <translation>裁剪头像</translation>
+    </message>
+    <message>
+        <source>Drag the square to choose the part of the photo to use.</source>
+        <translation>拖动方框，选择想用作头像的区域。</translation>
+    </message>
+    <message>
+        <source>Selection size</source>
+        <translation>方框大小</translation>
+    </message>
+    <message>
+        <source>Use selection</source>
+        <translation>使用所选区域</translation>
+    </message>
+    <message>
         <location filename="../src/desktop/GuiEditVCard.cpp" line="38"/>
         <source>Edit your profile</source>
         <translation>修改个人资料</translation>
@@ -6572,6 +6588,26 @@ Please select a different name.</source>
 </context>
 <context>
     <name>GuiVCardDialog</name>
+    <message>
+        <source>Avatar</source>
+        <translation>头像</translation>
+    </message>
+    <message>
+        <source>Change avatar</source>
+        <translation>更换头像</translation>
+    </message>
+    <message>
+        <source>Remove avatar</source>
+        <translation>移除头像</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>姓名</translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation>保存</translation>
+    </message>
     <message>
         <location filename="../src/desktop/GuiEditVCard.ui" line="14"/>
         <source>Dialog</source>

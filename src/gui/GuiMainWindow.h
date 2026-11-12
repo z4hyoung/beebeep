@@ -96,9 +96,7 @@ private slots:
   void toggleVisibleFromTray();
   void quitFromTray();
   void confirmQuit();
-  void openProfileMenu();
   void editLocalVCard();
-  void changeLocalNickname();
   void hideToTrayIcon();
   void showMessage( const QString&, int );
   void onApplicationFocusChanged( QWidget*, QWidget* );

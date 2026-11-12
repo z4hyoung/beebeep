@@ -41,7 +41,6 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListView>
-#include <QInputDialog>
 #include <QMenu>
 #include <QMessageBox>
 #include <QScreen>
@@ -282,7 +281,7 @@ void GuiMainWindow::createGui()
   connect( mp_chatListView, SIGNAL( clicked( const QModelIndex& ) ), this, SLOT( chatActivated( const QModelIndex& ) ) );
   connect( mp_chatListView, SIGNAL( activated( const QModelIndex& ) ), this, SLOT( chatActivated( const QModelIndex& ) ) );
   connect( mp_scanDevicesButton, SIGNAL( clicked() ), this, SLOT( openScanDevicesDialog() ) );
-  connect( mp_profileButton, SIGNAL( clicked() ), this, SLOT( openProfileMenu() ) );
+  connect( mp_profileButton, SIGNAL( clicked() ), this, SLOT( editLocalVCard() ) );
   connect( mp_quitButton, SIGNAL( clicked() ), this, SLOT( confirmQuit() ) );
   connect( mp_trayIcon, SIGNAL( activated( QSystemTrayIcon::ActivationReason ) ), this, SLOT( trayIconActivated( QSystemTrayIcon::ActivationReason ) ) );
   connect( qApp, SIGNAL( focusChanged( QWidget*, QWidget* ) ), this, SLOT( onApplicationFocusChanged( QWidget*, QWidget* ) ) );
@@ -1144,63 +1143,12 @@ void GuiMainWindow::confirmQuit()
     quitFromTray();
 }
 
-void GuiMainWindow::openProfileMenu()
-{
-  QMenu profile_menu( this );
-  QAction* vcard_action = profile_menu.addAction( tr( "Edit profile and avatar" ) );
-  QAction* nickname_action = profile_menu.addAction( tr( "Change nickname" ) );
-
-  // the entry bar sits at the window bottom: open the menu above the button
-  QAction* chosen = profile_menu.exec( mp_profileButton->mapToGlobal( QPoint( 0, -profile_menu.sizeHint().height() ) ) );
-  if( chosen == vcard_action )
-    editLocalVCard();
-  else if( chosen == nickname_action )
-    changeLocalNickname();
-}
-
 void GuiMainWindow::editLocalVCard()
 {
-  // Same flow of the legacy GuiMain::changeVCard(): the dialog edits the
-  // vCard (photo, real name, email...) and Core broadcasts it to the peers.
-  GuiEditVCard gvc;
-  gvc.setModal( true );
-  gvc.setUser( Settings::instance().localUser() );
-  gvc.setSizeGripEnabled( true );
-  if( gvc.exec() == QDialog::Accepted )
-  {
-    beeCore->setLocalUserVCard( gvc.userColor(), gvc.vCard() );
-    if( gvc.regenerateUserHash() )
-      QMessageBox::information( this, Settings::instance().programName(), tr( "You must restart %1 to apply these changes." ).arg( Settings::instance().programName() ) );
-  }
-}
-
-void GuiMainWindow::changeLocalNickname()
-{
-  bool ok = false;
-  QString new_name = QInputDialog::getText( this, Settings::instance().programName(),
-                                            tr( "New nickname:" ), QLineEdit::Normal,
-                                            Settings::instance().localUser().name(), &ok ).simplified();
-  if( !ok || new_name.isEmpty() || new_name == Settings::instance().localUser().name() )
-    return;
-
-  // Core::changeLocalUser() refuses to run while connected (it archives the
-  // chats and recreates the local user): stop, change and restart.
-  if( beeCore->isConnected() )
-  {
-    if( QMessageBox::question( this, Settings::instance().programName(),
-                               tr( "Changing the nickname disconnects and reconnects all peers. Continue?" ),
-                               QMessageBox::Yes | QMessageBox::No, QMessageBox::No ) != QMessageBox::Yes )
-      return;
-    beeCore->stop();
-  }
-
-  if( !beeCore->changeLocalUser( new_name ) )
-  {
-    QMessageBox::warning( this, Settings::instance().programName(), tr( "Unable to change the nickname." ) );
-    return;
-  }
-
-  beeCore->start();
+  GuiEditVCard dialog( this );
+  dialog.setUser( Settings::instance().localUser() );
+  if( dialog.exec() == QDialog::Accepted )
+    beeCore->setLocalUserVCard( dialog.userColor(), dialog.vCard() );
 }
 
 

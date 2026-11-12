@@ -163,7 +163,6 @@ bool Core::setLocalUserVCard( const QString& user_color, const VCard& vc )
   VCard old_vcard = u.vCard();
   Settings::instance().setLocalUser( u );
   Settings::instance().save();
-  MessageManager::instance().generateSaveMessagesAuthCode();
 
   sendVCardToAllConnectedUsers();
   showUserVCardChanged( u, old_vcard );

@@ -30,8 +30,138 @@
 #include "UserManager.h"
 
 
+namespace {
+
+class AvatarCropView : public QWidget
+{
+public:
+  AvatarCropView( const QImage& image, QWidget* parent )
+    : QWidget( parent ), m_image( image )
+  {
+    const int side = qMin( image.width(), image.height() );
+    m_crop = QRect( (image.width() - side) / 2, (image.height() - side) / 2, side, side );
+    setMinimumSize( 180, 140 );
+    setSizePolicy( QSizePolicy::Expanding, QSizePolicy::Expanding );
+    setFocusPolicy( Qt::StrongFocus );
+    setCursor( Qt::OpenHandCursor );
+  }
+
+  QSize sizeHint() const override { return QSize( 460, 320 ); }
+
+  QImage croppedAvatar() const
+  {
+    return m_image.copy( m_crop ).scaled( 96, 96, Qt::KeepAspectRatio, Qt::SmoothTransformation );
+  }
+
+  void setCropSize( int side )
+  {
+    const QPointF center = QRectF( m_crop ).center();
+    m_crop.setSize( QSize( side, side ) );
+    moveCrop( center - QPointF( side / 2.0, side / 2.0 ) );
+  }
+
+protected:
+  void resizeEvent( QResizeEvent* ) override
+  {
+    QSize pixels = (imageArea().size() * devicePixelRatioF()).toSize().expandedTo( QSize( 1, 1 ) );
+    m_preview = m_image.scaled( pixels, Qt::IgnoreAspectRatio, Qt::SmoothTransformation );
+  }
+
+  void paintEvent( QPaintEvent* ) override
+  {
+    QPainter painter( this );
+    painter.fillRect( rect(), QColor( 36, 36, 36 ) );
+    const QRectF area = imageArea();
+    painter.drawImage( area, m_preview );
+    const qreal scale = area.width() / m_image.width();
+    const QRectF frame( area.topLeft() + QPointF( m_crop.topLeft() ) * scale, QSizeF( m_crop.size() ) * scale );
+    QPainterPath shade;
+    shade.addRect( area );
+    shade.addRect( frame );
+    painter.fillPath( shade, QColor( 0, 0, 0, 125 ) );
+    painter.setPen( QPen( Qt::black, 3 ) );
+    painter.drawRect( frame );
+    painter.setPen( QPen( Qt::white, 1 ) );
+    painter.drawRect( frame );
+  }
+
+  void mousePressEvent( QMouseEvent* event ) override
+  {
+    if( event->button() != Qt::LeftButton || !imageArea().contains( event->pos() ) )
+      return;
+    const QPointF point = imagePoint( event->pos() );
+    m_dragOffset = QRectF( m_crop ).contains( point ) ? point - m_crop.topLeft()
+                                                      : QPointF( m_crop.width() / 2.0, m_crop.height() / 2.0 );
+    m_dragging = true;
+    setCursor( Qt::ClosedHandCursor );
+    moveCrop( point - m_dragOffset );
+  }
+
+  void mouseMoveEvent( QMouseEvent* event ) override
+  {
+    if( m_dragging )
+      moveCrop( imagePoint( event->pos() ) - m_dragOffset );
+  }
+
+  void mouseReleaseEvent( QMouseEvent* event ) override
+  {
+    if( m_dragging && event->button() == Qt::LeftButton )
+    {
+      moveCrop( imagePoint( event->pos() ) - m_dragOffset );
+      m_dragging = false;
+      setCursor( Qt::OpenHandCursor );
+    }
+  }
+
+  void keyPressEvent( QKeyEvent* event ) override
+  {
+    QPoint offset;
+    switch( event->key() )
+    {
+    case Qt::Key_Left:  offset.setX( -1 ); break;
+    case Qt::Key_Right: offset.setX( 1 ); break;
+    case Qt::Key_Up:    offset.setY( -1 ); break;
+    case Qt::Key_Down:  offset.setY( 1 ); break;
+    default: QWidget::keyPressEvent( event ); return;
+    }
+    moveCrop( m_crop.topLeft() + offset * (event->modifiers() & Qt::ShiftModifier ? 10 : 1) );
+  }
+
+private:
+  QRectF imageArea() const
+  {
+    QRectF bounds = QRectF( rect() ).adjusted( 4, 4, -4, -4 );
+    QSizeF fitted( m_image.size() );
+    fitted.scale( bounds.size(), Qt::KeepAspectRatio );
+    QRectF area( QPointF(), fitted );
+    area.moveCenter( bounds.center() );
+    return area;
+  }
+
+  QPointF imagePoint( const QPointF& point ) const
+  {
+    const QRectF area = imageArea();
+    return (point - area.topLeft()) * (m_image.width() / area.width());
+  }
+
+  void moveCrop( const QPointF& origin )
+  {
+    m_crop.moveTo( qBound( 0, qRound( origin.x() ), m_image.width() - m_crop.width() ),
+                   qBound( 0, qRound( origin.y() ), m_image.height() - m_crop.height() ) );
+    update();
+  }
+
+  QImage m_image;
+  QImage m_preview;
+  QRect m_crop;
+  QPointF m_dragOffset;
+  bool m_dragging = false;
+};
+
+} // namespace
+
 GuiEditVCard::GuiEditVCard( QWidget *parent )
-  : QDialog( parent ), m_vCard(), m_userColor( "#000000" ), m_regenerateUserHash( false )
+  : QDialog( parent )
 {
   setupUi( this );
   setObjectName( "GuiEditVCard" );
@@ -39,91 +169,34 @@ GuiEditVCard::GuiEditVCard( QWidget *parent )
   setWindowIcon( IconManager::instance().icon( "profile-edit.png" ) );
   Bee::removeContextHelpButton( this );
 
-  mp_pbChangePhoto->setIcon( IconManager::instance().icon( "add.png" ) );
-  mp_pbRemovePhoto->setIcon( IconManager::instance().icon( "delete.png" ) );
-  mp_pbColor->setIcon( IconManager::instance().icon( "font-color.png" ) );
-  mp_deBirthday->setToolTip( tr( "If you don't want to show the year to other users use 1900. To remove your birthday use 01/01/1900" ) );
-
-  mp_lColor->setAutoFillBackground( true );
-
-  connect( mp_pbOk, SIGNAL( clicked() ), this, SLOT( onOkClicked() ) );
-  connect( mp_pbCancel, SIGNAL( clicked() ), this, SLOT( reject() ) );
-  connect( mp_pbChangePhoto, SIGNAL( clicked() ), this, SLOT( changePhoto() ) );
-  connect( mp_pbRemovePhoto, SIGNAL( clicked() ), this, SLOT( removePhoto() ) );
-  connect( mp_pbColor, SIGNAL( clicked() ), this, SLOT( changeUserColor() ) );
-  connect( mp_pbRegenerateHash, SIGNAL( clicked() ), this, SLOT( regenerateHash() ) );
-}
-
-QString GuiEditVCard::currentAvatarName() const
-{
-  QString current_avatar_name = "";
-  if( Settings::instance().useUserFullName() )
-    current_avatar_name = QString( "%1 %2" ).arg( mp_leFirstName->text().simplified(), mp_leLastName->text().simplified() ).trimmed();
-
-  if( current_avatar_name.isEmpty() )
-    current_avatar_name = mp_leNickname->text().simplified();
-  return current_avatar_name.isEmpty() ? QLatin1String( "??" ) : current_avatar_name;
-}
-
-void GuiEditVCard::setUserColor( const QString& new_value )
-{
-  m_userColor = new_value;
-  QPalette palette = mp_lColor->palette();
-  palette.setColor( QPalette::Window, QColor( m_userColor ) );
-  mp_lColor->setPalette( palette );
-  if( m_vCard.photo().isNull() )
-    mp_lPhoto->setPixmap( Avatar::create( currentAvatarName(), m_userColor, QSize( 96, 96 ) ) );
+  connect( mp_pbOk, &QPushButton::clicked, this, &GuiEditVCard::onOkClicked );
+  connect( mp_pbCancel, &QPushButton::clicked, this, &QDialog::reject );
+  connect( mp_pbChangePhoto, &QPushButton::clicked, this, &GuiEditVCard::changePhoto );
+  connect( mp_pbRemovePhoto, &QPushButton::clicked, this, &GuiEditVCard::removePhoto );
+  connect( mp_leNickname, &QLineEdit::textEdited, this, &GuiEditVCard::refreshPreview );
 }
 
 void GuiEditVCard::setUser( const User& u )
 {
   m_vCard = u.vCard();
-  setUserColor( u.color() );
-  m_regenerateUserHash = false;
-  loadVCard();
+  m_userColor = u.color();
+  mp_leNickname->setMaxLength( qMax( 50, static_cast<int>( u.name().size() ) ) );
+  mp_leNickname->setText( u.name() );
+  bool can_edit_name = Settings::instance().allowEditNickname();
+  mp_leNickname->setReadOnly( !can_edit_name );
+  mp_leNickname->setToolTip( can_edit_name ? QString() : tr( "Disabled by system administrator" ) );
+  refreshPreview();
+  mp_leNickname->setFocus();
 }
 
-void GuiEditVCard::loadVCard()
+void GuiEditVCard::refreshPreview()
 {
-  mp_leNickname->setText( m_vCard.nickName() );
-  if( Settings::instance().allowEditNickname() )
-  {
-    mp_leNickname->setEnabled( true  );
-    mp_leNickname->setReadOnly( false );
-    mp_leNickname->setToolTip( "" );
-  }
-  else
-  {
-    mp_leNickname->setEnabled( false  );
-    mp_leNickname->setReadOnly( true  );
-    mp_leNickname->setToolTip( tr( "Disabled by system administrator" ) );
-  }
-  mp_leFirstName->setText( m_vCard.firstName() );
-  mp_leLastName->setText( m_vCard.lastName() );
-
-  if( m_vCard.birthday().isValid() )
-    mp_deBirthday->setDate( m_vCard.birthday() );
-  else
-    mp_deBirthday->setDate( QDate( 1900, 1, 1 ) );
-
-  mp_leEmail->setText( m_vCard.email() );
-
-  if( m_vCard.photo().isNull() )
-    mp_lPhoto->setPixmap( Avatar::create( currentAvatarName(), m_userColor, QSize( 96, 96 ) ) );
-  else
-    mp_lPhoto->setPixmap( m_vCard.photo() );
-
-  QPalette palette = mp_lColor->palette();
-  palette.setBrush( QPalette::Window, QColor ( m_userColor ) );
-  mp_lColor->setPalette( palette );
-
-  mp_lePhone->setText( m_vCard.phoneNumber() );
-
-  mp_leRoom->setText( m_vCard.roomLocation() );
-
-  mp_teInfo->setPlainText( m_vCard.info() );
-
-  mp_leNickname->setFocus();
+  QString name = mp_leNickname->text().simplified();
+  bool has_photo = !m_vCard.photo().isNull();
+  mp_lPhoto->setPixmap( has_photo ? m_vCard.photo().scaled( mp_lPhoto->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation )
+                                  : Avatar::create( name.isEmpty() ? QStringLiteral( "?" ) : name, m_userColor, mp_lPhoto->size() ) );
+  mp_pbRemovePhoto->setEnabled( has_photo );
+  mp_pbOk->setEnabled( !name.isEmpty() );
 }
 
 void GuiEditVCard::changePhoto()
@@ -139,107 +212,79 @@ void GuiEditVCard::changePhoto()
 
   QString photo_path = FileDialog::getOpenFileName( true, this, tr( "%1 - Select your profile photo" ).arg( Settings::instance().programName() ),
                                                      Settings::instance().lastDirectorySelected(), tr( "Images" ) + QString( " (%1)" ).arg( supported_formats_string.simplified() ) );
-  if( photo_path.isNull() || photo_path.isEmpty() )
+  if( photo_path.isEmpty() )
     return;
 
   Settings::instance().setLastDirectorySelectedFromFile( photo_path );
 
   QImage img;
   QImageReader img_reader( photo_path );
-  img_reader.setAutoDetectImageFormat( true );
+  img_reader.setAutoTransform( true );
   if( !img_reader.read( &img ) )
   {
-    QMessageBox::warning( this, Settings::instance().programName(), tr( "Unable to load image %1." ).arg( photo_path ), tr( "Ok" ) );
+    QMessageBox::warning( this, Settings::instance().programName(), tr( "Unable to load image %1." ).arg( photo_path ) );
     qWarning() << "Can not load profile picture. Format supported:" << supported_formats_string;
     return;
   }
 
-  if( img.width() != img.height() )
-    QMessageBox::information( this, Settings::instance().programName(), tr( "It is preferable to use square images to avoid display problems." ), tr( "Ok" ) );
-  QPixmap pix = QPixmap::fromImage( img.scaled( 96, 96, Qt::KeepAspectRatio ) );
-  if( !pix.isNull() )
-  {
-    mp_lPhoto->setPixmap( pix );
-    m_vCard.setPhoto( pix );
-  }
+  QDialog crop_dialog( this );
+  crop_dialog.setWindowTitle( tr( "Crop avatar" ) );
+  Bee::removeContextHelpButton( &crop_dialog );
+  QVBoxLayout* layout = new QVBoxLayout( &crop_dialog );
+  layout->addWidget( new QLabel( tr( "Drag the square to choose the part of the photo to use." ), &crop_dialog ) );
+  AvatarCropView* view = new AvatarCropView( img, &crop_dialog );
+  view->setAccessibleName( tr( "Crop avatar" ) );
+  layout->addWidget( view, 1 );
+
+  QHBoxLayout* size_layout = new QHBoxLayout();
+  QLabel* size_label = new QLabel( tr( "Selection size" ), &crop_dialog );
+  QSlider* size_slider = new QSlider( Qt::Horizontal, &crop_dialog );
+  size_slider->setRange( 1, qMin( img.width(), img.height() ) );
+  size_slider->setValue( size_slider->maximum() );
+  size_slider->setSingleStep( qMax( 1, size_slider->maximum() / 100 ) );
+  size_slider->setPageStep( qMax( 1, size_slider->maximum() / 10 ) );
+  size_label->setBuddy( size_slider );
+  size_layout->addWidget( size_label );
+  size_layout->addWidget( size_slider, 1 );
+  layout->addLayout( size_layout );
+  connect( size_slider, &QSlider::valueChanged, view, &AvatarCropView::setCropSize );
+
+  QDialogButtonBox* buttons = new QDialogButtonBox( &crop_dialog );
+  QPushButton* apply = buttons->addButton( tr( "Use selection" ), QDialogButtonBox::AcceptRole );
+  apply->setDefault( true );
+  buttons->addButton( QCoreApplication::translate( "GuiVCardDialog", "Cancel" ), QDialogButtonBox::RejectRole );
+  connect( buttons, &QDialogButtonBox::accepted, &crop_dialog, &QDialog::accept );
+  connect( buttons, &QDialogButtonBox::rejected, &crop_dialog, &QDialog::reject );
+  layout->addWidget( buttons );
+  view->setFocus();
+  if( crop_dialog.exec() != QDialog::Accepted )
+    return;
+
+  m_vCard.setPhoto( QPixmap::fromImage( view->croppedAvatar() ) );
+  refreshPreview();
 }
 
 void GuiEditVCard::removePhoto()
 {
-  mp_lPhoto->setPixmap( Avatar::create( currentAvatarName(), m_userColor, QSize( 96, 96 ) ) );
   m_vCard.setPhoto( QPixmap() );
-}
-
-void GuiEditVCard::changeUserColor()
-{
-  QColor c = QColorDialog::getColor( QColor( Settings::instance().chatFontColor() ), this );
-  if( c.isValid() )
-    setUserColor( c.name() );
-}
-
-bool GuiEditVCard::checkLineEdit( QLineEdit* ple, const QString& msg )
-{
-  QString s = ple->text().simplified();
-  if( s.isEmpty() )
-  {
-    QMessageBox::information( this, Settings::instance().programName(), msg, tr( "Ok" ) );
-    ple->setFocus();
-    return false;
-  }
-  return true;
-}
-
-bool GuiEditVCard::checkData()
-{
-  if( !checkLineEdit( mp_leNickname, tr( "Please insert your nickname." ) ) )
-    return false;
-
-  QString user_nickname = mp_leNickname->text().simplified();
-  User u = UserManager::instance().findUserByNickname( user_nickname );
-  if( u.isValid() && !u.isLocal() )
-  {
-    QMessageBox::warning( this, Settings::instance().programName(), tr( "The nickname '%1' is already in use by the user %2." ).arg( user_nickname, u.path() ) );
-    mp_leNickname->setFocus();
-    return false;
-  }
-
-  return true;
-}
-
-void GuiEditVCard::saveVCard()
-{
-  m_vCard.setNickName( mp_leNickname->text().simplified() );
-  m_vCard.setFirstName( mp_leFirstName->text().simplified() );
-  m_vCard.setLastName( mp_leLastName->text().simplified() );
-  if( mp_deBirthday->date() != QDate( 1900, 1, 1 ) )
-    m_vCard.setBirthday( mp_deBirthday->date() );
-  else
-    m_vCard.setBirthday( QDate() );
-  m_vCard.setEmail( mp_leEmail->text().simplified() );
-  m_vCard.setPhoneNumber( mp_lePhone->text().simplified() );
-  m_vCard.setRoomLocation( mp_leRoom->text().simplified() );
-  m_vCard.setInfo( mp_teInfo->toPlainText().trimmed() );
+  refreshPreview();
 }
 
 void GuiEditVCard::onOkClicked()
 {
-  if( !checkData() )
+  QString name = mp_leNickname->text().simplified();
+  if( name.isEmpty() )
     return;
-  saveVCard();
-  accept();
-}
-
-void GuiEditVCard::regenerateHash()
-{
-  if( !checkData() )
-    return;
-
-  if( QMessageBox::question( this, Settings::instance().programName(),
-                 tr( "Be careful, by changing the hash code you may no longer be a member of some groups and you will have to get invited again. Do you really want to regenerate your hash code?" ),
-                 tr( "Yes" ), tr( "No" ), QString(), 1, 1 ) == 0 )
+  if( name != m_vCard.nickName() )
   {
-    m_regenerateUserHash = true;
-    saveVCard();
-    accept();
+    User u = UserManager::instance().findUserByNickname( name );
+    if( u.isValid() && !u.isLocal() )
+    {
+      QMessageBox::warning( this, Settings::instance().programName(), tr( "The nickname '%1' is already in use by the user %2." ).arg( name, u.path() ) );
+      mp_leNickname->setFocus();
+      return;
+    }
+    m_vCard.setNickName( name );
   }
+  accept();
 }

@@ -99,6 +99,7 @@ public:
   QVariant data( const QModelIndex& index, int role ) const override;
 
   void resetFromChat( const Chat& c );
+  void updateUserProfile( const User& );
   bool appendMessage( const Chat& c, const ChatMessage& cm );
 
   /*! YongBEEP: live "15M / 100M" progress on file cards. Matches the card

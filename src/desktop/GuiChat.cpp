@@ -257,6 +257,7 @@ void GuiChat::setCompactInputMode()
 void GuiChat::setupMessageList()
 {
   mp_messageModel = new ChatMessageModel( this );
+  connect( beeCore, &Core::userChanged, mp_messageModel, &ChatMessageModel::updateUserProfile );
   mp_messageDelegate = new ChatMessageDelegate( this );
 
   // keep the #GuiChatViewer objectName so the YongTheme QSS still paints

@@ -1768,6 +1768,10 @@ void Settings::save()
 
   beeApp->setCheckSettingsFilePath( false );
   QSettings *sets = objectSettings();
+  // History and queued messages keep their original header checksum until they are saved again.
+  QString saved_messages_nickname = m_localUser.name();
+  if( sets->value( "Misc/SaveMessagesTimestamp" ).toDateTime() == m_saveMessagesTimestamp )
+    saved_messages_nickname = sets->value( "Misc/SaveMessagesNickname", sets->value( "VCard/NickName", saved_messages_nickname ) ).toString();
   sets->clear();
 
   sets->beginGroup( "Version" );
@@ -1988,6 +1992,7 @@ void Settings::save()
   sets->setValue( "DelayConnectionAtStartup_ms", m_delayConnectionAtStartup );
   sets->setValue( "SendOfflineMessagesToDefaultChat", m_sendOfflineMessagesToDefaultChat );
   sets->setValue( "SaveMessagesTimestamp", m_saveMessagesTimestamp );
+  sets->setValue( "SaveMessagesNickname", saved_messages_nickname );
   sets->setValue( "ClearCacheAfterDays", m_clearCacheAfterDays );
   sets->setValue( "RemovePartiallyDownloadedFilesAfterDays", m_removePartiallyDownloadedFilesAfterDays );
   sets->endGroup();

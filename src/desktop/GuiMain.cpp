@@ -2984,20 +2984,10 @@ void GuiMain::showChat( VNumber chat_id )
 
 void GuiMain::changeVCard()
 {
-  GuiEditVCard gvc;
-  gvc.setModal( true );
-  gvc.setUser( Settings::instance().localUser() );
-  gvc.setSizeGripEnabled( true );
-  gvc.show();
-  if( gvc.exec() == QDialog::Accepted )
-  {
-    beeCore->setLocalUserVCard( gvc.userColor(), gvc.vCard() );
-    if( gvc.regenerateUserHash() )
-    {
-      beeCore->regenerateLocalUserHash();
-      QMessageBox::information( this, Settings::instance().programName(), tr( "You must restart %1 to apply these changes." ).arg( Settings::instance().programName() ) );
-    }
-  }
+  GuiEditVCard dialog( this );
+  dialog.setUser( Settings::instance().localUser() );
+  if( dialog.exec() == QDialog::Accepted )
+    beeCore->setLocalUserVCard( dialog.userColor(), dialog.vCard() );
 }
 
 void GuiMain::showLocalUserVCard()

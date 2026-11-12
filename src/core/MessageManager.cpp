@@ -227,7 +227,8 @@ void MessageManager::addMessageRecords( const QList<MessageRecord>& mr_list )
 void MessageManager::loadSavedMessagesAuthCode()
 {
   QString s = Settings::instance().saveMessagesTimestamp().toString( Qt::ISODate );
-  s += Settings::instance().localUser().name();
+  QScopedPointer<QSettings> sets( Settings::instance().objectSettings() );
+  s += sets->value( "Misc/SaveMessagesNickname", Settings::instance().localUser().name() ).toString();
   QByteArray ba = s.toUtf8().toBase64();
   QByteArray auth_code = QCryptographicHash::hash( ba, QCryptographicHash::Sha1 );
   m_savedMessagesAuthCode = QString::fromLatin1( auth_code.toHex() );

@@ -39,34 +39,20 @@ public:
 
   inline const VCard& vCard() const;
   inline const QString& userColor() const;
-  inline bool regenerateUserHash() const;
-
-protected:
-  void loadVCard();
-  void setUserColor( const QString& );
-  bool checkLineEdit( QLineEdit*, const QString& );
-  bool checkData();
-  void saveVCard();
-  QString currentAvatarName() const;
 
 private slots:
   void changePhoto();
   void removePhoto();
+  void refreshPreview();
   void onOkClicked();
-  void changeUserColor();
-  void regenerateHash();
 
 private:
   VCard m_vCard;
   QString m_userColor;
-  bool m_regenerateUserHash;
-
 };
-
 
 // Inline Functions
 inline const VCard& GuiEditVCard::vCard() const { return m_vCard; }
 inline const QString& GuiEditVCard::userColor() const { return m_userColor; }
-inline bool GuiEditVCard::regenerateUserHash() const { return m_regenerateUserHash; }
 
 #endif // BEEBEEP_GUIEDITVCARD_H

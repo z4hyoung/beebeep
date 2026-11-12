@@ -221,6 +221,41 @@ QString ChatMessageModel::timestampTextFor( const ChatMessage& cm ) const
   return date_time_stamp;
 }
 
+static QString senderName( const User& u, const ChatMessage& message )
+{
+  QString name = Bee::userNameToShow( u, false );
+  if( message.isFromAutoresponder() )
+    name = QString( "%1 (%2)" ).arg( name, Settings::instance().autoresponderName() );
+  return name;
+}
+
+void ChatMessageModel::updateUserProfile( const User& u )
+{
+  int first = -1;
+  int last = -1;
+  QPixmap avatar;
+  for( int row = 0; row < m_items.size(); ++row )
+  {
+    ChatMessageItem* item = m_items.at( row );
+    if( item->kind != ChatMessageItem::UserMessage || item->user.id() != u.id() )
+      continue;
+    if( item->user.vCard() == u.vCard() && item->user.color() == u.color() )
+      continue;
+    if( first < 0 )
+    {
+      first = row;
+      avatar = roundedAvatar( u );
+    }
+    item->user = u;
+    item->avatar = avatar;
+    if( item->showName )
+      item->nameText = senderName( u, item->message );
+    last = row;
+  }
+  if( first >= 0 )
+    emit dataChanged( index( first, 0 ), index( last, 0 ) );
+}
+
 ChatMessageItem* ChatMessageModel::createItem( const Chat& c, const ChatMessage& cm )
 {
   Q_UNUSED( c );
@@ -337,12 +372,7 @@ ChatMessageItem* ChatMessageModel::createItem( const Chat& c, const ChatMessage&
   bool append_to_previous = Settings::instance().showMessagesGroupByUser() && m_lastMessageUserId == u.id() && !cm.isImportant();
   item->showName = !item->ownMessage && !m_chatIsPrivate && !append_to_previous;
   if( item->showName )
-  {
-    QString user_name = Bee::userNameToShow( u, false );
-    if( cm.isFromAutoresponder() )
-      user_name = QString( "%1 (%2)" ).arg( user_name, Settings::instance().autoresponderName() );
-    item->nameText = user_name;
-  }
+    item->nameText = senderName( u, cm );
 
   // Classic rich-text content pipeline (emoticons/links/file html are
   // already inside cm.message(); SourceCode keeps its <code> block)
