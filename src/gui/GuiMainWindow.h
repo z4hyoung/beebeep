@@ -32,6 +32,7 @@ class QMenu;
 class QPushButton;
 class QSessionManager;
 class QStackedWidget;
+class QTimer;
 class User;
 
 
@@ -115,20 +116,23 @@ private:
   void refreshChatList( bool restore_selection );
   void updateChatHeader();
   void updateWindowTitle();
+  void updateFooter();
   void updateDockBadge();
   void showAlertForMessage( const Chat&, const ChatMessage& );
   bool showWizard();
 
 private:
   QLineEdit* mp_searchBox;
+  QLabel* mp_searchStatus;
+  QTimer* mp_searchTimer;
   QListView* mp_chatListView;
   ChatListModel* mp_chatListModel;
-  QPushButton* mp_scanDevicesButton;
   QPushButton* mp_profileButton;
-  QPushButton* mp_quitButton;
+  QPushButton* mp_moreButton;
+  QLabel* mp_footerName;
   QLabel* mp_headerName;
-  QLabel* mp_headerStatusDot;
-  QLabel* mp_headerStatus;
+  QLabel* mp_headerWlanBadge;
+  QLabel* mp_headerBtBadge;
   QStackedWidget* mp_chatStack;
   QLabel* mp_chatPlaceholder;
   GuiScanDevices* mp_scanDevices;

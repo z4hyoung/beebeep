@@ -16,7 +16,11 @@
 #include "ChatMessageModel.h"
 #include "ChatMessageDelegate.h"
 #include "GuiChatMessage.h"
+#include "GuiScanDevices.h"
+#include <QLabel>
+#include <QListWidget>
 #include "YongTheme.h"
+#include "BeeUtils.h"
 #include <QTemporaryDir>
 #include <QFile>
 #include <QPainter>
@@ -158,6 +162,7 @@ static QByteArray peerHello( const QString& device_hash )
 
 static void testConcurrentLinks( bool bluetooth_first )
 {
+  Settings::instance().setAvatarIconSize( QSize( 40, 40 ) );
   TestCore core;
   const QByteArray hello = peerHello( "stable-device-hash" );
   Connection* first = core.openLink( bluetooth_first );
@@ -174,6 +179,12 @@ static void testConcurrentLinks( bool bluetooth_first )
   const Core::Transport first_type = bluetooth_first ? Core::Bluetooth : Core::Lan;
   const Core::Transport second_type = bluetooth_first ? Core::Lan : Core::Bluetooth;
   CHECK( badges() == first_type, "single transport badge" );
+  User colored_peer = UserManager::instance().findUser( id );
+  colored_peer.setColor( "#E87543" ); UserManager::instance().setUser( colored_peer );
+  const QImage identity_avatar = index.data( ChatListModel::AvatarRole ).value<QIcon>().pixmap( QSize( 40, 40 ) ).toImage();
+  CHECK( !identity_avatar.isNull() && identity_avatar.pixelColor( 0, 0 ).red() != identity_avatar.pixelColor( 0, 0 ).blue(),
+         "conversation avatar stays colored even while local service is offline" );
+
 
   Connection* impostor = core.openLink( !bluetooth_first );
   emit impostor->authenticationRequested( peerHello( "other-device-same-nickname" ) );
@@ -216,6 +227,9 @@ static void testConcurrentLinks( bool bluetooth_first )
   core.closeConnection( second );
   CHECK( badges() == 0 && core.connectedUsers() == 0, "last link clears badges and count" );
   CHECK( !UserManager::instance().findUser( id ).isStatusConnected(), "last link closed goes offline" );
+  CHECK( index.data( ChatListModel::AvatarRole ).value<QIcon>().pixmap( QSize( 40, 40 ) ).toImage() == identity_avatar,
+         "peer disconnect only removes badges and leaves its avatar unchanged" );
+
 }
 
 static void testChatPresentation()
@@ -316,6 +330,48 @@ static void testChatPresentation()
   }
   CHECK( bubbles == 3 && cards == 1, "legacy history becomes individual bubbles and file card" );
 
+  // Search must include archived messages hidden by the normal display limit.
+  ChatManager::instance().setChat( history );
+  Settings::instance().setChatMessagesToShow( 1 );
+  ChatListModel search;
+  search.reload();
+  // An attached view may read the old rows while model reset begins.
+  QObject::connect( &search, &QAbstractItemModel::modelAboutToBeReset, [&search]()
+  {
+    for( int row=0; row<search.rowCount(); ++row )
+      (void)search.index( row, 0 ).data( ChatListModel::NameRole );
+  } );
+  search.setFilter( QString::fromUtf8( "文件发给你" ) );
+  CHECK( search.rowCount() == 1, "global search finds old message outside visible history limit" );
+  const QModelIndex message_hit = search.index( 0, 0 );
+  CHECK( message_hit.data( ChatListModel::SearchKindRole ).toInt() == ChatListModel::MessageResult,
+         "message search result is distinguished from a contact" );
+  const int target_row = message_hit.data( ChatListModel::SearchRowRole ).toInt();
+  ChatMessageModel target;
+  target.resetFromChat( history, true );
+  CHECK( target.itemAt( target_row ) && target.itemAt( target_row )->plainText.contains( QString::fromUtf8( "文件发给你" ) ),
+         "search result points to exact restored message" );
+  target.highlightSearchResult( target_row, QString::fromUtf8( "文件发给你" ) );
+  CHECK( target.selectedText( target_row ) == QString::fromUtf8( "文件发给你" ), "matched message text is highlighted" );
+  search.setFilter( "FILE-TEST-256kib" );
+  CHECK( search.rowCount() == 1, "file-name search is case insensitive and searches archive" );
+  CHECK( search.index( 0, 0 ).data( ChatListModel::SearchKindRole ).toInt() == ChatListModel::FileResult,
+         "file-name search produces a file result" );
+  target.highlightSearchResult( search.index( 0, 0 ).data( ChatListModel::SearchRowRole ).toInt(), "file-test" );
+  CHECK( target.itemAt( search.index( 0, 0 ).data( ChatListModel::SearchRowRole ).toInt() )->searchHighlight,
+         "file search highlights the exact card" );
+  target.clearAllSelections();
+  CHECK( !target.itemAt( search.index( 0, 0 ).data( ChatListModel::SearchRowRole ).toInt() )->searchHighlight,
+         "normal click clears search highlight" );
+  search.setFilter( "zykj" );
+  CHECK( search.rowCount() == 1 && search.index( 0, 0 ).data( ChatListModel::SearchRowRole ).toInt() == -1,
+         "contact search still works" );
+  search.setFilter( "no-such-message-172934" );
+  CHECK( search.rowCount() == 0, "unmatched search has no stale rows" );
+  search.setFilter( "" );
+  CHECK( search.rowOfChat( history.id() ) >= 0, "clearing search restores the conversation list" );
+  Settings::instance().setChatMessagesToShow( -1 );
+
   model.updateFileStatus( QFileInfo( file ).fileName(), 262144, "Failed", file.fileName(), false );
   CHECK( !card->fileAvailable && card->fileStatus == "Failed", "failure never becomes sent because a local file exists" );
   CHECK( delegate.anchorAt( file_index, file_row, QPoint( x+20, y+30 ) ).isEmpty(), "failed card does not activate unavailable file" );
@@ -347,6 +403,78 @@ static void testChatPresentation()
   }
 }
 
+static void testLastMessageSummary()
+{
+  const auto previous_history = ChatManager::instance().constHistoryMap();
+  User peer; peer.setId( 880020 ); peer.setName( "Summary Peer" ); peer.setColor( "#457AC0" );
+  UserManager::instance().setUser( peer );
+  Group group; group.setId( 880020 ); group.setChatType( Group::PrivateChat );
+  group.setPrivateId( "summary-test" ); group.setName( "summary-test" );
+  group.addUser( ID_LOCAL_USER ); group.addUser( peer.id() );
+  Chat chat; chat.setGroup( group );
+  ChatListModel list;
+  auto summary = [&]()
+  {
+    ChatManager::instance().setChat( chat ); list.reload();
+    return list.index( list.rowOfChat( chat.id() ), 0 ).data( ChatListModel::SummaryRole ).toString();
+  };
+  const QString file_html = "<table><tr><td>icon</td><td><a href=\"file:///tmp/report.txt\">report &amp; final.txt</a><!--yb-file:in:complete:123--></td></tr></table><br>";
+  ChatManager::instance().addSavedChats( { { chat.name(), file_html } } );
+  chat.addMessage( ChatMessage( ID_SYSTEM_MESSAGE, Message( Message::System, ID_SYSTEM_MESSAGE, "Chat with Summary Peer." ), ChatMessage::Header, false ) );
+  CHECK( summary() == ChatListModel::tr( "[File] %1" ).arg( "report & final.txt" ), "restart restores last received file name as conversation preview" );
+  chat.addMessage( ChatMessage( peer.id(), Message( Message::Chat, peer.id(), "Hello\nworld & team" ), ChatMessage::Chat, true ) );
+  chat.addMessage( ChatMessage( ID_SYSTEM_MESSAGE, Message( Message::System, ID_SYSTEM_MESSAGE, "Peer connected" ), ChatMessage::Connection, false ) );
+  CHECK( summary() == "Hello world & team", "last real message wins over connection notices and older archive" );
+  chat.addMessage( ChatMessage( ID_LOCAL_USER, Message( Message::Chat, ID_LOCAL_USER, "Last message" ), ChatMessage::Chat, true ) );
+  CHECK( summary() == ChatListModel::tr( "You: " ) + "Last message", "outgoing preview identifies sender" );
+  chat.addMessage( ChatMessage( ID_SYSTEM_MESSAGE, Message( Message::System, ID_SYSTEM_MESSAGE,
+      "Sent <a href=\"file:///tmp/sent.txt\">sent.txt</a> to peer.<!--yb-file:out:complete:123-->" ), ChatMessage::FileTransfer, true ) );
+  CHECK( summary() == ChatListModel::tr( "You: " ) + ChatListModel::tr( "[File] %1" ).arg( "sent.txt" ), "last file replaces text preview without transfer boilerplate" );
+  const QString saved_text = GuiChatMessage::chatToHtml( chat, true, true, true, true, false, true );
+  ChatManager::instance().addSavedChats( { { chat.name(), saved_text } } );
+  chat = Chat(); chat.setGroup( group );
+  CHECK( summary() == ChatListModel::tr( "You: " ) + "Last message", "changed archive invalidates cached preview and restores last outgoing text" );
+  ChatManager::instance().addSavedChats( previous_history );
+}
+
+static void testPresenceNeutralAvatars()
+{
+  User peer;
+  peer.setId( 880009 ); peer.setName( "Color Peer" ); peer.setColor( "#E87543" );
+  peer.setStatus( User::Online );
+  const QSize size( 40, 40 );
+  const QImage initials_online = Bee::avatarForUser( peer, size, true ).toImage();
+  peer.setStatus( User::Offline );
+  CHECK( Bee::avatarForUser( peer, size, true ).toImage() == initials_online,
+         "initials avatar keeps its identity color while offline" );
+  CHECK( initials_online.pixelColor( 0, 0 ) == QColor( "#E87543" ), "initials avatar has no status-color border" );
+  QPixmap photo( 80, 80 ); photo.fill( QColor( "#2476CC" ) );
+  VCard vcard = peer.vCard(); vcard.setPhoto( photo ); peer.setVCard( vcard );
+  const QImage photo_offline = Bee::avatarForUser( peer, size, true ).toImage();
+  peer.setStatus( User::Online );
+  CHECK( Bee::avatarForUser( peer, size, true ).toImage() == photo_offline,
+         "photo stays in original color across presence changes" );
+  CHECK( photo_offline.pixelColor( 0, 0 ) == QColor( "#2476CC" ), "photo has no presence border or gray filter" );
+}
+
+static void testConnectionPage()
+{
+  TestCore core;
+  Connection* link = core.openLink( false );
+  emit link->authenticationRequested( peerHello( "stable-device-hash" ) );
+  GuiScanDevices page;
+  QLabel* status = page.findChild<QLabel*>( "GuiConnectionStatus" );
+  CHECK( status && status->text().contains( "BadgePeer", Qt::CaseInsensitive ), "connection page lists authenticated LAN peer" );
+  CHECK( status && !status->text().contains( "Scanning", Qt::CaseInsensitive ), "connection page never claims a stopped scan is active" );
+#if defined( Q_OS_MACOS )
+  QListWidget* devices = page.findChild<QListWidget*>();
+  CHECK( devices && devices->isHidden(), "macOS hides unavailable active-discovery list" );
+#endif
+  core.closeConnection( link );
+  page.updateStatus();
+  CHECK( status && !status->text().contains( "BadgePeer", Qt::CaseInsensitive ), "connection page removes disconnected peers" );
+}
+
 int main( int argc, char** argv )
 {
   qputenv( "QT_QPA_PLATFORM", "offscreen" );
@@ -363,6 +491,9 @@ int main( int argc, char** argv )
   testConcurrentLinks( false );
   testConcurrentLinks( true );
   testChatPresentation();
+  testConnectionPage();
+  testPresenceNeutralAvatars();
+  testLastMessageSummary();
   qInfo() << "=== YongBEEP core unit tests:" << g_passed << "passed," << g_failed << "failed ===";
   return g_failed == 0 ? 0 : 1;
 }

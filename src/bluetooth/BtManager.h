@@ -55,7 +55,7 @@ public:
   /*! RFCOMM channel of our listening service (0 if not listening). */
   quint16 listenerPort() const;
 
-  /*! YongBEEP: one-shot manual scan (macOS SDP crash guard path). */
+  /*! YongBEEP: one-shot manual scan on Windows; disabled on macOS by the SDP crash guard. */
   void triggerManualScan();
 
 signals:

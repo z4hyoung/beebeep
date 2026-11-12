@@ -43,6 +43,8 @@
 #include <QListView>
 #include <QMenu>
 #include <QMessageBox>
+#include <QPainter>
+#include <QPainterPath>
 #include <QScreen>
 #include <QSessionManager>
 #include <QSplitter>
@@ -111,7 +113,7 @@ void GuiMainWindow::createGui()
   // ---------- Left panel: search + conversation list (WeChat ~280px) ----------
   mp_searchBox = new QLineEdit( this );
   mp_searchBox->setObjectName( "GuiWeChatSearchBox" );
-  mp_searchBox->setPlaceholderText( tr( "Search" ) );
+  mp_searchBox->setPlaceholderText( tr( "Search chats, messages and files" ) );
   mp_searchBox->setClearButtonEnabled( true );
   mp_searchBox->setFixedHeight( 28 );
   // Leading magnifier icon inside the capsule (light gray, dark on focus)
@@ -150,39 +152,54 @@ void GuiMainWindow::createGui()
   search_layout->setSpacing( 0 );
   search_layout->addWidget( mp_searchBox );
   left_layout->addWidget( search_container );
+  mp_searchStatus = new QLabel( left_panel );
+  mp_searchStatus->setObjectName( "GuiSearchStatus" );
+  mp_searchStatus->setWordWrap( true );
+  mp_searchStatus->setStyleSheet( "QLabel { color: #808080; font-size: 11px; padding: 3px 12px 8px; }" );
+  mp_searchStatus->hide();
+  left_layout->addWidget( mp_searchStatus );
   left_layout->addWidget( mp_chatListView, 1 );
 
-  // Bottom of the left panel: bluetooth scan entry (PRD 4.1 "[＋ 扫描设备]"),
-  // WeChat-style flat green text button with a small bluetooth glyph
-  QWidget* scan_container = new QWidget( left_panel );
-  scan_container->setObjectName( "GuiWeChatScanContainer" );
-  QHBoxLayout* scan_layout = new QHBoxLayout( scan_container );
-  scan_layout->setContentsMargins( 12, 8, 12, 10 );
-  scan_layout->setSpacing( 0 );
-  mp_scanDevicesButton = new QPushButton( tr( "Scan devices" ), scan_container );
-  mp_scanDevicesButton->setObjectName( "GuiWeChatScanDevicesButton" );
-  mp_scanDevicesButton->setIcon( YongTheme::svgIcon( "bluetooth", YongTheme::brandGreen(), QColor(), 14 ) );
-  mp_scanDevicesButton->setIconSize( QSize( 14, 14 ) );
-  mp_scanDevicesButton->setCursor( Qt::PointingHandCursor );
-  scan_layout->addWidget( mp_scanDevicesButton, 0, Qt::AlignHCenter );
-  // YongBEEP: always reachable exit - the tray icon lands in the Windows 11
-  // overflow flyout, and the window close button hides to tray, so without
-  // this the app had no discoverable way to quit.
-  scan_layout->addStretch( 1 );
-  // YongBEEP: profile entry - the WeChat UI had no way to edit the local
-  // nickname and avatar after the first-run wizard.
-  mp_profileButton = new QPushButton( tr( "Profile" ), scan_container );
-  mp_profileButton->setObjectName( "GuiWeChatProfileButton" );
-  mp_profileButton->setIcon( YongTheme::svgIcon( "user", YongTheme::brandGreen(), QColor(), 14 ) );
-  mp_profileButton->setIconSize( QSize( 14, 14 ) );
+  // A compact account footer; infrequent actions live in the More menu.
+  QWidget* footer = new QWidget( left_panel );
+  footer->setObjectName( "GuiAccountFooter" );
+  footer->setAttribute( Qt::WA_StyledBackground, true );
+  QHBoxLayout* footer_layout = new QHBoxLayout( footer );
+  footer_layout->setContentsMargins( 12, 12, 12, 12 );
+  footer_layout->setSpacing( 10 );
+  mp_profileButton = new QPushButton( footer );
+  mp_profileButton->setObjectName( "GuiAccountAvatar" );
+  mp_profileButton->setFixedSize( 36, 36 );
+  mp_profileButton->setIconSize( QSize( 32, 32 ) );
+  mp_profileButton->setToolTip( tr( "Edit profile" ) );
+  mp_profileButton->setAccessibleName( tr( "Edit profile" ) );
   mp_profileButton->setCursor( Qt::PointingHandCursor );
-  scan_layout->addWidget( mp_profileButton, 0, Qt::AlignRight );
-  mp_quitButton = new QPushButton( tr( "Quit" ), scan_container );
-  mp_quitButton->setObjectName( "GuiWeChatQuitButton" );
-  mp_quitButton->setCursor( Qt::PointingHandCursor );
-  mp_quitButton->setToolTip( tr( "Quit %1" ).arg( Settings::instance().programName() ) );
-  scan_layout->addWidget( mp_quitButton, 0, Qt::AlignRight );
-  left_layout->addWidget( scan_container );
+  footer_layout->addWidget( mp_profileButton );
+  mp_footerName = new QLabel( footer );
+  mp_footerName->setObjectName( "GuiAccountName" );
+  mp_footerName->setTextFormat( Qt::PlainText );
+  mp_footerName->setSizePolicy( QSizePolicy::Ignored, QSizePolicy::Preferred );
+  mp_footerName->setAlignment( Qt::AlignVCenter );
+  footer_layout->addWidget( mp_footerName, 1 );
+
+  mp_moreButton = new QPushButton( footer );
+  mp_moreButton->setObjectName( "GuiAccountMore" );
+  mp_moreButton->setIcon( YongTheme::svgIcon( "more", YongTheme::iconGray(), QColor(), 20 ) );
+  mp_moreButton->setIconSize( QSize( 20, 20 ) );
+  mp_moreButton->setFixedSize( 32, 32 );
+  mp_moreButton->setCursor( Qt::PointingHandCursor );
+  mp_moreButton->setToolTip( tr( "More" ) );
+  mp_moreButton->setAccessibleName( tr( "More" ) );
+  QMenu* account_menu = new QMenu( mp_moreButton );
+  account_menu->setObjectName( "GuiAccountMenu" );
+  account_menu->addAction( tr( "Edit profile" ), this, &GuiMainWindow::editLocalVCard );
+  account_menu->addAction( tr( "Connection & devices" ), this, &GuiMainWindow::openScanDevicesDialog );
+  account_menu->addSeparator();
+  account_menu->addAction( tr( "Quit %1" ).arg( Settings::instance().programName() ), this, &GuiMainWindow::confirmQuit );
+  mp_moreButton->setMenu( account_menu );
+  footer_layout->addWidget( mp_moreButton );
+  left_layout->addWidget( footer );
+  updateFooter();
 
   // ---------- Right panel: chat header + embedded GuiChat ----------
   mp_headerName = new QLabel( this );
@@ -193,36 +210,34 @@ void GuiMainWindow::createGui()
   mp_headerName->setFont( header_font );
 
   // Connection status: 8px dot + 12px text (green/orange/gray, S4c spec)
-  mp_headerStatusDot = new QLabel( this );
-  mp_headerStatusDot->setObjectName( "GuiWeChatHeaderDot" );
-  mp_headerStatusDot->setFixedSize( 8, 8 );
-  mp_headerStatusDot->setStyleSheet( QString( "border-radius: 4px; background: %1;" ).arg( YongTheme::textSecondary().name() ) );
-
-  mp_headerStatus = new QLabel( this );
-  mp_headerStatus->setObjectName( "GuiWeChatHeaderStatus" );
-  QFont status_font = mp_headerStatus->font();
-  status_font.setPixelSize( YongTheme::fontAuxPx() );
-  mp_headerStatus->setFont( status_font );
+  mp_headerWlanBadge = new QLabel( "WLAN", this );
+  mp_headerWlanBadge->setObjectName( "GuiHeaderWlanBadge" );
+  mp_headerWlanBadge->setStyleSheet( "color: #2563B9; background: #EAF1FB; border-radius: 7px; padding: 3px 8px; font-size: 11px;" );
+  mp_headerWlanBadge->setToolTip( tr( "LAN connection active" ) );
+  mp_headerBtBadge = new QLabel( "BT", this );
+  mp_headerBtBadge->setObjectName( "GuiHeaderBtBadge" );
+  mp_headerBtBadge->setStyleSheet( "color: #147653; background: #E8F5ED; border-radius: 7px; padding: 3px 8px; font-size: 11px;" );
+  mp_headerBtBadge->setToolTip( tr( "Bluetooth connection active" ) );
+  mp_headerWlanBadge->hide();
+  mp_headerBtBadge->hide();
 
   QWidget* header_panel = new QWidget( this );
   header_panel->setObjectName( "GuiWeChatHeader" );
   QHBoxLayout* header_layout = new QHBoxLayout( header_panel );
   header_layout->setContentsMargins( 16, 10, 16, 10 );
   header_layout->setSpacing( 6 );
-  // YongBEEP: dot + status text grouped in their own centered box so every
-  // element shares one centerline regardless of per-label height differences
+  // Only authenticated WLAN/BT badges convey peer presence.
   QWidget* status_group = new QWidget( header_panel );
   QHBoxLayout* status_layout = new QHBoxLayout( status_group );
   status_layout->setContentsMargins( 0, 0, 0, 0 );
   status_layout->setSpacing( 5 );
-  status_layout->addWidget( mp_headerStatusDot, 0, Qt::AlignVCenter );
-  status_layout->addWidget( mp_headerStatus, 0, Qt::AlignVCenter );
+  status_layout->addWidget( mp_headerWlanBadge, 0, Qt::AlignVCenter );
+  status_layout->addWidget( mp_headerBtBadge, 0, Qt::AlignVCenter );
   mp_headerName->setAlignment( Qt::AlignVCenter );
   header_layout->addWidget( mp_headerName, 1 );
   header_layout->addWidget( status_group, 0, Qt::AlignVCenter );
-  // YongBEEP: fixed-height labels so name/dot/status truly share a centerline
+  // Keep the title at a consistent height as conversations change.
   mp_headerName->setFixedHeight( 24 );
-  mp_headerStatus->setFixedHeight( 18 );
 
   mp_chatPlaceholder = new QLabel( tr( "Select a chat to start messaging" ), this );
   mp_chatPlaceholder->setObjectName( "GuiWeChatPlaceholder" );
@@ -277,12 +292,25 @@ void GuiMainWindow::createGui()
   mp_menuTrayIcon->addAction( IconManager::instance().icon( "quit.png" ), tr( "Quit" ), this, SLOT( quitFromTray() ) );
   mp_trayIcon->setContextMenu( mp_menuTrayIcon );
 
-  connect( mp_searchBox, SIGNAL( textChanged( const QString& ) ), this, SLOT( filterTextChanged( const QString& ) ) );
+  mp_searchTimer = new QTimer( this );
+  mp_searchTimer->setSingleShot( true );
+  mp_searchTimer->setInterval( 180 );
+  connect( mp_searchBox, &QLineEdit::textChanged, this, [this]() { mp_searchTimer->start(); } );
+  connect( mp_searchTimer, &QTimer::timeout, this, [this]() { filterTextChanged( mp_searchBox->text() ); } );
+  connect( mp_searchBox, &QLineEdit::returnPressed, this, [this]()
+  {
+    mp_searchTimer->stop();
+    filterTextChanged( mp_searchBox->text() );
+    if( mp_chatListModel->rowCount() > 0 )
+    {
+      const QModelIndex first = mp_chatListModel->index( 0, 0 );
+      mp_chatListView->setCurrentIndex( first );
+      chatActivated( first );
+    }
+  } );
   connect( mp_chatListView, SIGNAL( clicked( const QModelIndex& ) ), this, SLOT( chatActivated( const QModelIndex& ) ) );
   connect( mp_chatListView, SIGNAL( activated( const QModelIndex& ) ), this, SLOT( chatActivated( const QModelIndex& ) ) );
-  connect( mp_scanDevicesButton, SIGNAL( clicked() ), this, SLOT( openScanDevicesDialog() ) );
   connect( mp_profileButton, SIGNAL( clicked() ), this, SLOT( editLocalVCard() ) );
-  connect( mp_quitButton, SIGNAL( clicked() ), this, SLOT( confirmQuit() ) );
   connect( mp_trayIcon, SIGNAL( activated( QSystemTrayIcon::ActivationReason ) ), this, SLOT( trayIconActivated( QSystemTrayIcon::ActivationReason ) ) );
   connect( qApp, SIGNAL( focusChanged( QWidget*, QWidget* ) ), this, SLOT( onApplicationFocusChanged( QWidget*, QWidget* ) ) );
 
@@ -421,16 +449,26 @@ void GuiMainWindow::chatActivated( const QModelIndex& index )
   if( !index.isValid() )
     return;
   VNumber chat_id = Bee::qVariantToVNumber( index.data( ChatListModel::ChatIdRole ) );
-  if( chat_id != ID_INVALID && chat_id != m_currentChatId )
-    showChat( chat_id );
+  if( chat_id == ID_INVALID ) return;
+  const int row = index.data( ChatListModel::SearchRowRole ).toInt();
+  if( chat_id != m_currentChatId || row >= 0 ) showChat( chat_id );
+  if( row >= 0 )
+  {
+    GuiChat* chat = chatWidget( chat_id, false );
+    if( chat ) chat->revealSearchResult( row, index.data( ChatListModel::SearchQueryRole ).toString() );
+  }
 }
 
 
 void GuiMainWindow::filterTextChanged( const QString& txt )
 {
   mp_chatListModel->setFilter( txt );
-  if( mp_chatListModel->rowCount() > 0 && mp_chatListModel->rowOfChat( m_currentChatId ) < 0 )
-    selectFirstChat();
+  const bool searching = !txt.trimmed().isEmpty();
+  mp_searchStatus->setVisible( searching );
+  mp_searchStatus->setText( mp_chatListModel->rowCount() > 0
+      ? tr( "%1 results" ).arg( mp_chatListModel->rowCount() )
+      : tr( "No matching chats, messages or files" ) );
+  // Keep typing focus in the search box; open a result only on click/Enter.
 }
 
 
@@ -438,6 +476,8 @@ void GuiMainWindow::refreshChatList( bool restore_selection )
 {
   VNumber chat_id_to_restore = restore_selection ? m_currentChatId : ID_INVALID;
   mp_chatListModel->reload();
+  if( !mp_searchBox->text().trimmed().isEmpty() )
+    mp_searchStatus->setText( mp_chatListModel->rowCount() > 0 ? tr( "%1 results" ).arg( mp_chatListModel->rowCount() ) : tr( "No matching chats, messages or files" ) );
 
   int row = mp_chatListModel->rowOfChat( chat_id_to_restore );
   if( row >= 0 )
@@ -472,7 +512,8 @@ void GuiMainWindow::updateChatHeader()
   if( !c.isValid() )
   {
     mp_headerName->setText( Settings::instance().programName() );
-    mp_headerStatus->setText( QString() );
+    mp_headerWlanBadge->hide();
+    mp_headerBtBadge->hide();
     return;
   }
 
@@ -485,53 +526,16 @@ void GuiMainWindow::updateChatHeader()
   }
   mp_headerName->setText( chat_name );
 
-  // Connection indicator driven by the Core user signals (S3-4b):
-  // green when the peer is connected, yellow while connecting, red offline.
-  bool peer_online = false;
-  if( c.isDefault() )
-    peer_online = beeCore->isConnected() && beeCore->connectedUsers() > 0;
-  else
-  {
-    foreach( User u, UserManager::instance().userList().fromUsersId( c.usersId() ).toList() )
-    {
-      if( !u.isLocal() && u.isValid() && u.isStatusConnected() )
-        peer_online = true;
-    }
-  }
-
-  // Connection indicator (S4c WeChat spec): 8px status dot + plain 12px text,
-  // green online / orange connecting / gray offline - no emoji glyphs.
-  QColor status_color = YongTheme::textSecondary();
-  QString status_text = tr( "Disconnected" );
-  if( peer_online )
-  {
-    status_color = YongTheme::brandGreen();
-    const Core::Transports links = c.isPrivate() ? beeCore->connectedTransports( c.privateUserId() ) : Core::Transports();
-    if( links.testFlag( Core::Lan ) && links.testFlag( Core::Bluetooth ) )
-      status_text = tr( "Connected · LAN + Bluetooth" );
-    else if( links.testFlag( Core::Lan ) )
-      status_text = tr( "Connected · LAN" );
-    else if( links.testFlag( Core::Bluetooth ) )
-      status_text = tr( "Connected · Bluetooth" );
-    else
-      status_text = tr( "Connected" );
-  }
-  else if( m_coreIsConnecting || (beeCore->btManager() && beeCore->btManager()->isActive()) )
-  {
-    status_color = YongTheme::connectingOrange();
-    status_text = tr( "Connecting" );
-  }
-
-  mp_headerStatusDot->setStyleSheet( QString( "border-radius: 4px; background: %1;" ).arg( status_color.name() ) );
-  mp_headerStatus->setText( status_text );
-  mp_headerStatus->setStyleSheet( QString( "color: %1; background: transparent;" ).arg( status_color.name() ) );
+  const Core::Transports links = c.isPrivate() ? beeCore->connectedTransports( c.privateUserId() ) : Core::Transports();
+  mp_headerWlanBadge->setVisible( links.testFlag( Core::Lan ) );
+  mp_headerBtBadge->setVisible( links.testFlag( Core::Bluetooth ) );
 }
 
 
 void GuiMainWindow::updateWindowTitle()
 {
   // S4c WeChat spec: keep the title bar native and clean - the connection
-  // state lives in the chat header status dot, no emoji glyph in the title.
+  // peer presence lives in authenticated WLAN/BT badges.
   setWindowTitle( Settings::instance().programName() );
 }
 
@@ -549,14 +553,16 @@ void GuiMainWindow::openScanDevicesDialog()
   if( !mp_scanDevices )
   {
     mp_scanDevices = new GuiScanDevices( this );
-    connect( mp_scanDevices, SIGNAL( finished() ), this, SLOT( updateWindowTitle() ) );
+    connect( mp_scanDevices, &QDialog::finished, this, &GuiMainWindow::updateWindowTitle );
   }
 
-  // YongBEEP macOS SDP crash guard: discovery is manual-only there - kick
-  // one safe single-shot scan every time the dialog opens
+#if defined( Q_OS_WIN )
+  // Windows can request an immediate discovery cycle in addition to its timer.
   if( beeCore && beeCore->btManager() )
     beeCore->btManager()->triggerManualScan();
+#endif
 
+  mp_scanDevices->updateStatus();
   if( !mp_scanDevices->isVisible() )
   {
     mp_scanDevices->adjustSize();
@@ -692,7 +698,10 @@ void GuiMainWindow::onUserChanged( const User& u )
 {
   refreshChatList( true );
   if( u.isLocal() )
+  {
     updateWindowTitle();
+    updateFooter();
+  }
   updateChatHeader();
 }
 
@@ -701,7 +710,7 @@ void GuiMainWindow::onUserConnectionStatusChanged( const User& u )
 {
   refreshChatList( true );
   updateChatHeader();
-  // Any user going online/offline changes the connection status dot (S3-4b)
+  // Peer link changes refresh the authenticated transport badges.
   Q_UNUSED( u );
   updateWindowTitle();
 }
@@ -709,6 +718,7 @@ void GuiMainWindow::onUserConnectionStatusChanged( const User& u )
 
 void GuiMainWindow::onCoreConnected()
 {
+  updateFooter();
   m_coreIsConnecting = false;
   updateWindowTitle();
   updateChatHeader();
@@ -723,6 +733,7 @@ void GuiMainWindow::onCoreConnected()
 
 void GuiMainWindow::onCoreDisconnected()
 {
+  updateFooter();
   m_coreIsConnecting = false;
   updateWindowTitle();
   updateChatHeader();
@@ -1143,6 +1154,25 @@ void GuiMainWindow::confirmQuit()
     quitFromTray();
 }
 
+void GuiMainWindow::updateFooter()
+{
+  const User& local = Settings::instance().localUser();
+  mp_footerName->setText( local.name() );
+  mp_footerName->setToolTip( local.name() );
+  QPixmap image = Bee::avatarForUser( local, QSize( 64, 64 ), true );
+  QPixmap avatar( 64, 64 );
+  avatar.fill( Qt::transparent );
+  QPainter painter( &avatar );
+  painter.setRenderHint( QPainter::Antialiasing );
+  QPainterPath clip;
+  clip.addRoundedRect( QRectF( 0, 0, 64, 64 ), 12, 12 );
+  painter.setClipPath( clip );
+  painter.drawPixmap( 0, 0, image );
+  painter.end();
+  avatar.setDevicePixelRatio( 2 );
+  mp_profileButton->setIcon( QIcon( avatar ) );
+}
+
 void GuiMainWindow::editLocalVCard()
 {
   GuiEditVCard dialog( this );
@@ -1227,6 +1257,17 @@ void GuiMainWindow::takeScreenshot( const QString& file_path )
     qDebug() << "Scan dialog screenshot" << ( scan_saved ? "saved to" : "FAILED for" ) << scan_path << "size" << scan_screenshot.size();
   }
 
+  if( QMenu* menu = findChild<QMenu*>( "GuiAccountMenu" ) )
+  {
+    if( menu->isVisible() )
+    {
+      QString menu_path = file_path;
+      const int dot = menu_path.lastIndexOf( QLatin1Char( '.' ) );
+      if( dot >= 0 ) menu_path.insert( dot, "-menu" ); else menu_path += "-menu.png";
+      menu->grab().save( menu_path );
+      menu->hide();
+    }
+  }
   forceShutdown();
 }
 

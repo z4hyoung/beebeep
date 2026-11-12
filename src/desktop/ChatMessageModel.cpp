@@ -30,7 +30,7 @@
 
 
 ChatMessageItem::ChatMessageItem()
-  : kind( ChatMessageItem::SystemLine ), ownMessage( false ), showTimestamp( false ), showName( false ),
+  : kind( ChatMessageItem::SystemLine ), ownMessage( false ), searchHighlight( false ), showTimestamp( false ), showName( false ),
     markdown( false ), fileAvailable( false ), fileProgressBytes( 0 ), fileProgressTotal( 0 ), fileProgressElapsed( 0 ),
     selectionAnchor( -1 ), selectionPosition( -1 ),
     doc( Q_NULLPTR ), laidOutForWidth( -1.0 )
@@ -253,7 +253,7 @@ void ChatMessageModel::updateUserProfile( const User& u )
   for( int row = 0; row < m_items.size(); ++row )
   {
     ChatMessageItem* item = m_items.at( row );
-    if( item->kind != ChatMessageItem::UserMessage || item->user.id() != u.id() )
+    if( (item->kind != ChatMessageItem::UserMessage && item->kind != ChatMessageItem::FileCard) || item->user.id() != u.id() )
       continue;
     if( item->user.vCard() == u.vCard() && item->user.color() == u.color() )
       continue;
@@ -519,6 +519,21 @@ void ChatMessageModel::updateFileStatus( const QString& file_name, FileSizeType 
   }
 }
 
+void ChatMessageModel::highlightSearchResult( int row, const QString& query )
+{
+  clearAllSelections();
+  ChatMessageItem* item = itemAt( row );
+  if( !item ) return;
+  item->searchHighlight = true;
+  if( item->kind == ChatMessageItem::UserMessage )
+  {
+    ensureLayout( item );
+    const int start = item->doc->toPlainText().indexOf( query, 0, Qt::CaseInsensitive );
+    if( start >= 0 ) setItemSelection( row, start, start + query.size() );
+  }
+  emit dataChanged( index( row, 0 ), index( row, 0 ) );
+}
+
 void ChatMessageModel::setItemSelection( int row, int anchor, int position )
 {
   ChatMessageItem* item = itemAt( row );
@@ -534,8 +549,9 @@ void ChatMessageModel::clearAllSelections()
   for( int i = 0; i < m_items.size(); ++i )
   {
     ChatMessageItem* item = m_items.at( i );
-    if( item->selectionAnchor >= 0 )
+    if( item->selectionAnchor >= 0 || item->searchHighlight )
     {
+      item->searchHighlight = false;
       item->selectionAnchor = -1;
       item->selectionPosition = -1;
       emit dataChanged( index( i, 0 ), index( i, 0 ) );
@@ -588,7 +604,7 @@ QString ChatMessageModel::selectedText( int row ) const
   return plain.mid( start, end - start );
 }
 
-void ChatMessageModel::resetFromChat( const Chat& c )
+void ChatMessageModel::resetFromChat( const Chat& c, bool all_history )
 {
   beginResetModel();
   clearItems();
@@ -599,11 +615,11 @@ void ChatMessageModel::resetFromChat( const Chat& c )
 
   int missed_lines = -1;
   int num_messages = c.messages().size();
-  int msg_lines = Settings::instance().chatMessagesToShow() >= 0 ? qMin( num_messages, Settings::instance().chatMessagesToShow() ) : num_messages;
-  int history_lines = Settings::instance().chatMessagesToShow() >= 0 ? qMax( 0, Settings::instance().chatMessagesToShow() - msg_lines ) : -1;
+  int msg_lines = !all_history && Settings::instance().chatMessagesToShow() >= 0 ? qMin( num_messages, Settings::instance().chatMessagesToShow() ) : num_messages;
+  int history_lines = !all_history && Settings::instance().chatMessagesToShow() >= 0 ? qMax( 0, Settings::instance().chatMessagesToShow() - msg_lines ) : -1;
 
   bool history_shown = ChatManager::instance().isLoadHistoryCompleted() &&
-                       !Settings::instance().chatMessageFilter().testBit( static_cast<int>( ChatMessage::History ) ) &&
+                       (all_history || !Settings::instance().chatMessageFilter().testBit( static_cast<int>( ChatMessage::History ) )) &&
                        history_lines != 0;
 
   QList<ChatMessageItem*> new_items;
@@ -637,7 +653,7 @@ void ChatMessageModel::resetFromChat( const Chat& c )
 
   // Limit-reached notice ("only the last N messages are shown") - keeps the
   // beeshowsavedchat link, which the delegate routes to openUrl
-  if( Settings::instance().chatMessagesToShow() >= 0 && (missed_lines > 0 || num_messages > msg_lines) )
+  if( !all_history && Settings::instance().chatMessagesToShow() >= 0 && (missed_lines > 0 || num_messages > msg_lines) )
   {
     QUrl saved_chat_url;
     saved_chat_url.setUrl( QString( "#%1" ).arg( c.id() ) );
@@ -661,7 +677,7 @@ void ChatMessageModel::resetFromChat( const Chat& c )
       num_messages--;
       continue;
     }
-    if( !messageCanBeShowed( cm ) )
+    if( cm.isHeader() || (!all_history && !messageCanBeShowed( cm )) )
       continue;
     ChatMessageItem* item = createItem( c, cm );
     if( item )
@@ -721,7 +737,7 @@ QList<ChatMessageItem*> ChatMessageModel::itemsFromSavedHtml( const Chat& c, con
         item->user = UserManager::instance().findUser( own ? ID_LOCAL_USER : c.privateUserId() );
         item->avatar = roundedAvatar( item->user );
         const auto avatar = QRegularExpression( "src=['\"]([^'\"]+)" ).match( cells.at( own ? 3 : 0 ) );
-        if( avatar.hasMatch() )
+        if( !item->user.isValid() && avatar.hasMatch() )
         {
           QPixmap saved_avatar( QUrl( avatar.captured( 1 ) ).toLocalFile() );
           if( !saved_avatar.isNull() )

@@ -413,6 +413,22 @@ void GuiChat::copySelectionToClipboard()
   }
 }
 
+void GuiChat::revealSearchResult( int row, const QString& query )
+{
+  const Chat c = ChatManager::instance().chat( m_chatId );
+  if( !c.isValid() ) return;
+  mp_messageModel->resetFromChat( c, true );
+  const ChatMessageItem* item = mp_messageModel->itemAt( row );
+  if( !item || !item->plainText.contains( query, Qt::CaseInsensitive ) )
+    row = mp_messageModel->findPlainText( query, -1, true );
+  if( row < 0 ) return;
+  mp_messageModel->highlightSearchResult( row, query );
+  mp_lvChat->doItemsLayout();
+  mp_lvChat->scrollTo( mp_messageModel->index( row, 0 ), QAbstractItemView::PositionAtCenter );
+  m_lastTextFound = query;
+  m_lastFindRow = row;
+}
+
 void GuiChat::registerDemoMarkdownTexts( const QStringList& raw_texts )
 {
   mp_messageModel->registerMarkdownTexts( raw_texts );

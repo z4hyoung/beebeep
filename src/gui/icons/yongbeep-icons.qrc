@@ -2,6 +2,7 @@
 <RCC version="1.0">
     <qresource prefix="/yongbeep/icons">
         <file>search.svg</file>
+        <file>more.svg</file>
         <file>user.svg</file>
         <file>smile.svg</file>
         <file>paperclip.svg</file>

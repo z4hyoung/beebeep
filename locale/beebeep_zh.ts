@@ -3,6 +3,13 @@
 <TS version="2.1" language="zh_CN">
 <context>
     <name>ChatListModel</name>
+    <message><source>[File] %1</source><translation>[文件] %1</translation></message>
+    <message><source>[Image]</source><translation>[图片]</translation></message>
+    <message><source>[Voice]</source><translation>[语音]</translation></message>
+    <message><source>Contact</source><translation>联系人</translation></message>
+    <message><source>File · %1 · %2</source><translation>文件 · %1 · %2</translation></message>
+    <message><source>Message · %1</source><translation>消息 · %1</translation></message>
+
     <message>
         <location filename="../src/gui/ChatListModel.cpp" line="43"/>
         <source>You: </source>
@@ -4570,6 +4577,18 @@ Please select a different name.</source>
 </context>
 <context>
     <name>GuiMainWindow</name>
+    <message><source>LAN connection active</source><translation>WLAN 已连接</translation></message>
+    <message><source>Bluetooth connection active</source><translation>蓝牙已连接</translation></message>
+    <message><source>Edit profile</source><translation>编辑个人资料</translation></message>
+    <message><source>More</source><translation>更多</translation></message>
+    <message><source>Connection &amp; devices</source><translation>连接与设备</translation></message>
+    <message><source>LAN auto-discovery</source><translation>局域网自动发现</translation></message>
+    <message><source>Not connected</source><translation>未连接</translation></message>
+
+    <message><source>Search chats, messages and files</source><translation>搜索聊天、消息和文件</translation></message>
+    <message><source>%1 results</source><translation>%1 条搜索结果</translation></message>
+    <message><source>No matching chats, messages or files</source><translation>未找到匹配的聊天、消息或文件</translation></message>
+
     <message>
         <source>Search chat</source>
         <translation type="vanished">搜索会话</translation>
@@ -5677,6 +5696,23 @@ Please select a different name.</source>
 </context>
 <context>
     <name>GuiScanDevices</name>
+    <message><source>Connection &amp; devices</source><translation>连接与设备</translation></message>
+    <message><source>Nearby devices connect automatically over LAN. Use this page to check connections or Bluetooth pairing.</source><translation>局域网内设备会自动发现并连接。此处可查看连接状态或进行蓝牙配对。</translation></message>
+    <message><source>Nearby Bluetooth devices</source><translation>附近的蓝牙设备</translation></message>
+    <message><source>Mac receives Bluetooth connections initiated by Windows. Keep YongBEEP open on both devices. Pair the computers once in system Bluetooth settings if needed.</source><translation>Mac 会接收 Windows 发起的蓝牙连接。请保持两端 YongBEEP 开启；首次使用蓝牙时，可先在系统设置中配对。</translation></message>
+    <message><source>Bluetooth devices are discovered automatically. If a connection fails, pair the computers once in system Bluetooth settings, then refresh the list.</source><translation>蓝牙设备会自动发现。若连接失败，请先在系统设置中配对两台电脑，然后刷新设备列表。</translation></message>
+    <message><source>Bluetooth settings</source><translation>蓝牙设置</translation></message>
+    <message><source>Refresh devices</source><translation>刷新设备</translation></message>
+    <message><source>LAN · automatic discovery enabled</source><translation>局域网 · 已开启自动发现</translation></message>
+    <message><source>LAN · not connected</source><translation>局域网 · 未连接</translation></message>
+    <message><source>Bluetooth · ready to receive connections</source><translation>蓝牙 · 可接收对方连接</translation></message>
+    <message><source>Bluetooth · not ready</source><translation>蓝牙 · 尚未就绪</translation></message>
+    <message><source>Bluetooth · automatic discovery enabled</source><translation>蓝牙 · 已开启自动发现</translation></message>
+    <message><source>Connected devices</source><translation>已连接设备</translation></message>
+    <message><source>No devices connected yet</source><translation>暂未连接其他设备</translation></message>
+    <message><source>LAN</source><translation>局域网</translation></message>
+    <message><source>Bluetooth</source><translation>蓝牙</translation></message>
+
     <message>
         <location filename="../src/gui/GuiScanDevices.cpp" line="24"/>
         <source>%1 - Scan devices</source>

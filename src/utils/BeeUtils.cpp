@@ -601,81 +601,23 @@ bool Bee::folderIsWriteable( const QString& folder_path, bool create_folder_if_n
     return false;
 }
 
-static int GetBoxSize( int pix_size )
-{
-  int box_size = pix_size > 10 ? pix_size / 10 : 1;
-  if( box_size % 2 > 7 )
-    box_size++;
-  box_size = qMax( 1, box_size );
-  return box_size;
-}
-
 QPixmap Bee::avatarForUser( const User& u, const QSize& avatar_size, bool use_available_user_image, int user_status )
 {
-  QPixmap user_avatar;
-  bool default_avatar_used = false;
-  if( user_status < 0 )
-    user_status = u.status();
-  if( u.vCard().photo().isNull() || !use_available_user_image )
+  // Avatars represent identity. Presence is shown by authenticated link badges.
+  Q_UNUSED( user_status );
+  if( use_available_user_image && !u.vCard().photo().isNull() )
   {
-    default_avatar_used = true;
-    Avatar av;
-    av.setName( u.isValid() ? (Settings::instance().useUserFullName() && u.vCard().hasFullName() ? u.vCard().fullName( Settings::instance().useUserFirstNameFirstInFullName() ) : u.name()) : "??" );
-    if( u.isStatusConnected() )
-      av.setColor( u.color() );
-    else
-      av.setColor( QColor( Qt::gray ).name() );
-    av.setSize( avatar_size );
-    if( !av.create() )
-    {
-      user_avatar = QIcon( Bee::menuUserStatusIconFileName( user_status ) ).pixmap( avatar_size );
-      return user_avatar;
-    }
-    else
-      user_avatar = av.pixmap();
+    const QPixmap photo = u.vCard().photo().scaled( avatar_size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation );
+    return photo.copy( (photo.width() - avatar_size.width()) / 2,
+                       (photo.height() - avatar_size.height()) / 2,
+                       avatar_size.width(), avatar_size.height() );
   }
-  else
-  {
-    user_avatar = u.vCard().photo().scaled( avatar_size );
-    if( !u.isStatusConnected() )
-    {
-      user_avatar = convertToGrayScale(user_avatar );
-      return user_avatar;
-    }
-  }
-
-  int pix_height = user_avatar.height();
-  int pix_width = user_avatar.width();
-  int box_height = GetBoxSize( pix_height );
-  int box_width = GetBoxSize( pix_width );
-  int box_start_height = qMax( 1, box_height / 2 );
-  int box_start_width = qMax( 1, box_width / 2 );
-
-  QPixmap pix( pix_width, pix_height );
-  QPainter p( &pix );
-  if( !default_avatar_used )
-  {
-    pix.fill( Bee::userStatusColor( user_status ) );
-    p.drawPixmap( box_start_width, box_start_height, pix_width - box_width, pix_height - box_height, user_avatar.scaled( pix_width - box_width, pix_height - box_height ) );
-  }
-  else
-  {
-    p.drawPixmap( 0, 0, pix_width, pix_height, user_avatar );
-    p.setPen( Bee::userStatusColor( user_status ) );
-    for( int i = 0; i < box_height; i++ )
-    {
-      p.drawLine( 0, i, pix_width, i );
-      p.drawLine( 0, pix_height-box_height+i, pix_width, pix_height-box_height+i );
-    }
-
-    for( int i = 0; i < box_width; i++ )
-    {
-      p.drawLine( i, 0, i, pix_height );
-      p.drawLine( pix_width-box_width+i, 0, pix_width-box_width+i, pix_height );
-    }
-  }
-
-  return pix;
+  Avatar avatar;
+  avatar.setName( u.isValid() ? (Settings::instance().useUserFullName() && u.vCard().hasFullName()
+      ? u.vCard().fullName( Settings::instance().useUserFirstNameFirstInFullName() ) : u.name()) : "??" );
+  avatar.setColor( u.color() );
+  avatar.setSize( avatar_size );
+  return avatar.create() ? avatar.pixmap() : IconManager::instance().icon( "user.png" ).pixmap( avatar_size );
 }
 
 QString Bee::toolTipForUser( const User& u, bool only_status )

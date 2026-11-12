@@ -44,6 +44,7 @@ public:
   ChatMessage message;
   User user;
   bool ownMessage;
+  bool searchHighlight;
 
   bool showTimestamp;
   QString timestampText;
@@ -100,7 +101,7 @@ public:
   int rowCount( const QModelIndex& parent = QModelIndex() ) const override;
   QVariant data( const QModelIndex& index, int role ) const override;
 
-  void resetFromChat( const Chat& c );
+  void resetFromChat( const Chat& c, bool all_history = false );
   void updateUserProfile( const User& );
   bool appendMessage( const Chat& c, const ChatMessage& cm );
 
@@ -115,6 +116,7 @@ public:
   // --- YongBEEP partial text selection (delegate draws the highlight) ---
   void setItemSelection( int row, int anchor, int position );
   void clearAllSelections();
+  void highlightSearchResult( int row, const QString& query );
   void selectWordAt( int row, int position );
   bool hasSelection( int row ) const;
   /*! Selected plain text of a row (empty when no selection). */

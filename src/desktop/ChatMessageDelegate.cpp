@@ -253,7 +253,7 @@ void ChatMessageDelegate::paint( QPainter* painter, const QStyleOptionViewItem& 
     const QRectF card = fileCardRect( item, row_rect, top, row_width );
     if( !item->avatar.isNull() )
       painter->drawPixmap( avatarRect( item, row_rect, top ), item->avatar );
-    painter->setPen( QPen( dark ? QColor( "#4c5058" ) : QColor( "#E8E8E8" ), 1 ) );
+    painter->setPen( QPen( item->searchHighlight ? YongTheme::brandGreen() : (dark ? QColor( "#4c5058" ) : QColor( "#E8E8E8" )), item->searchHighlight ? 2 : 1 ) );
     painter->setBrush( dark ? QColor( "#3c4048" ) : Qt::white );
     painter->drawRoundedRect( card.adjusted( 0.5, 0.5, -0.5, -0.5 ), 8, 8 );
 

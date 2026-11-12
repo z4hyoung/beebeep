@@ -66,6 +66,7 @@ public:
   // YongBEEP S4e debug hook (--demo-chat): pre-register raw markdown texts so
   // the matching demo messages render with setMarkdown (see ChatMessageModel)
   void registerDemoMarkdownTexts( const QStringList& raw_texts );
+  void revealSearchResult( int row, const QString& query );
 
   inline QSplitter* chatSplitter() const;
   void editChatMembers();

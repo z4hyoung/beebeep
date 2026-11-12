@@ -54,6 +54,10 @@
   #include "SpellChecker.h"
 #endif
 #include <QTimer>
+#include <QLineEdit>
+#include <QListView>
+#include <QPushButton>
+#include <QMenu>
 
 
 bool SetTranslator( QTranslator* translator, QString language_folder, QString lang )
@@ -443,6 +447,35 @@ int main( int argc, char *argv[] )
         const Chat c = ChatManager::instance().findChatByName( review_chat );
         if( c.isValid() )
           QMetaObject::invokeMethod( &mw, "showChat", Qt::DirectConnection, Q_ARG( VNumber, c.id() ) );
+      } );
+    }
+    const QString review_search = qEnvironmentVariable( "YONGBEEP_SCREENSHOT_SEARCH" );
+    if( !review_search.isEmpty() )
+    {
+      QTimer::singleShot( 2000, &mw, [&mw, review_search]()
+      {
+        if( QLineEdit* search = mw.findChild<QLineEdit*>( "GuiWeChatSearchBox" ) )
+          search->setText( review_search );
+      } );
+      QTimer::singleShot( 2600, &mw, [&mw]()
+      {
+        if( QListView* results = mw.findChild<QListView*>( "GuiWeChatChatList" ) )
+        {
+          const QModelIndex first = results->model()->index( 0, 0 );
+          results->setCurrentIndex( first );
+          QMetaObject::invokeMethod( &mw, "chatActivated", Qt::DirectConnection, Q_ARG( QModelIndex, first ) );
+        }
+      } );
+    }
+    if( qEnvironmentVariableIsSet( "YONGBEEP_SCREENSHOT_FOOTER_MENU" ) )
+    {
+      QTimer::singleShot( 2400, &mw, [&mw]()
+      {
+        if( QPushButton* more = mw.findChild<QPushButton*>( "GuiAccountMore" ) )
+        {
+          QMenu* menu = more->menu();
+          menu->popup( more->mapToGlobal( QPoint( 0, -menu->sizeHint().height() ) ) );
+        }
       } );
     }
     QTimer::singleShot( 3000, &mw, [ &mw, screenshot_path ]() { mw.takeScreenshot( screenshot_path ); } );

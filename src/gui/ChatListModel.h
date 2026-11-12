@@ -14,6 +14,8 @@
 
 #include "Config.h"
 #include <QAbstractListModel>
+#include <QIcon>
+#include <QMap>
 
 class Chat;
 
@@ -31,8 +33,13 @@ public:
     SummaryRole,     // QString plain-text last message (single line)
     TimeTextRole,    // QString relative time (hh:mm / Yesterday / MM-dd)
     UnreadRole,      // int unread badge count
+    SearchRowRole,   // full-history message row, -1 for a contact
+    SearchQueryRole,
+    SearchKindRole,
     TransportsRole   // Core::Transports, authenticated links for a private chat
   };
+
+  enum SearchKind { ContactResult, MessageResult, FileResult };
 
   explicit ChatListModel( QObject* parent = Q_NULLPTR );
 
@@ -48,6 +55,19 @@ public:
 private:
   QString chatDisplayName( const Chat& c ) const;
 
+  struct SearchResult
+  {
+    VNumber chatId;
+    int messageRow;
+    int kind;
+    QString name;
+    QString summary;
+    QString time;
+    QIcon icon;
+  };
+  QMap<VNumber, QString> m_summaries;
+  QMap<VNumber, QPair<QString, QString>> m_historySummaries;
+  QList<SearchResult> m_results;
   QList<VNumber> m_chatIds;
   QString m_filter;
 

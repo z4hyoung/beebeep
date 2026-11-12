@@ -94,7 +94,7 @@ static QString avatarHtml( const User& u )
   const int html_avatar_size = YongTheme::avatarSizePx(); // 40
   const int render_avatar_size = html_avatar_size * 2;
   const QString avatar_folder = Settings::instance().cacheFolder();
-  const QString avatar_path = QString( "%1/chat_avatar_%2_r.png" ).arg( avatar_folder, QString::number( static_cast<qulonglong>( u.isValid() ? u.id() : ID_INVALID ) ) );
+  const QString avatar_path = QString( "%1/chat_avatar_%2_identity.png" ).arg( avatar_folder, QString::number( static_cast<qulonglong>( u.isValid() ? u.id() : ID_INVALID ) ) );
   if( !QFile::exists( avatar_path ) )
   {
     QDir().mkpath( avatar_folder );

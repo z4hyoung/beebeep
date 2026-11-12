@@ -2,14 +2,9 @@
 //
 // YongBEEP — scan nearby devices dialog (S3-4b)
 //
-// Lists the YongBEEP peers recently found by the bluetooth discovery
-// (BtManager::btPeerFound, read-only signal reuse) with name, address and
-// a connect button. The connect request goes through
-// Core::connectToBluetoothPeer() which forwards to the very same
-// Core::btPeerFound slot used by the automatic discovery path, so all
-// duplicate-connection guards apply. Unpaired devices need the OS pairing
-// first: the dialog shows per-platform guidance and a button that opens
-// the system bluetooth settings (PRD F1 / 4.2).
+// Connection diagnostics and pairing help. LAN discovers peers automatically;
+// Windows supports active Bluetooth discovery, while macOS listens passively.
+// The device list/connect fallback is exposed only on Windows.
 //
 //////////////////////////////////////////////////////////////////////
 
@@ -32,6 +27,7 @@ class GuiScanDevices : public QDialog
 
 public:
   explicit GuiScanDevices( QWidget* parent = Q_NULLPTR );
+  void updateStatus();
 
 private slots:
   void onBtPeerFound( const QBluetoothAddress& bt_address, const QString& device_name );
@@ -39,7 +35,6 @@ private slots:
   void openSystemBluetoothSettings();
 
 private:
-  void updateStatus();
   void rebuildDeviceList();
 
 private:

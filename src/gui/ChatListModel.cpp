@@ -9,6 +9,7 @@
 #include "Chat.h"
 #include "ChatManager.h"
 #include "ChatMessage.h"
+#include "ChatMessageModel.h"
 #include "Core.h"
 #include "IconManager.h"
 #include "Settings.h"
@@ -17,32 +18,75 @@
 #include "YongTheme.h"
 
 #include <algorithm>
+#include <QRegularExpression>
+#include <QTextDocument>
+#include <QTextDocumentFragment>
 
 
-static QString LastMessageSummary( const Chat& c )
+static QString MessagePlainText( const ChatMessage& cm )
 {
-  if( c.messages().isEmpty() )
-    return "";
-  // WeChat shows the last real chat message, not the trailing system line
-  // (S4c); fall back to the very last message for chats with system only.
-  const ChatMessage* cm = Q_NULLPTR;
-  for( int i = c.messages().size() - 1; i >= 0; i-- )
+  if( cm.isSourceCode() ) return cm.message().simplified();
+  QTextDocument doc;
+  if( cm.isMarkdown() ) doc.setMarkdown( cm.message() );
+  else doc.setHtml( cm.message() );
+  return doc.toPlainText().simplified();
+}
+
+static QString PreviewWithSender( const QString& text, bool own )
+{
+  return own ? ChatListModel::tr( "You: " ) + text : text;
+}
+
+static QString LastLiveMessageSummary( const Chat& c, bool* found )
+{
+  *found = false;
+  for( int i = c.messages().size() - 1; i >= 0; --i )
   {
-    if( !c.messages().at( i ).isFromSystem() || c.messages().at( i ).isFileTransfer() )
+    const ChatMessage& cm = c.messages().at( i );
+    QString text;
+    if( cm.isFileTransfer() )
     {
-      cm = &c.messages().at( i );
-      break;
+      const auto link = QRegularExpression( "<a\\b[^>]*href=['\"](?:file|beeshowfileinfolder):[^'\"]*['\"][^>]*>(.*?)</a>",
+          QRegularExpression::DotMatchesEverythingOption ).match( cm.message() );
+      if( !link.hasMatch() ) continue; // offers and diagnostic lines are not messages
+      text = ChatListModel::tr( "[File] %1" ).arg( QTextDocumentFragment::fromHtml( link.captured( 1 ) ).toPlainText() );
+      const bool own = cm.message().contains( "<!--yb-file:out:" );
+      *found = true;
+      return PreviewWithSender( text, own );
     }
+    if( cm.isImagePreview() ) text = ChatListModel::tr( "[Image]" );
+    else if( cm.isVoice() ) text = ChatListModel::tr( "[Voice]" );
+    else if( !cm.isFromSystem() ) text = MessagePlainText( cm );
+    else continue;
+    if( text.isEmpty() ) continue;
+    *found = true;
+    return PreviewWithSender( text, cm.isFromLocalUser() );
   }
-  if( !cm )
-    return QString();
-  QString txt = Bee::removeHtmlTags( cm->message() );
-  txt.replace( QLatin1Char( '\n' ), QLatin1Char( ' ' ) );
-  txt = txt.simplified();
-  // WeChat conversation list prefixes own messages with "You: " (S4c)
-  if( cm->isFromLocalUser() )
-    txt.prepend( ChatListModel::tr( "You: " ) );
-  return txt;
+  return QString();
+}
+
+static QString SavedHtmlForSummary( const Chat& c )
+{
+  if( ChatManager::instance().chatHasSavedText( c.name() ) )
+    return ChatManager::instance().chatSavedText( c.name() );
+  if( c.isPrivate() && c.name().contains( "@" ) )
+    return ChatManager::instance().chatSavedText( User::nameFromPath( c.name() ) );
+  return QString();
+}
+
+static QString LastHistoryMessageSummary( const Chat& c )
+{
+  ChatMessageModel history;
+  history.resetFromChat( c, true );
+  for( int row = history.rowCount() - 1; row >= 0; --row )
+  {
+    const ChatMessageItem* item = history.itemAt( row );
+    if( item->kind == ChatMessageItem::FileCard )
+      return PreviewWithSender( ChatListModel::tr( "[File] %1" ).arg( item->fileName ), item->ownMessage );
+    if( item->kind == ChatMessageItem::UserMessage )
+      return PreviewWithSender( item->plainText.simplified(), item->ownMessage );
+  }
+  return QString();
 }
 
 static QDateTime ChatActivityTime( const Chat& c )
@@ -93,6 +137,21 @@ QVariant ChatListModel::data( const QModelIndex& index, int role ) const
   if( !c.isValid() )
     return QVariant();
 
+  const SearchResult* hit = !m_filter.isEmpty() && index.row() < m_results.size()
+      ? &m_results.at( index.row() ) : Q_NULLPTR;
+  if( role == SearchRowRole ) return hit ? hit->messageRow : -1;
+  if( role == SearchQueryRole ) return m_filter;
+  if( role == SearchKindRole ) return hit ? hit->kind : ContactResult;
+  if( hit )
+  {
+    if( role == Qt::DisplayRole || role == NameRole ) return hit->name;
+    if( role == SummaryRole || role == Qt::ToolTipRole ) return hit->summary;
+    if( role == TimeTextRole ) return hit->time;
+    if( role == UnreadRole ) return 0;
+    if( role == TransportsRole && hit->messageRow >= 0 ) return 0;
+    if( role == AvatarRole && hit->kind == FileResult ) return hit->icon;
+  }
+
   switch( role )
   {
   case ChatIdRole:
@@ -110,15 +169,12 @@ QVariant ChatListModel::data( const QModelIndex& index, int role ) const
       User peer = UserManager::instance().findUser( c.privateUserId() );
       if( peer.isValid() )
       {
-        QIcon avatar = Bee::avatarForUser( peer, Settings::instance().avatarIconSize(), Settings::instance().showUserPhoto() );
-        if( !Settings::instance().localUser().isStatusConnected() || !peer.isStatusConnected() )
-          avatar = Bee::convertToGrayScale( avatar, Settings::instance().avatarIconSize() );
-        return avatar;
+        return QIcon( Bee::avatarForUser( peer, Settings::instance().avatarIconSize(), Settings::instance().showUserPhoto() ) );
       }
       return IconManager::instance().icon( "chat.png" );
     }
   case SummaryRole:
-    return LastMessageSummary( c );
+    return m_summaries.value( c.id() );
   case TimeTextRole:
     return FormatChatTime( ChatActivityTime( c ) );
   case UnreadRole:
@@ -133,13 +189,22 @@ QVariant ChatListModel::data( const QModelIndex& index, int role ) const
 void ChatListModel::reload()
 {
   QList<VNumber> new_ids;
+  QMap<VNumber, QString> summaries;
   foreach( Chat c, ChatManager::instance().constChatList() )
   {
     if( !c.isValid() || c.isGroup() ) // group chats are out of product scope (PRD 3.4)
       continue;
-    if( !m_filter.isEmpty() && !chatDisplayName( c ).contains( m_filter, Qt::CaseInsensitive ) )
-      continue;
     new_ids.append( c.id() );
+    bool live = false;
+    QString summary = LastLiveMessageSummary( c, &live );
+    if( !live )
+    {
+      const QString saved = SavedHtmlForSummary( c );
+      if( !m_historySummaries.contains( c.id() ) || m_historySummaries.value( c.id() ).first != saved )
+        m_historySummaries.insert( c.id(), qMakePair( saved, saved.isEmpty() ? QString() : LastHistoryMessageSummary( c ) ) );
+      summary = m_historySummaries.value( c.id() ).second;
+    }
+    summaries.insert( c.id(), summary );
   }
 
   std::sort( new_ids.begin(), new_ids.end(), []( VNumber id_a, VNumber id_b )
@@ -151,7 +216,45 @@ void ChatListModel::reload()
     return id_a < id_b;
   } );
 
+  QList<SearchResult> results;
+  if( !m_filter.isEmpty() )
+  {
+    QList<VNumber> matching_ids;
+    for( VNumber id : new_ids )
+    {
+      const Chat c = ChatManager::instance().chat( id );
+      const QString name = chatDisplayName( c );
+      if( name.contains( m_filter, Qt::CaseInsensitive ) )
+      {
+        results.append( { id, -1, ContactResult, name, tr( "Contact" ), QString(), QIcon() } );
+        matching_ids.append( id );
+      }
+      ChatMessageModel messages;
+      messages.resetFromChat( c, true );
+      QString time;
+      for( int row = 0; row < messages.rowCount(); ++row )
+      {
+        const ChatMessageItem* item = messages.itemAt( row );
+        if( item->showTimestamp ) time = item->timestampText;
+        if( item->kind != ChatMessageItem::UserMessage && item->kind != ChatMessageItem::FileCard ) continue;
+        const QString text = item->kind == ChatMessageItem::FileCard ? item->fileName : item->plainText;
+        const int match = text.indexOf( m_filter, 0, Qt::CaseInsensitive );
+        if( match < 0 ) continue;
+        const bool file = item->kind == ChatMessageItem::FileCard;
+        const int start = qMax( 0, match - 18 );
+        QString snippet = (start > 0 ? QStringLiteral( "…" ) : QString()) + text.mid( start, 100 );
+        results.append( { id, row, file ? FileResult : MessageResult, file ? item->fileName : name,
+            file ? tr( "File · %1 · %2" ).arg( name, item->fileStatus ) : tr( "Message · %1" ).arg( snippet ),
+            time, item->fileIcon } );
+        matching_ids.append( id );
+      }
+    }
+    new_ids = matching_ids;
+  }
+
   beginResetModel();
+  m_summaries = summaries;
+  m_results = results;
   m_chatIds = new_ids;
   endResetModel();
 }

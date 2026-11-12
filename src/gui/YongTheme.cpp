@@ -97,29 +97,17 @@ QString YongTheme::mainWindowQss()
     // ---- conversation list ----
     "#GuiWeChatChatList { background: %1; border: none; }"
 
-    // ---- scan devices entry (flat green text button, WeChat style) ----
-    "#GuiWeChatScanDevicesButton {"
-    "  border: none; background: transparent; color: %5;"
-    "  font-size: 12px; padding: 6px 12px;"
-    "}"
-    "#GuiWeChatScanDevicesButton:hover { color: #06AD56; }"
-    "#GuiWeChatScanDevicesButton:pressed { color: #069047; }"
-
-    // ---- quit entry (flat gray text button, red hover like WeChat danger) ----
-    "#GuiWeChatQuitButton {"
-    "  border: none; background: transparent; color: %6;"
-    "  font-size: 12px; padding: 6px 12px;"
-    "}"
-    "#GuiWeChatQuitButton:hover { color: #FA5151; }"
-    "#GuiWeChatQuitButton:pressed { color: #C24646; }"
-
-    // ---- profile entry (flat green text button, same family of scan entry) ----
-    "#GuiWeChatProfileButton {"
-    "  border: none; background: transparent; color: %5;"
-    "  font-size: 12px; padding: 6px 12px;"
-    "}"
-    "#GuiWeChatProfileButton:hover { color: #06AD56; }"
-    "#GuiWeChatProfileButton:pressed { color: #069047; }"
+    // ---- compact account footer and overflow menu ----
+    "#GuiAccountFooter { background: #FAFAFA; border-top: 1px solid %2; }"
+    "#GuiAccountAvatar, #GuiAccountMore { border: none; background: transparent; border-radius: 6px; padding: 0; }"
+    "#GuiAccountAvatar:hover, #GuiAccountMore:hover { background: %3; }"
+    "#GuiAccountAvatar:pressed, #GuiAccountMore:pressed { background: %2; }"
+    "#GuiAccountMore::menu-indicator { image: none; width: 0; }"
+    "#GuiAccountName { color: %4; font-size: 13px; font-weight: 500; border: none; }"
+    "#GuiAccountMenu { background: %1; color: %4; border: 1px solid %2; padding: 5px; }"
+    "#GuiAccountMenu::item { min-width: 158px; padding: 8px 14px; border-radius: 4px; }"
+    "#GuiAccountMenu::item:selected { background: %3; }"
+    "#GuiAccountMenu::separator { height: 1px; background: %2; margin: 5px 9px; }"
 
     // ---- chat header ----
     "#GuiWeChatHeader { background: %1; }"
