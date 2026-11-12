@@ -13,6 +13,16 @@
 #include "ECDH.h"
 #include "Config.h"
 #include "ChatListModel.h"
+#include "ChatMessageModel.h"
+#include "ChatMessageDelegate.h"
+#include "GuiChatMessage.h"
+#include "YongTheme.h"
+#include <QTemporaryDir>
+#include <QFile>
+#include <QPainter>
+#include <QTextDocument>
+#include <QMouseEvent>
+#include <QTranslator>
 #include "ChatManager.h"
 #include "Core.h"
 #include "Connection.h"
@@ -124,6 +134,7 @@ public:
   using Core::connection;
   using Core::preferredConnections;
   using Core::closeConnection;
+  using Core::parseFileMessage;
 
   Connection* openLink( bool bluetooth )
   {
@@ -174,6 +185,27 @@ static void testConcurrentLinks( bool bluetooth_first )
   CHECK( badges() == (Core::Lan | Core::Bluetooth), "both authenticated badges" );
   CHECK( core.connection( id ) == (bluetooth_first ? second : first), "prefer LAN in either connection order" );
   CHECK( core.preferredConnections().size() == 1, "broadcast has one recipient" );
+
+  // A contact can retain an earlier Bluetooth/IP address while its live LAN
+  // socket uses another address. A TCP file offer must use the live socket.
+  User stale_peer = UserManager::instance().findUser( id );
+  stale_peer.setNetworkAddress( NetworkAddress( QHostAddress( "fe80::dead" ), 6475 ) );
+  UserManager::instance().setUser( stale_peer );
+  FileInfo offered( Protocol::instance().newId(), FileInfo::Upload );
+  offered.setNameAndSuffix( "YongBEEP-file-test-256KiB.txt" );
+  offered.setSize( 256 * 1024 );
+  offered.setHostPort( 16476 ); // file port comes from the offer, not chat
+  offered.setLastModified( QDateTime::currentDateTime() );
+  FileInfo received;
+  const auto request = QObject::connect( &core, &Core::fileDownloadRequest,
+      [&received]( const User&, const FileInfo& fi ) { received = fi; } );
+  core.parseFileMessage( stale_peer, Protocol::instance().fileInfoToMessage( offered, 96 ) );
+  CHECK( received.isValid(), "LAN file offer accepted" );
+  CHECK( received.networkAddress().hostAddress() == QHostAddress( "192.0.2.7" ),
+         "TCP download uses live LAN address instead of stale contact address" );
+  CHECK( received.networkAddress().hostPort() == 16476, "TCP download keeps offered file port" );
+  QObject::disconnect( request );
+
   Connection* duplicate = core.openLink( !bluetooth_first );
   emit duplicate->authenticationRequested( hello );
   CHECK( duplicate->userId() == ID_INVALID && core.connectedUsers() == 1, "duplicate transport refused" );
@@ -186,11 +218,143 @@ static void testConcurrentLinks( bool bluetooth_first )
   CHECK( !UserManager::instance().findUser( id ).isStatusConnected(), "last link closed goes offline" );
 }
 
+static void testChatPresentation()
+{
+  Settings::instance().setChatMessagesToShow( -1 );
+  User local;
+  local.setId( ID_LOCAL_USER ); local.setName( "Yong" ); local.setColor( "#999999" );
+  UserManager::instance().setUser( local );
+  User remote;
+  remote.setId( 880001 ); remote.setName( "zykj" ); remote.setColor( "#5476A3" );
+  UserManager::instance().setUser( remote );
+  Group group;
+  group.setId( 880001 ); group.setChatType( Group::PrivateChat );
+  group.setPrivateId( "ui-test-chat" ); group.setName( "ui-test-chat" );
+  group.addUser( ID_LOCAL_USER ); group.addUser( remote.id() );
+  Chat chat; chat.setGroup( group );
+  auto message = [&]( VNumber sender, const QString& text, ChatMessage::Type kind )
+  {
+    Message m( sender == ID_SYSTEM_MESSAGE ? Message::System : Message::Chat, Protocol::instance().newId(), text );
+    chat.addMessage( ChatMessage( sender, m, kind, true ) );
+  };
+  message( ID_SYSTEM_MESSAGE, "Chat with zykj.", ChatMessage::Header );
+  message( remote.id(), QString::fromUtf8( "收到，文件发给你。" ), ChatMessage::Chat );
+  message( ID_LOCAL_USER, QString::fromUtf8( "好的，谢谢！\n这条多行消息应当放在一个完整的圆角气泡里。" ), ChatMessage::Chat );
+  message( remote.id(), QString( 180, QLatin1Char( 'X' ) ), ChatMessage::Chat );
+
+  QTemporaryDir folder;
+  QFile file( folder.filePath( QString::fromUtf8( "YongBEEP-file-test-256KiB-文件测试.txt" ) ) );
+  CHECK( file.open( QIODevice::WriteOnly ), "UI test file created" );
+  file.write( QByteArray( 262144, 'x' ) ); file.close();
+  const QString file_html = QString( "Received <a href=\"%1\">%2</a> from zykj. Open folder.<!--yb-file:in:complete:262144-->" )
+      .arg( QUrl::fromLocalFile( file.fileName() ).toString(), QFileInfo( file ).fileName() );
+  message( ID_SYSTEM_MESSAGE, file_html, ChatMessage::FileTransfer );
+  ChatMessageModel model;
+  QFont body = QApplication::font(); body.setPixelSize( 14 ); model.setChatFont( body );
+  model.setViewportWidth( 760 ); model.resetFromChat( chat );
+  CHECK( model.rowCount() == 4, "redundant chat header hidden" );
+  ChatMessageItem* card = model.itemAt( 3 );
+  if( !card ) return;
+  CHECK( card && card->kind == ChatMessageItem::FileCard && card->fileAvailable, "received file is one available card" );
+  CHECK( card && !card->ownMessage && card->fileProgressBytes == card->fileProgressTotal, "received card direction and final progress" );
+  ChatMessageDelegate delegate;
+  QModelIndex file_index = model.index( 3, 0 );
+  const QRect file_row( 0, 500, 760, 170 );
+  const int x = ChatMessageModel::HorizontalMargin + YongTheme::avatarSizePx() + ChatMessageModel::AvatarGap;
+  const int y = file_row.top() + (card->showTimestamp ? ChatMessageModel::TimestampRowHeight : 0);
+  CHECK( delegate.anchorAt( file_index, file_row, QPoint( x+20, y+30 ) ).toLocalFile() == file.fileName(), "scrolled card opens file without a QTextDocument" );
+  CHECK( delegate.anchorAt( file_index, file_row, QPoint( x+260, y+100 ) ).scheme() == FileInfo::urlSchemeShowFileInFolder(), "folder action has separate target" );
+  CHECK( delegate.anchorAt( file_index, file_row, QPoint( 740, y+10 ) ).isEmpty(), "outside card cannot open file" );
+  int opened = 0;
+  QObject::connect( &delegate, &ChatMessageDelegate::urlActivated, [&opened]( const QUrl& ) { ++opened; } );
+  QStyleOptionViewItem option; option.font = body; option.rect = file_row;
+  QMouseEvent click( QEvent::MouseButtonRelease, QPointF( x+20, y+30 ), QPointF( x+20, y+30 ), Qt::LeftButton, Qt::NoButton, Qt::NoModifier );
+  delegate.editorEvent( &click, &model, option, file_index );
+  CHECK( opened == 1, "left click activates file card" );
+  QMouseEvent right( QEvent::MouseButtonRelease, QPointF( x+20, y+30 ), QPointF( x+20, y+30 ), Qt::RightButton, Qt::NoButton, Qt::NoModifier );
+  delegate.editorEvent( &right, &model, option, file_index );
+  CHECK( opened == 1, "right click does not open file" );
+
+  for( int width : { 320, 760 } )
+  {
+    model.setViewportWidth( width );
+    model.ensureLayout( model.itemAt( 2 ) );
+    CHECK( model.itemAt( 2 )->docSize.width() <= model.maxBubbleWidth(), "long unbroken text wraps in narrow and wide windows" );
+  }
+  model.setViewportWidth( 760 );
+  const QRect text_row( 0, 240, 760, 200 );
+  auto text_item = model.itemAt( 0 ); model.ensureLayout( text_item );
+  const int text_y = 240 + (text_item->showTimestamp ? ChatMessageModel::TimestampRowHeight : 0) + ChatMessageModel::BubbleVPad + 5;
+  CHECK( delegate.textPositionAt( model.index( 0, 0 ), text_row, QPoint( x+16, text_y ) ) >= 0,
+         "text selection uses local row coordinates after scrolling" );
+  model.setItemSelection( 0, 0, 2 );
+  CHECK( !model.selectedText( 0 ).isEmpty(), "partial text selection retained" );
+  model.clearAllSelections();
+
+  // Use the real text serializer plus a legacy file-card fixture. The old
+  // file serializer writes a PNG into the application cache; keep tests local.
+  const QString saved = GuiChatMessage::chatToHtml( chat, true, true, true, true, false, true )
+      + QString( "<table width=320><tr><td>icon</td><td>%1</td></tr></table><br>" ).arg(
+          QString( file_html ).replace( "\">", "\" style=\"text-decoration:none\">" ) );
+  ChatManager::instance().addSavedChats( { { chat.name(), saved } } );
+  Chat history; history.setGroup( group );
+  ChatMessageModel restored; restored.setChatFont( body ); restored.setViewportWidth( 760 ); restored.resetFromChat( history );
+  int bubbles=0, cards=0;
+  for( int n=0; n<restored.rowCount(); ++n )
+  {
+    auto item=restored.itemAt( n );
+    if( item->kind == ChatMessageItem::UserMessage )
+    {
+      ++bubbles;
+      CHECK( !item->contentHtml.contains( "background-color" ), "legacy per-line backgrounds removed" );
+    }
+    if( item->kind == ChatMessageItem::FileCard )
+    {
+      ++cards;
+      CHECK( item->fileAvailable && !item->ownMessage, "file direction and open target survive history reload" );
+    }
+  }
+  CHECK( bubbles == 3 && cards == 1, "legacy history becomes individual bubbles and file card" );
+
+  model.updateFileStatus( QFileInfo( file ).fileName(), 262144, "Failed", file.fileName(), false );
+  CHECK( !card->fileAvailable && card->fileStatus == "Failed", "failure never becomes sent because a local file exists" );
+  CHECK( delegate.anchorAt( file_index, file_row, QPoint( x+20, y+30 ) ).isEmpty(), "failed card does not activate unavailable file" );
+
+  Chat pending; pending.setGroup( group );
+  pending.addMessage( ChatMessage( ID_SYSTEM_MESSAGE, Message( Message::System, ID_SYSTEM_MESSAGE,
+      "<a href=\"file:///tmp/transfer.txt\">transfer.txt</a><!--live-->" ), ChatMessage::FileTransfer, false ) );
+  CHECK( pending.rewriteLiveFileCard( "transfer.txt", "Received transfer.txt" ), "live card changes in place" );
+  CHECK( pending.messages().last().canBeSaved(), "completed received card survives compact history saving" );
+
+  const QString preview = qEnvironmentVariable( "YONGBEEP_UI_PREVIEW" );
+  if( !preview.isEmpty() )
+  {
+    QImage image( 760, 640, QImage::Format_ARGB32_Premultiplied );
+    image.fill( YongTheme::chatAreaBackground() );
+    QPainter painter( &image );
+    int top=16;
+    for( int row=0; row<restored.rowCount(); ++row )
+    {
+      QStyleOptionViewItem opt; opt.font=body;
+      const QModelIndex index=restored.index( row, 0 );
+      const int height=delegate.sizeHint( opt, index ).height();
+      opt.rect=QRect( 0, top, 760, height );
+      delegate.paint( &painter, opt, index );
+      top+=height;
+    }
+    painter.end();
+    CHECK( image.save( preview ), "UI preview exported" );
+  }
+}
+
 int main( int argc, char** argv )
 {
   qputenv( "QT_QPA_PLATFORM", "offscreen" );
   QApplication app( argc, argv );
   QStandardPaths::setTestModeEnabled( true );
+  QTranslator ui_translation;
+  if( ui_translation.load( qEnvironmentVariable( "YONGBEEP_UI_TRANSLATION" ) ) )
+    app.installTranslator( &ui_translation );
   Protocol::instance(); // 单例初始化
   testMessageRoundtrip();
   testFileChunkRoundtrip();
@@ -198,6 +362,7 @@ int main( int argc, char** argv )
   testEcdhSymmetry();
   testConcurrentLinks( false );
   testConcurrentLinks( true );
+  testChatPresentation();
   qInfo() << "=== YongBEEP core unit tests:" << g_passed << "passed," << g_failed << "failed ===";
   return g_failed == 0 ? 0 : 1;
 }

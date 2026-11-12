@@ -201,7 +201,11 @@ int main( int argc, char *argv[] )
     bee_app.preventMultipleInstances();
 
   /* Starting File Logs */
-  if( Settings::instance().logToFile() )
+  // Opt-in diagnostics for one run, without changing the user's log settings.
+  const QString diagnostic_log = qEnvironmentVariable( "YONGBEEP_DIAGNOSTIC_LOG" );
+  if( !diagnostic_log.isEmpty() )
+    Log::instance().bootFileStream( diagnostic_log );
+  else if( Settings::instance().logToFile() )
     Log::instance().bootFileStream( Settings::instance().logFilePath() );
 
   /* Apply system language */
@@ -431,6 +435,16 @@ int main( int argc, char *argv[] )
   {
     // Debug helper: grab the main window with QWidget::grab() (no screen-recording
     // permission needed) a few seconds after startup, then quit.
+    const QString review_chat = qEnvironmentVariable( "YONGBEEP_SCREENSHOT_CHAT" );
+    if( !review_chat.isEmpty() )
+    {
+      QTimer::singleShot( 2000, &mw, [ &mw, review_chat ]()
+      {
+        const Chat c = ChatManager::instance().findChatByName( review_chat );
+        if( c.isValid() )
+          QMetaObject::invokeMethod( &mw, "showChat", Qt::DirectConnection, Q_ARG( VNumber, c.id() ) );
+      } );
+    }
     QTimer::singleShot( 3000, &mw, [ &mw, screenshot_path ]() { mw.takeScreenshot( screenshot_path ); } );
   }
 

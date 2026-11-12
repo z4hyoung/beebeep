@@ -225,7 +225,7 @@ private:
 public:
   /*! YongBEEP: live file-card progress passthrough ("15M / 100M"). */
   inline void fileProgressProxy( const QString& name, FileSizeType bytes, FileSizeType total, qint64 elapsed );
-  inline void fileStatusProxy( const QString& name, FileSizeType total, const QString& status );
+  inline void fileStatusProxy( const QString& name, FileSizeType total, const QString& status, const QString& file_path, bool completed );
 
   ChatMessageDelegate* mp_messageDelegate;
 
@@ -260,8 +260,8 @@ inline VNumber GuiChat::chatId() const { return m_chatId; }
 inline QSplitter* GuiChat::chatSplitter() const { return mp_splitter; }
 inline void GuiChat::fileProgressProxy( const QString& name, FileSizeType bytes, FileSizeType total, qint64 elapsed )
 { mp_messageModel->updateFileProgress( name, bytes, total, elapsed ); }
-inline void GuiChat::fileStatusProxy( const QString& name, FileSizeType total, const QString& status )
-{ mp_messageModel->updateFileStatus( name, total, status ); }
+inline void GuiChat::fileStatusProxy( const QString& name, FileSizeType total, const QString& status, const QString& file_path, bool completed )
+{ mp_messageModel->updateFileStatus( name, total, status, file_path, completed ); }
 #ifdef BEEBEEP_USE_VOICE_CHAT
 inline GuiVoicePlayer* GuiChat::guiVoicePlayer() { return mp_guiVoicePlayer; }
 #endif

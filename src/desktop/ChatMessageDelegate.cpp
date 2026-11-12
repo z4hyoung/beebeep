@@ -16,6 +16,8 @@
 #include <QPainterPath>
 #include <QTextCursor>
 #include <QTextDocument>
+#include <QTextLayout>
+#include <QFileInfo>
 #include <QtDebug>
 
 
@@ -69,28 +71,35 @@ QRectF ChatMessageDelegate::documentRect( const ChatMessageItem* item, const QRe
 
 QRectF ChatMessageDelegate::fileCardRect( const ChatMessageItem* item, const QRect& row_rect, qreal content_top, int row_width ) const
 {
-  Q_UNUSED( item );
   Q_UNUSED( row_rect );
-  const qreal card_x = ( row_width - ChatMessageModel::FileCardWidth ) / 2.0;
-  return QRectF( card_x, content_top, ChatMessageModel::FileCardWidth, ChatMessageModel::FileCardHeight );
+  const qreal width = qMin<qreal>( ChatMessageModel::FileCardWidth,
+      row_width - 2 * ChatMessageModel::HorizontalMargin - YongTheme::avatarSizePx() - ChatMessageModel::AvatarGap );
+  const qreal edge = ChatMessageModel::HorizontalMargin + YongTheme::avatarSizePx() + ChatMessageModel::AvatarGap;
+  const qreal x = item->ownMessage ? row_width - edge - width : edge;
+  return QRectF( x, content_top, qMax<qreal>( 60, width ), ChatMessageModel::FileCardHeight );
 }
 
 QUrl ChatMessageDelegate::anchorInItem( const ChatMessageItem* item, const QRect& row_rect, int row_width, const QPointF& row_pos ) const
 {
-  if( !item || !item->doc )
+  if( !item )
     return QUrl();
 
   if( item->kind == ChatMessageItem::FileCard )
   {
-    qreal content_top = row_rect.top() + ( item->showTimestamp ? ChatMessageModel::TimestampRowHeight : 0 );
-    if( fileCardRect( item, row_rect, content_top, row_width ).contains( row_pos ) && !item->fileUrl.isEmpty() )
+    qreal content_top = item->showTimestamp ? ChatMessageModel::TimestampRowHeight : 0;
+    const QRectF card = fileCardRect( item, row_rect, content_top, row_width );
+    if( item->fileAvailable && card.contains( row_pos ) )
+    {
+      if( row_pos.y() >= card.bottom() - 30 && row_pos.x() >= card.center().x() )
+        return QUrl( item->fileFolderUrl );
       return QUrl( item->fileUrl );
+    }
     return QUrl();
   }
 
   if( item->kind == ChatMessageItem::UserMessage )
   {
-    qreal y = row_rect.top();
+    qreal y = 0;
     if( item->showTimestamp )
       y += ChatMessageModel::TimestampRowHeight;
     if( item->showName )
@@ -106,7 +115,7 @@ QUrl ChatMessageDelegate::anchorInItem( const ChatMessageItem* item, const QRect
   }
 
   // system lines / free-form documents are drawn at the horizontal margin
-  QPointF doc_pos = row_pos - QPointF( ChatMessageModel::HorizontalMargin, row_rect.top() );
+  QPointF doc_pos = row_pos - QPointF( ChatMessageModel::HorizontalMargin, 0 );
   if( doc_pos.x() >= 0 && doc_pos.y() >= 0 )
   {
     QString anchor = item->doc->documentLayout()->anchorAt( doc_pos );
@@ -121,6 +130,8 @@ QUrl ChatMessageDelegate::anchorAt( const QModelIndex& index, const QRect& row_r
   ChatMessageItem* item = itemForIndex( index );
   if( !item )
     return QUrl();
+  if( item->kind != ChatMessageItem::FileCard )
+    messageModel( index )->ensureLayout( item );
   QPointF row_pos = QPointF( viewport_pos ) - row_rect.topLeft();
   return anchorInItem( item, row_rect, row_rect.width(), row_pos );
 }
@@ -140,7 +151,7 @@ int ChatMessageDelegate::textPositionAt( const QModelIndex& index, const QRect& 
 
   if( item->kind == ChatMessageItem::UserMessage )
   {
-    qreal y = row_rect.top();
+    qreal y = 0;
     if( item->showTimestamp )
       y += ChatMessageModel::TimestampRowHeight;
     if( item->showName )
@@ -200,43 +211,12 @@ void ChatMessageDelegate::drawDocumentWithSelection( QPainter* painter, ChatMess
 
 void ChatMessageDelegate::drawStatusLine( QPainter* painter, const QString& status_text, const QRectF& line_rect, const QColor& base_color ) const
 {
-  // file transfer status: keep the base gray but color the check/x marks
-  const QString check_mark = QString::fromUtf8( "\xE2\x9C\x93" );
-  const QString ballot_x = QString::fromUtf8( "\xE2\x9C\x97" );
   QFont font = painter->font();
-  font.setPixelSize( YongTheme::fontTimestampPx() );
+  font.setPixelSize( YongTheme::fontAuxPx() );
   painter->setFont( font );
-  QFontMetrics fm( font );
-  qreal x = line_rect.left();
-  qreal y = line_rect.top();
-  QString segment;
-  QColor segment_color = base_color;
-  auto flush_segment = [ & ]()
-  {
-    if( !segment.isEmpty() )
-    {
-      painter->setPen( segment_color );
-      painter->drawText( QPointF( x, y + fm.ascent() ), segment );
-      x += fm.horizontalAdvance( segment );
-      segment.clear();
-      segment_color = base_color;
-    }
-  };
-  foreach( const QChar& c, status_text )
-  {
-    QColor char_color;
-    if( c == check_mark.at( 0 ) )
-      char_color = YongTheme::brandGreen();
-    else if( c == ballot_x.at( 0 ) )
-      char_color = YongTheme::unreadRed();
-    if( char_color != segment_color )
-    {
-      flush_segment();
-      segment_color = char_color.isValid() ? char_color : base_color;
-    }
-    segment.append( c );
-  }
-  flush_segment();
+  painter->setPen( base_color );
+  painter->drawText( line_rect, Qt::AlignLeft | Qt::AlignVCenter,
+      QFontMetrics( font ).elidedText( status_text, Qt::ElideRight, qMax( 0, int( line_rect.width() ) ) ) );
 }
 
 void ChatMessageDelegate::paint( QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index ) const
@@ -253,6 +233,8 @@ void ChatMessageDelegate::paint( QPainter* painter, const QStyleOptionViewItem& 
   painter->save();
   painter->setRenderHint( QPainter::Antialiasing, true );
   painter->setClipRect( option.rect );
+  painter->translate( option.rect.topLeft() );
+  const QRect row_rect( 0, 0, row_width, option.rect.height() );
 
   // --- centered timestamp separator (WeChat gray) ---
   if( item->showTimestamp )
@@ -261,77 +243,73 @@ void ChatMessageDelegate::paint( QPainter* painter, const QStyleOptionViewItem& 
     ts_font.setPixelSize( YongTheme::fontTimestampPx() );
     painter->setFont( ts_font );
     painter->setPen( dark ? QColor( Settings::instance().chatSystemTextColor() ) : YongTheme::textSecondary() );
-    painter->drawText( QRect( 0, option.rect.top(), row_width, ChatMessageModel::TimestampRowHeight ),
+    painter->drawText( QRect( 0, 0, row_width, ChatMessageModel::TimestampRowHeight ),
                        Qt::AlignHCenter | Qt::AlignVCenter, item->timestampText );
   }
 
   if( item->kind == ChatMessageItem::FileCard )
   {
-    const qreal content_top = option.rect.top() + ( item->showTimestamp ? ChatMessageModel::TimestampRowHeight : 0 );
-    QRectF card_rect = fileCardRect( item, option.rect, content_top, row_width );
+    const qreal top = item->showTimestamp ? ChatMessageModel::TimestampRowHeight : 0;
+    const QRectF card = fileCardRect( item, row_rect, top, row_width );
+    if( !item->avatar.isNull() )
+      painter->drawPixmap( avatarRect( item, row_rect, top ), item->avatar );
+    painter->setPen( QPen( dark ? QColor( "#4c5058" ) : QColor( "#E8E8E8" ), 1 ) );
+    painter->setBrush( dark ? QColor( "#3c4048" ) : Qt::white );
+    painter->drawRoundedRect( card.adjusted( 0.5, 0.5, -0.5, -0.5 ), 8, 8 );
 
-    // WeChat file card: white rounded block, NO border (WeChat separates by
-    // fill contrast alone; a 1px outline read as floating gray lines)
-    QPainterPath card_path;
-    card_path.addRoundedRect( card_rect, YongTheme::bubbleRadiusPx(), YongTheme::bubbleRadiusPx() );
-    painter->setPen( Qt::NoPen );
-    painter->setBrush( dark ? QColor( 0x3c, 0x40, 0x48 ) : YongTheme::bubbleWhite() );
-    painter->drawPath( card_path );
-
+    const qreal text_x = card.left() + 14;
+    const qreal text_width = qMax<qreal>( 20, card.width() - 76 );
+    QFont font = option.font;
+    font.setPixelSize( 13 );
+    painter->setFont( font );
+    painter->setPen( dark ? Qt::white : YongTheme::textPrimary() );
+    QTextLayout name_layout( item->fileName, font );
+    QTextOption wrap;
+    wrap.setWrapMode( QTextOption::WrapAtWordBoundaryOrAnywhere );
+    name_layout.setTextOption( wrap );
+    name_layout.beginLayout();
+    for( int n = 0; n < 2; ++n )
+    {
+      QTextLine line = name_layout.createLine();
+      if( !line.isValid() ) break;
+      line.setLineWidth( text_width );
+      const QPointF origin( text_x, card.top() + 12 + n * 19 );
+      if( n == 1 )
+        painter->drawText( QRectF( origin, QSizeF( text_width, 19 ) ), Qt::AlignLeft | Qt::AlignVCenter,
+            QFontMetrics( font ).elidedText( item->fileName.mid( line.textStart() ), Qt::ElideMiddle, int( text_width ) ) );
+      else
+        line.draw( painter, origin );
+    }
+    name_layout.endLayout();
     if( !item->fileIcon.isNull() )
-      painter->drawPixmap( QRectF( card_rect.left() + 14, card_rect.center().y() - 16, 32, 32 ).toRect(),
-                           item->fileIcon.pixmap( QSize( 32, 32 ) ) );
+      item->fileIcon.paint( painter, QRect( int( card.right() - 51 ), int( card.top() + 16 ), 36, 42 ) );
 
-    QFont name_font = option.font;
-    name_font.setPixelSize( 13 );
-    QFontMetrics name_fm( name_font );
-    painter->setFont( name_font );
-    painter->setPen( dark ? QColor( 0xff, 0xff, 0xff ) : YongTheme::textPrimary() );
-    QString file_name = name_fm.elidedText( item->fileName, Qt::ElideMiddle,
-                                            card_rect.width() - 14 - 32 - 12 - 10 );
-    // YongBEEP: name+status drawn as a vertically centered group so they
-    // align with the centered icon (fixed offsets left them ~3px high)
-    const qreal cy = card_rect.center().y();
-    painter->drawText( QPointF( card_rect.left() + 60, cy - 4 ), file_name );
-
-    // live "15M / 100M · 156 KB/s" + progress bar while transferring,
-    // static status otherwise
     QString status = item->fileStatus;
     const bool transferring = item->fileProgressTotal > 0 && item->fileProgressBytes < item->fileProgressTotal;
     if( transferring )
-    {
-      status = QStringLiteral( "%1 / %2" )
-                 .arg( Bee::bytesToString( item->fileProgressBytes ) )
-                 .arg( Bee::bytesToString( item->fileProgressTotal ) );
-      if( item->fileProgressElapsed > 500 && item->fileProgressBytes > 0 )
-        status += QStringLiteral( " \xc2\xb7 %1/s" ).arg( Bee::bytesToString( item->fileProgressBytes * 1000 / item->fileProgressElapsed ) );
-    }
-
-    drawStatusLine( painter, status,
-                    QRectF( card_rect.left() + 60, cy + 1, card_rect.width() - 70, 14 ),
-                    dark ? QColor( 0xaa, 0xaa, 0xaa ) : YongTheme::textSecondary() );
-
+      status = QStringLiteral( "%1 / %2" ).arg( ChatMessageModel::fileSizeText( item->fileProgressBytes ), ChatMessageModel::fileSizeText( item->fileProgressTotal ) );
+    drawStatusLine( painter, status, QRectF( text_x, card.top() + 57, card.width() - 28, 18 ),
+        dark ? QColor( "#aaaaaa" ) : QColor( "#808080" ) );
+    const qreal footer_y = card.bottom() - 30;
+    painter->setPen( dark ? QColor( "#51555d" ) : QColor( "#EEEEEE" ) );
+    painter->drawLine( QPointF( card.left() + 1, footer_y ), QPointF( card.right() - 1, footer_y ) );
+    font.setPixelSize( 11 );
+    painter->setFont( font );
+    painter->setPen( item->fileAvailable ? YongTheme::linkBlue() : QColor( "#9A9A9A" ) );
+    const QString open_text = item->fileAvailable ? tr( "Open file" ) : tr( "File transfer" );
+    painter->drawText( QRectF( text_x, footer_y, card.width() / 2 - 14, 30 ), Qt::AlignLeft | Qt::AlignVCenter, open_text );
+    if( item->fileAvailable )
+      painter->drawText( QRectF( card.center().x(), footer_y, card.width() / 2 - 14, 30 ), Qt::AlignRight | Qt::AlignVCenter, tr( "Show in folder" ) );
     if( transferring )
     {
-      // YongBEEP: thin rounded progress bar along the card bottom edge,
-      // WeChat green fill on a light track (works for both transports).
-      const qreal bar_margin = 14.0;
-      const qreal bar_height = 3.0;
-      QRectF track_rect( card_rect.left() + bar_margin, card_rect.bottom() - 6.0,
-                         card_rect.width() - bar_margin * 2.0, bar_height );
+      QRectF track( card.left() + 14, footer_y - 5, card.width() - 28, 2 );
       painter->setPen( Qt::NoPen );
-      painter->setBrush( dark ? QColor( 0x54, 0x58, 0x60 ) : YongTheme::separator() );
-      painter->drawRoundedRect( track_rect, bar_height / 2.0, bar_height / 2.0 );
-      const qreal ratio = qBound<qreal>( 0.0, qreal( item->fileProgressBytes ) / qreal( item->fileProgressTotal ), 1.0 );
-      if( ratio > 0.0 )
-      {
-        QRectF fill_rect = track_rect;
-        fill_rect.setWidth( track_rect.width() * ratio );
-        painter->setBrush( YongTheme::brandGreen() );
-        painter->drawRoundedRect( fill_rect, bar_height / 2.0, bar_height / 2.0 );
-      }
+      painter->setBrush( YongTheme::separator() );
+      painter->drawRoundedRect( track, 1, 1 );
+      track.setWidth( track.width() * qBound<qreal>( 0, qreal( item->fileProgressBytes ) / item->fileProgressTotal, 1 ) );
+      painter->setBrush( YongTheme::brandGreen() );
+      painter->drawRoundedRect( track, 1, 1 );
     }
-
     painter->restore();
     return;
   }
@@ -340,14 +318,14 @@ void ChatMessageDelegate::paint( QPainter* painter, const QStyleOptionViewItem& 
   {
     // centered gray system line / wide free-form document (saved history,
     // image previews): drawn directly on the chat background
-    painter->translate( ChatMessageModel::HorizontalMargin, option.rect.top() );
+    painter->translate( ChatMessageModel::HorizontalMargin, 0 );
     drawDocumentWithSelection( painter, item, option, QRectF( 0, 0, model->viewportWidth() - 2 * ChatMessageModel::HorizontalMargin, item->docSize.height() ) );
     painter->restore();
     return;
   }
 
   // --- user message bubble ---
-  qreal y = option.rect.top();
+  qreal y = 0;
   if( item->showTimestamp )
     y += ChatMessageModel::TimestampRowHeight;
   if( item->showName )
@@ -361,20 +339,20 @@ void ChatMessageDelegate::paint( QPainter* painter, const QStyleOptionViewItem& 
     if( Settings::instance().chatUseColoredUserNames() && Bee::isColorVisibleInChat( QColor( item->user.color() ) ) )
       name_color = QColor( item->user.color() );
     painter->setPen( name_color );
-    QRectF bubble_top_rect = bubbleRect( item, option.rect, y, row_width );
+    QRectF bubble_top_rect = bubbleRect( item, row_rect, y, row_width );
     painter->drawText( QRectF( bubble_top_rect.left(), y, bubble_top_rect.width(), ChatMessageModel::NameRowHeight ),
                        Qt::AlignLeft | Qt::AlignVCenter, item->nameText );
     y += ChatMessageModel::NameRowHeight;
   }
 
   // avatar (40px rounded-6 square, outer edge)
-  QRect avatar_rect = avatarRect( item, option.rect, y );
+  QRect avatar_rect = avatarRect( item, row_rect, y );
   if( !item->avatar.isNull() )
     painter->drawPixmap( avatar_rect, item->avatar );
 
   // true rounded bubble (r=8): own green right, peer white left - fill only,
   // NO outline (WeChat separates by contrast; borders read as gray lines)
-  QRectF bubble_rect = bubbleRect( item, option.rect, y, row_width );
+  QRectF bubble_rect = bubbleRect( item, row_rect, y, row_width );
   QPainterPath bubble_path;
   bubble_path.addRoundedRect( bubble_rect, YongTheme::bubbleRadiusPx(), YongTheme::bubbleRadiusPx() );
   QColor bubble_color = item->ownMessage ? ( dark ? QColor( 0x3e, 0xb5, 0x75 ) : YongTheme::bubbleGreen() )
@@ -382,9 +360,17 @@ void ChatMessageDelegate::paint( QPainter* painter, const QStyleOptionViewItem& 
   painter->setPen( Qt::NoPen );
   painter->setBrush( bubble_color );
   painter->drawPath( bubble_path );
+  QPainterPath tail;
+  const qreal edge = item->ownMessage ? bubble_rect.right() : bubble_rect.left();
+  const qreal direction = item->ownMessage ? 1 : -1;
+  tail.moveTo( edge - direction, bubble_rect.top() + 12 );
+  tail.lineTo( edge + direction * 5, bubble_rect.top() + 17 );
+  tail.lineTo( edge - direction, bubble_rect.top() + 22 );
+  tail.closeSubpath();
+  painter->drawPath( tail );
 
   // shrink-to-fit document (emoticons / links / markdown / code)
-  QRectF doc_rect = bubbleRect( item, option.rect, y, row_width )
+  QRectF doc_rect = bubbleRect( item, row_rect, y, row_width )
                       .adjusted( ChatMessageModel::BubbleHPad, ChatMessageModel::BubbleVPad,
                                  -ChatMessageModel::BubbleHPad, -ChatMessageModel::BubbleVPad );
   painter->translate( doc_rect.topLeft() );
@@ -432,6 +418,10 @@ bool ChatMessageDelegate::editorEvent( QEvent* event, QAbstractItemModel* model,
   if( !item )
     return false;
   QMouseEvent* mouse_event = static_cast<QMouseEvent*>( event );
+  if( mouse_event->button() != Qt::LeftButton )
+    return false;
+  if( item->kind != ChatMessageItem::FileCard )
+    messageModel( index )->ensureLayout( item );
   QPointF row_pos = mouse_event->position() - option.rect.topLeft();
   QUrl anchor = anchorInItem( item, option.rect, option.rect.width(), row_pos );
   if( anchor.isValid() && !anchor.toString().isEmpty() )

@@ -24,6 +24,7 @@
 #include "BeeUtils.h"
 #include "Chat.h"
 #include "GuiChatMessage.h"
+#include <QTextDocumentFragment>
 #include "ChatMessage.h"
 #include "IconManager.h"
 #include "Settings.h"
@@ -133,7 +134,7 @@ static QString fileTransferCardHtml( const ChatMessage& cm )
     return QString();
 
   const QString file_url = match.captured( 1 );
-  const QString file_name = match.captured( 2 );
+  const QString file_name = QTextDocumentFragment::fromHtml( match.captured( 2 ) ).toPlainText();
 
   QString rest_text = cm.message();
   rest_text.remove( match.capturedStart(), match.capturedLength() );
@@ -141,6 +142,9 @@ static QString fileTransferCardHtml( const ChatMessage& cm )
   rest_text = Bee::removeHtmlTags( rest_text ).simplified();
 
   QString status_line = rest_text.toHtmlEscaped();
+  const auto marker = QRegularExpression( "<!--yb-file:[^>]+-->" ).match( cm.message() );
+  if( marker.hasMatch() )
+    status_line += marker.captured();
   status_line.replace( QString::fromUtf8( "\xE2\x9C\x93" ), QString( "<font color=%1>\xE2\x9C\x93</font>" ).arg( YongTheme::brandGreen().name() ) ); // check mark
   status_line.replace( QString::fromUtf8( "\xE2\x9C\x97" ), QString( "<font color=%1>\xE2\x9C\x97</font>" ).arg( YongTheme::unreadRed().name() ) ); // ballot x
 

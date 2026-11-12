@@ -66,6 +66,12 @@ void Core::stopFileTransferServer()
   Protocol::instance().createFileShareListMessage( FileShare::instance().local(), -1 );
 }
 
+static QString fileCardMarker( const FileInfo& fi, const char* state )
+{
+  return QString( "<!--yb-file:%1:%2:%3-->" )
+      .arg( fi.isDownload() ? "in" : "out", QString::fromLatin1( state ) ).arg( fi.size() );
+}
+
 bool Core::downloadFile( VNumber user_id, const FileInfo& fi, bool show_message )
 {
   User u = UserManager::instance().findUser( user_id );
@@ -130,7 +136,7 @@ bool Core::downloadFile( VNumber user_id, const FileInfo& fi, bool show_message 
     QUrl file_url = QUrl::fromLocalFile( fi.path() );
     QString live_marker = QString::fromLatin1( "<!--live-->" ); // YongBEEP: final-state rewrite marker
     dispatchSystemMessage( chat_to_show_message.isValid() ? chat_to_show_message.id() : ID_DEFAULT_CHAT, u.id(), tr( "%1 Downloading %2 from %3." )
-                         .arg( icon_html, QString( "<a href=\"%1\">%2</a>" ).arg( file_url.toString(), fi.name() ), Bee::userNameToShow( u, true ) ) + live_marker,
+                         .arg( icon_html, QString( "<a href=\"%1\">%2</a>" ).arg( file_url.toString(), fi.name().toHtmlEscaped() ), Bee::userNameToShow( u, true ) ) + live_marker + QString( "<!--yb-file:in:pending:%1-->" ).arg( fi.size() ),
                          chat_to_show_message.isValid() ? DispatchToChat : DispatchToDefaultAndPrivateChat, ChatMessage::FileTransfer, false );
   }
 
@@ -199,7 +205,7 @@ void Core::checkFileTransferMessage( VNumber peer_id, VNumber user_id, const Fil
     {
       QUrl folder_url = QUrl::fromLocalFile( fi.path() );
       folder_url.setScheme( FileInfo::urlSchemeShowFileInFolder() );
-      QString name_html = QString( "<a href=\"%1\">%2</a>" ).arg( file_url.toString(), fi.name() );
+      QString name_html = QString( "<a href=\"%1\">%2</a>" ).arg( file_url.toString().toHtmlEscaped(), fi.name().toHtmlEscaped() );
       QString open_html = QString( " " ) + tr( "Open %1." ).arg( QString( "<a href=\"%1\">%2</a>" ).arg( folder_url.toString(), tr( "folder" ) ) );
       if( fi.isDownload() )
         final_card_html = QString( "%1 %2" ).arg( icon_html, tr( "Received %1 from %2 (%3)." ).arg( name_html, Bee::userNameToShow( u, true ), Bee::bytesToString( fi.size() ) ) ) + open_html;
@@ -209,10 +215,12 @@ void Core::checkFileTransferMessage( VNumber peer_id, VNumber user_id, const Fil
     else
     {
       final_card_html = QString( "%1 %2" ).arg( IconManager::instance().toHtml( "red-ball.png", "*F*" ),
-                           tr( "%1 of %2 not completed: %3." ).arg( action_txt, QString( "<a href=\"%1\">%2</a>" ).arg( file_url.toString(), fi.name() ), Bee::lowerFirstLetter( msg ) ) );
+                           tr( "%1 of %2 not completed: %3." ).arg( action_txt, QString( "<a href=\"%1\">%2</a>" ).arg( file_url.toString().toHtmlEscaped(), fi.name().toHtmlEscaped() ), Bee::lowerFirstLetter( msg ) ) );
       if( !fi.isDownload() )
         final_card_html += QString( " " ) + tr( "File can be sent again." );
     }
+
+    final_card_html += fileCardMarker( fi, ft_state == FileTransferPeer::Completed ? "complete" : "failed" );
 
     Chat live_card_chat = ChatManager::instance().findChatByPrivateId( fi.chatPrivateId(), false, u.id() );
     if( live_card_chat.isValid() && live_card_chat.rewriteLiveFileCard( fi.name(), final_card_html ) )
@@ -223,7 +231,7 @@ void Core::checkFileTransferMessage( VNumber peer_id, VNumber user_id, const Fil
   }
 
   if( FileTransferPeer::stateIsStopped( ft_state ) )
-    sys_msg = QString( "%1 %2 %3 %4 %5: %6." ).arg( icon_html, action_txt, fi.isDownload() ? fi.name() : QString( "<a href=\"%1\">%2</a>" ).arg( file_url.toString(), fi.name() ), fi.isDownload() ? tr( "from" ) : tr( "to" ), Bee::userNameToShow( u, true ), Bee::lowerFirstLetter( msg ) );
+    sys_msg = QString( "%1 %2 %3 %4 %5: %6." ).arg( icon_html, action_txt, fi.isDownload() ? fi.name() : QString( "<a href=\"%1\">%2</a>" ).arg( file_url.toString().toHtmlEscaped(), fi.name().toHtmlEscaped() ), fi.isDownload() ? tr( "from" ) : tr( "to" ), Bee::userNameToShow( u, true ), Bee::lowerFirstLetter( msg ) );
 
   if( fi.isDownload() && ft_state == FileTransferPeer::Completed )
   {
@@ -256,7 +264,7 @@ void Core::checkFileTransferMessage( VNumber peer_id, VNumber user_id, const Fil
     }
     else
     {
-      sys_msg_open_file = QString( "%1 %2" ).arg( icon_html ).arg( tr( "%1 sent %2." ).arg( Bee::userNameToShow( u, true ) ).arg( QString( "<a href=\"%1\">%2</a>" ).arg( file_url.toString(), fi.name() ) ) );
+      sys_msg_open_file = QString( "%1 %2" ).arg( icon_html ).arg( tr( "%1 sent %2." ).arg( Bee::userNameToShow( u, true ) ).arg( QString( "<a href=\"%1\">%2</a>" ).arg( file_url.toString().toHtmlEscaped(), fi.name().toHtmlEscaped() ) ) );
       file_url.setScheme( FileInfo::urlSchemeShowFileInFolder() );
       sys_msg_open_file += QString( " " );
       sys_msg_open_file += tr( "Open %1." ).arg( QString( "<a href=\"%1\">%2</a>" ).arg( file_url.toString(), tr( "folder" ) ) );
@@ -512,11 +520,11 @@ bool Core::sendFileToUser( const User& u, const QString& file_path, const QStrin
           qDebug() << "Sending file" << fi.path() << "to" << qPrintable( u.path() );
         file_sent = true;
         QUrl file_url = QUrl::fromLocalFile( fi.path() );
-        QString msg = tr( "%1 Sending %2 to %3." ).arg( icon_html, QString( "<a href=\"%1\">%2</a>" ).arg( file_url.toString(), fi.name() ), Bee::userNameToShow( u, true ) );
+        QString msg = tr( "%1 Sending %2 to %3." ).arg( icon_html, QString( "<a href=\"%1\">%2</a>" ).arg( file_url.toString().toHtmlEscaped(), fi.name().toHtmlEscaped() ), Bee::userNameToShow( u, true ) );
         file_url.setScheme( FileInfo::urlSchemeShowFileInFolder() );
         msg += QString( " " );
         msg += tr( "Open %1." ).arg( QString( "<a href=\"%1\">%2</a>" ).arg( file_url.toString(), tr( "folder" ) ) );
-        msg += QString::fromLatin1( "<!--live-->" ); // YongBEEP: final-state rewrite marker (language independent)
+        msg += QString::fromLatin1( "<!--live-->" ) + fileCardMarker( fi, "pending" ); // YongBEEP: final-state rewrite marker (language independent)
         dispatchSystemMessage( chat_selected.isValid() ? chat_selected.id() : ID_DEFAULT_CHAT, u.id(), msg,
                                chat_selected.isValid() ? DispatchToChat : DispatchToDefaultAndPrivateChat, ChatMessage::FileTransfer, true );
       }

@@ -274,6 +274,7 @@ void GuiChat::setupMessageList()
   mp_lvChat->setSpacing( 0 );
   mp_lvChat->setFocusPolicy( Qt::StrongFocus ); // keyboard events like CTRL+c
   mp_lvChat->setContextMenuPolicy( Qt::CustomContextMenu );
+  mp_lvChat->viewport()->setMouseTracking( true );
   mp_lvChat->viewport()->installEventFilter( this ); // relayout on resize + text selection drag
   mp_lvChat->installEventFilter( this ); // CTRL+C selection copy
   mp_messageModel->setViewportWidth( qMax( 200, mp_lvChat->viewport()->width() ) );
@@ -364,6 +365,13 @@ bool GuiChat::eventFilter( QObject* obj, QEvent* event )
         return true;
       }
     }
+  }
+  else if( obj == mp_lvChat->viewport() && event->type() == QEvent::MouseMove )
+  {
+    const QPoint pos = static_cast<QMouseEvent*>( event )->position().toPoint();
+    const QModelIndex idx = mp_lvChat->indexAt( pos );
+    const QUrl anchor = idx.isValid() ? mp_messageDelegate->anchorAt( idx, mp_lvChat->visualRect( idx ), pos ) : QUrl();
+    mp_lvChat->viewport()->setCursor( anchor.isEmpty() ? Qt::ArrowCursor : Qt::PointingHandCursor );
   }
   else if( obj == mp_lvChat && event->type() == QEvent::KeyPress )
   {

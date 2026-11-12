@@ -126,11 +126,12 @@ bool Chat::rewriteLiveFileCard( const QString& file_name, const QString& new_htm
   for( int i = m_messages.size() - 1; i >= 0; --i )
   {
     ChatMessage& cm = m_messages[i];
-    if( cm.type() != ChatMessage::FileTransfer || !cm.message().contains( file_name ) )
+    if( cm.type() != ChatMessage::FileTransfer || !(cm.message().contains( file_name ) || cm.message().contains( file_name.toHtmlEscaped() )) )
       continue;
     if( !cm.message().contains( c_liveMarker ) )
       continue; // already rewritten or a completion record of an older transfer
     cm.setMessageText( new_html );
+    cm.setCanBeSaved( true );
     m_unsavedMessages = true;
     return true;
   }

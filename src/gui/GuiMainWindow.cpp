@@ -949,7 +949,7 @@ void GuiMainWindow::onFileTransferMessage( VNumber peer_id, const User& u, const
     return;
   GuiChat* gui_chat = m_chatWidgets.value( c.id(), Q_NULLPTR );
   if( gui_chat )
-    gui_chat->fileStatusProxy( fi.name(), fi.size(), status );
+    gui_chat->fileStatusProxy( fi.name(), fi.size(), status, fi.path(), st == FileTransferPeer::Completed );
 }
 
 void GuiMainWindow::onFileDownloadRequest( const User& u, const FileInfo& fi )
@@ -983,7 +983,7 @@ void GuiMainWindow::onFileDownloadRequest( const User& u, const FileInfo& fi )
 
   FileInfo file_info = fi;
   file_info.setPath( qfile_info.absoluteFilePath() );
-  beeCore->downloadFile( u.id(), file_info, false );
+  beeCore->downloadFile( u.id(), file_info, true );
 }
 
 
@@ -1001,7 +1001,7 @@ void GuiMainWindow::onFolderDownloadRequest( const User& u, const QString& folde
       qfile_info = QFileInfo( Bee::uniqueFilePath( qfile_info.absoluteFilePath(), true ) );
     FileInfo file_info = fi;
     file_info.setPath( qfile_info.absoluteFilePath() );
-    beeCore->downloadFile( u.id(), file_info, false );
+    beeCore->downloadFile( u.id(), file_info, true );
   }
   qDebug() << "Auto-downloaded folder" << folder_name << "from" << u.path();
 }

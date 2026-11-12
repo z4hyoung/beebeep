@@ -68,6 +68,7 @@ public:
   inline void setMessageText( const QString& new_text ) { m_message = new_text; }
 
   inline bool canBeSaved() const;
+  inline void setCanBeSaved( bool value ) { m_canBeSaved = value; }
 
   inline bool isSourceCode() const;
 

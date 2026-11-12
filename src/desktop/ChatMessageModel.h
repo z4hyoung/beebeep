@@ -56,6 +56,8 @@ public:
   QString plainText;          // for copy / quote / find
 
   QString fileUrl;            // FileCard: beefile:/file: link target
+  QString fileFolderUrl;
+  bool fileAvailable;
   QString fileName;
   QString fileStatus;
   FileSizeType fileProgressBytes;  // live "15M / 100M" progress (0 = not transferring)
@@ -90,7 +92,7 @@ public:
   // YongBEEP audit pass: roomier timestamp separators and bubble padding
   enum { HorizontalMargin = 12, AvatarGap = 10, BubbleHPad = 12, BubbleVPad = 10,
          RowBottomSpacing = 10, TimestampRowHeight = 36, NameRowHeight = 17,
-         FileCardWidth = 240, FileCardHeight = 60 };
+         FileCardWidth = 300, FileCardHeight = 116 };
 
   explicit ChatMessageModel( QObject* parent = Q_NULLPTR );
   ~ChatMessageModel();
@@ -108,7 +110,7 @@ public:
 
   /*! Morph a live file card into its final state (sent/received/failed):
    * same newest-first name+size match as updateFileProgress. */
-  void updateFileStatus( const QString& file_name, FileSizeType total, const QString& status );
+  void updateFileStatus( const QString& file_name, FileSizeType total, const QString& status, const QString& file_path = QString(), bool completed = true );
 
   // --- YongBEEP partial text selection (delegate draws the highlight) ---
   void setItemSelection( int row, int anchor, int position );
@@ -130,6 +132,7 @@ public:
   ChatMessageItem* itemForIndex( const QModelIndex& ) const;
 
   void ensureLayout( ChatMessageItem* ) const;
+  static QString fileSizeText( FileSizeType );
   qreal maxBubbleWidth() const;       // 62% of the viewport (S4e spec)
   QColor bubbleTextColor() const;
 
@@ -138,6 +141,7 @@ public:
 private:
   ChatMessageItem* createItem( const Chat& c, const ChatMessage& cm );
   void appendBuiltItem( ChatMessageItem* item );
+  QList<ChatMessageItem*> itemsFromSavedHtml( const Chat&, const QString& );
   void clearItems();
   void buildDocument( ChatMessageItem* item ) const;
   bool matchMarkdownRegistry( const ChatMessage& cm, QString* raw_out ) const;

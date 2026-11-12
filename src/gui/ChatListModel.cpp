@@ -28,14 +28,14 @@ static QString LastMessageSummary( const Chat& c )
   const ChatMessage* cm = Q_NULLPTR;
   for( int i = c.messages().size() - 1; i >= 0; i-- )
   {
-    if( !c.messages().at( i ).isFromSystem() )
+    if( !c.messages().at( i ).isFromSystem() || c.messages().at( i ).isFileTransfer() )
     {
       cm = &c.messages().at( i );
       break;
     }
   }
   if( !cm )
-    cm = &c.messages().last();
+    return QString();
   QString txt = Bee::removeHtmlTags( cm->message() );
   txt.replace( QLatin1Char( '\n' ), QLatin1Char( ' ' ) );
   txt = txt.simplified();

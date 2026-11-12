@@ -9,12 +9,17 @@
 #include "Chat.h"
 #include "ChatManager.h"
 #include "GuiChatMessage.h"
+#include "FileInfo.h"
 #include "Protocol.h"
 #include "Settings.h"
 #include "UserManager.h"
 #include "YongTheme.h"
 
 #include <QApplication>
+#include <QFileInfo>
+#include <QLocale>
+#include <QTextDocumentFragment>
+#include <QTextOption>
 #include <QPainter>
 #include <QPainterPath>
 #include <QRegularExpression>
@@ -26,7 +31,7 @@
 
 ChatMessageItem::ChatMessageItem()
   : kind( ChatMessageItem::SystemLine ), ownMessage( false ), showTimestamp( false ), showName( false ),
-    markdown( false ), fileProgressBytes( 0 ), fileProgressTotal( 0 ), fileProgressElapsed( 0 ),
+    markdown( false ), fileAvailable( false ), fileProgressBytes( 0 ), fileProgressTotal( 0 ), fileProgressElapsed( 0 ),
     selectionAnchor( -1 ), selectionPosition( -1 ),
     doc( Q_NULLPTR ), laidOutForWidth( -1.0 )
 {
@@ -64,6 +69,8 @@ QVariant ChatMessageModel::data( const QModelIndex& index, int role ) const
     return QVariant();
   if( role == Qt::DisplayRole )
     return item->plainText;
+  if( role == Qt::ToolTipRole && item->kind == ChatMessageItem::FileCard )
+    return item->fileName + QLatin1Char( '\n' ) + item->fileStatus;
   return QVariant();
 }
 
@@ -85,6 +92,9 @@ void ChatMessageModel::clearItems()
 
 bool ChatMessageModel::messageCanBeShowed( const ChatMessage& cm ) const
 {
+  // The contact is already named in the chat header.
+  if( cm.isHeader() )
+    return false;
   // same filter as the old GuiChat::messageCanBeShowed
   if( m_isDefaultChat && Settings::instance().showOnlyMessagesInDefaultChat() )
     return cm.isChatActivity() && !Settings::instance().chatMessageFilter().testBit( static_cast<int>( cm.type() ) );
@@ -120,10 +130,16 @@ void ChatMessageModel::setViewportWidth( int new_width )
     emit dataChanged( index( 0, 0 ), index( m_items.size() - 1, 0 ) );
 }
 
+QString ChatMessageModel::fileSizeText( FileSizeType bytes )
+{
+  return QLocale::system().formattedDataSize( bytes, 0, QLocale::DataSizeIecFormat );
+}
+
 qreal ChatMessageModel::maxBubbleWidth() const
 {
   // S4e spec: bubbles shrink-wrap their content, capped at 62% of the chat area
-  return qMax<qreal>( 120.0, m_viewportWidth * 0.62 );
+  return qMax<qreal>( 60.0, qMin<qreal>( 560.0, qMin<qreal>( m_viewportWidth * 0.62,
+      m_viewportWidth - 2 * HorizontalMargin - YongTheme::avatarSizePx() - AvatarGap ) ) );
 }
 
 QColor ChatMessageModel::bubbleTextColor() const
@@ -258,8 +274,6 @@ void ChatMessageModel::updateUserProfile( const User& u )
 
 ChatMessageItem* ChatMessageModel::createItem( const Chat& c, const ChatMessage& cm )
 {
-  Q_UNUSED( c );
-
   ChatMessageItem* item = new ChatMessageItem();
   item->message = cm;
 
@@ -271,18 +285,43 @@ ChatMessageItem* ChatMessageModel::createItem( const Chat& c, const ChatMessage&
     {
       // WeChat file card: parse the <a href> link from the system message
       // (same parsing as the old GuiChatMessage fileTransferCardHtml)
-      static const QRegularExpression link_rx( QStringLiteral( "<a href=\\\"([^\\\"]+)\\\">([^<]+)</a>" ) );
+      static const QRegularExpression link_rx( QStringLiteral( "<a\\b[^>]*href=['\"]([^'\"]+)['\"][^>]*>(.*?)</a>" ), QRegularExpression::DotMatchesEverythingOption );
       QRegularExpressionMatch match = link_rx.match( cm.message() );
-      if( match.hasMatch() && !YongTheme::svgHtmlIcon( YongTheme::fileIconNameForFile( match.captured( 2 ) ), 32 ).isEmpty() )
+      if( match.hasMatch() && QUrl( match.captured( 1 ) ).isLocalFile() )
       {
         item->kind = ChatMessageItem::FileCard;
-        item->fileUrl = match.captured( 1 );
-        item->fileName = match.captured( 2 );
+        item->fileUrl = QTextDocumentFragment::fromHtml( match.captured( 1 ) ).toPlainText();
+        item->fileName = plainTextFromHtml( match.captured( 2 ) );
+        const QFileInfo local_file( QUrl( item->fileUrl ).toLocalFile() );
+        item->fileAvailable = local_file.isFile() && !cm.message().contains( "<!--live-->" );
+        QUrl folder_url( item->fileUrl );
+        folder_url.setScheme( FileInfo::urlSchemeShowFileInFolder() );
+        item->fileFolderUrl = folder_url.toString();
+        const auto metadata = QRegularExpression( "<!--yb-file:(in|out):(pending|complete|failed):(\\d+)-->" ).match( cm.message() );
+        item->ownMessage = metadata.hasMatch() ? metadata.captured( 1 ) == "out"
+            : cm.message().contains( QRegularExpression( "Sending |Sent |Upload |发送|已发送" ) );
+        item->user = UserManager::instance().findUser( item->ownMessage ? ID_LOCAL_USER : c.privateUserId() );
+        item->avatar = roundedAvatar( item->user );
+        if( metadata.hasMatch() )
+        {
+          item->fileProgressTotal = metadata.captured( 3 ).toLongLong();
+          item->fileAvailable = metadata.captured( 2 ) == "complete" && local_file.isFile();
+          if( metadata.captured( 2 ) != "pending" )
+            item->fileProgressBytes = item->fileProgressTotal;
+        }
         QString rest_text = cm.message();
         rest_text.remove( match.capturedStart(), match.capturedLength() );
         rest_text.remove( QRegularExpression( QStringLiteral( "<img[^>]*>" ) ) );
         rest_text.remove( QRegularExpression( QStringLiteral( "<!--.*?-->" ) ) ); // YongBEEP live-card rewrite marker
-        item->fileStatus = Bee::removeHtmlTags( rest_text ).simplified();
+        // The full transfer sentence belongs in the tooltip, not the card.
+        item->fileStatus = plainTextFromHtml( rest_text );
+        if( item->fileAvailable )
+        {
+          item->fileProgressBytes = item->fileProgressTotal;
+          item->fileStatus = tr( "%1 · %2" ).arg( fileSizeText( local_file.size() ), item->ownMessage ? tr( "Sent" ) : tr( "Received" ) );
+        }
+        else if( cm.message().contains( "<!--live-->" ) )
+          item->fileStatus = item->ownMessage ? tr( "Sending…" ) : tr( "Receiving…" );
         item->fileIcon = YongTheme::svgIcon( YongTheme::fileIconNameForFile( item->fileName ), YongTheme::iconGray() );
         item->plainText = item->fileName + QLatin1Char( ' ' ) + item->fileStatus;
         item->showTimestamp = !m_lastMessageTimestamp.isValid() ||
@@ -452,7 +491,7 @@ void ChatMessageModel::updateFileProgress( const QString& file_name, FileSizeTyp
   }
 }
 
-void ChatMessageModel::updateFileStatus( const QString& file_name, FileSizeType total, const QString& status )
+void ChatMessageModel::updateFileStatus( const QString& file_name, FileSizeType total, const QString& status, const QString& file_path, bool completed )
 {
   // YongBEEP: same matching rules of updateFileProgress - newest card first,
   // name plus total size pins the match to this transfer.
@@ -464,6 +503,16 @@ void ChatMessageModel::updateFileStatus( const QString& file_name, FileSizeType 
     if( item->fileProgressTotal > 0 && item->fileProgressTotal != total )
       continue; // same name, different transfer
     item->fileStatus = status;
+    if( !file_path.isEmpty() )
+    {
+      item->fileUrl = QUrl::fromLocalFile( file_path ).toString();
+      QUrl folder_url( item->fileUrl );
+      folder_url.setScheme( FileInfo::urlSchemeShowFileInFolder() );
+      item->fileFolderUrl = folder_url.toString();
+    }
+    item->fileAvailable = completed && QFileInfo( QUrl( item->fileUrl ).toLocalFile() ).isFile();
+    if( item->fileAvailable )
+      item->fileStatus = tr( "%1 · %2" ).arg( fileSizeText( total ), item->ownMessage ? tr( "Sent" ) : tr( "Received" ) );
     item->fileProgressBytes = total; // finalize: the delegate stops the live bar
     emit dataChanged( index( i, 0 ), index( i, 0 ) );
     return;
@@ -560,24 +609,26 @@ void ChatMessageModel::resetFromChat( const Chat& c )
   QList<ChatMessageItem*> new_items;
   QList<ChatMessageItem*> blob_items;
 
-  // Saved history blob (loaded from disk, rendered as one wide rich-text item)
+  // Recover individual message items from the legacy saved HTML.
   if( history_shown )
   {
     QString saved_html;
     if( !ChatManager::instance().chatHasSavedText( c.name() ) )
     {
       if( c.isPrivate() && c.name().contains( "@" ) && ChatManager::instance().chatHasSavedText( User::nameFromPath( c.name() ) ) )
-        saved_html = ChatManager::instance().chatSavedText( User::nameFromPath( c.name() ), history_lines, &missed_lines );
+        saved_html = ChatManager::instance().chatSavedText( User::nameFromPath( c.name() ) );
     }
     else
-      saved_html = ChatManager::instance().chatSavedText( c.name(), history_lines, &missed_lines );
+      saved_html = ChatManager::instance().chatSavedText( c.name() );
     if( !saved_html.isEmpty() )
     {
-      ChatMessageItem* blob_item = new ChatMessageItem();
-      blob_item->kind = ChatMessageItem::FreeFormDoc;
-      blob_item->contentHtml = saved_html;
-      blob_item->plainText = plainTextFromHtml( saved_html );
-      blob_items.append( blob_item );
+      blob_items = itemsFromSavedHtml( c, saved_html );
+      if( history_lines >= 0 && blob_items.size() > history_lines )
+      {
+        missed_lines = blob_items.size() - history_lines;
+        while( blob_items.size() > history_lines )
+          delete blob_items.takeFirst();
+      }
     }
   }
 
@@ -621,6 +672,92 @@ void ChatMessageModel::resetFromChat( const Chat& c )
   endResetModel();
 }
 
+// Old history stores positioning tables rather than message objects. Recover
+// each bubble/card so history uses the same layout and hit testing as live chat.
+QList<ChatMessageItem*> ChatMessageModel::itemsFromSavedHtml( const Chat& c, const QString& html )
+{
+  QList<ChatMessageItem*> result;
+  QString pending_timestamp;
+  const QRegularExpression table_rx( "<table\\b[^>]*>.*?</table>", QRegularExpression::DotMatchesEverythingOption );
+  const QRegularExpression cell_rx( "<td\\b[^>]*>(.*?)</td>", QRegularExpression::DotMatchesEverythingOption );
+  const QRegularExpression bubble_rx( "<span style=\"background-color:[^\"]*\">(.*)</span>", QRegularExpression::DotMatchesEverythingOption );
+  auto append_other = [&]( const QString& fragment )
+  {
+    QString text = plainTextFromHtml( fragment );
+    if( text.isEmpty() )
+      return;
+    if( QRegularExpression( "^(?:(?:\\d{4}-)?\\d{2}-\\d{2} )?\\d{2}:\\d{2}$" ).match( text ).hasMatch() )
+    {
+      pending_timestamp = text;
+      return;
+    }
+    ChatMessageItem* line = new ChatMessageItem();
+    line->kind = ChatMessageItem::FreeFormDoc;
+    line->contentHtml = fragment;
+    line->plainText = text;
+    result.append( line );
+  };
+  int end = 0;
+  auto tables = table_rx.globalMatch( html );
+  while( tables.hasNext() )
+  {
+    const auto table = tables.next();
+    append_other( html.mid( end, table.capturedStart() - end ) );
+    end = table.capturedEnd();
+    QStringList cells;
+    auto matches = cell_rx.globalMatch( table.captured() );
+    while( matches.hasNext() ) cells.append( matches.next().captured( 1 ) );
+    ChatMessageItem* item = Q_NULLPTR;
+    if( cells.size() == 4 )
+    {
+      const bool own = cells.first().trimmed().isEmpty();
+      const QString content = cells.at( own ? 1 : 2 );
+      const auto bubble = bubble_rx.match( content );
+      if( bubble.hasMatch() )
+      {
+        item = new ChatMessageItem();
+        item->kind = ChatMessageItem::UserMessage;
+        item->ownMessage = own;
+        item->user = UserManager::instance().findUser( own ? ID_LOCAL_USER : c.privateUserId() );
+        item->avatar = roundedAvatar( item->user );
+        const auto avatar = QRegularExpression( "src=['\"]([^'\"]+)" ).match( cells.at( own ? 3 : 0 ) );
+        if( avatar.hasMatch() )
+        {
+          QPixmap saved_avatar( QUrl( avatar.captured( 1 ) ).toLocalFile() );
+          if( !saved_avatar.isNull() )
+          {
+            saved_avatar.setDevicePixelRatio( qreal( saved_avatar.width() ) / YongTheme::avatarSizePx() );
+            item->avatar = saved_avatar;
+          }
+        }
+        item->contentHtml = bubble.captured( 1 ).trimmed();
+        // Strip only the padding inserted by the old serializer.
+        if( item->contentHtml.startsWith( "&nbsp;" ) ) item->contentHtml.remove( 0, 6 );
+        if( item->contentHtml.endsWith( "&nbsp;" ) ) item->contentHtml.chop( 6 );
+        item->plainText = plainTextFromHtml( item->contentHtml );
+        item->nameText = plainTextFromHtml( content.left( bubble.capturedStart() ) );
+        item->showName = !m_chatIsPrivate && !own && !item->nameText.isEmpty();
+      }
+    }
+    else if( cells.size() == 2 )
+    {
+      Message m( Message::System, ID_SYSTEM_MESSAGE, table.captured() );
+      item = createItem( c, ChatMessage( ID_SYSTEM_MESSAGE, m, ChatMessage::FileTransfer, false ) );
+    }
+    if( !item )
+      append_other( table.captured() );
+    else
+    {
+      item->showTimestamp = !pending_timestamp.isEmpty();
+      item->timestampText = pending_timestamp;
+      pending_timestamp.clear();
+      result.append( item );
+    }
+  }
+  append_other( html.mid( end ) );
+  return result;
+}
+
 // ---------------------------------------------------------------------
 // Document cache + shrink-to-fit layout
 // ---------------------------------------------------------------------
@@ -630,6 +767,9 @@ void ChatMessageModel::buildDocument( ChatMessageItem* item ) const
   QTextDocument* doc = new QTextDocument();
   doc->setDefaultFont( m_chatFont );
   doc->setDocumentMargin( 0 );
+  QTextOption text_option = doc->defaultTextOption();
+  text_option.setWrapMode( QTextOption::WrapAtWordBoundaryOrAnywhere );
+  doc->setDefaultTextOption( text_option );
 
   if( item->kind == ChatMessageItem::SystemLine )
   {
@@ -684,7 +824,8 @@ void ChatMessageModel::ensureLayout( ChatMessageItem* item ) const
 
   item->doc->setTextWidth( -1.0 );
   qreal ideal_width = item->doc->idealWidth();
-  qreal text_width = qBound<qreal>( 36.0, ideal_width, max_content_width );
+  qreal text_width = item->kind == ChatMessageItem::UserMessage
+      ? qBound<qreal>( 1.0, ideal_width, max_content_width ) : max_content_width;
   item->doc->setTextWidth( text_width );
   item->docSize = item->doc->size();
   item->laidOutForWidth = max_content_width;

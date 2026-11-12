@@ -210,7 +210,8 @@ void Core::parseFileMessage( const User& u, const Message& m )
     sys_msg = tr( "%1 %2 is sending to you the voice message: %3" ).arg( IconManager::instance().toHtml( "download.png", "*F*" ), Bee::userNameToShow( u, true ), fi.name() );
   else
     sys_msg = tr( "%1 %2 is sending to you the file: %3" ).arg( IconManager::instance().toHtml( "download.png", "*F*" ), Bee::userNameToShow( u, true ), fi.name() );
-  dispatchSystemMessage( chat_to_show_message.id(), u.id(), sys_msg, chat_to_show_message.isValid() ? DispatchToChat : DispatchToAllChatsWithUser, ChatMessage::FileTransfer, false );
+  if( fi.isVoiceMessage() || fi.isInShareBox() )
+    dispatchSystemMessage( chat_to_show_message.id(), u.id(), sys_msg, chat_to_show_message.isValid() ? DispatchToChat : DispatchToAllChatsWithUser, ChatMessage::FileTransfer, false );
 
   if( !Settings::instance().isFileExtensionAllowedInFileTransfer( fi.suffix() ) )
   {
@@ -219,7 +220,15 @@ void Core::parseFileMessage( const User& u, const Message& m )
     return;
   }
 
-  fi.setHostAddress( u.networkAddress().hostAddress() );
+  // Contacts merge LAN and Bluetooth identities, so their cached address can
+  // belong to a previous link. TCP downloads must follow the authenticated
+  // LAN socket; keep the file-service port announced in the offer.
+  Connection* lan = connection( u.id(), Lan );
+  const QHostAddress download_address = lan ? lan->peerAddress() : u.networkAddress().hostAddress();
+  fi.setHostAddress( download_address );
+  qDebug() << "TCP file offer" << qPrintable( fi.name() )
+           << "uses" << qPrintable( fi.networkAddress().toString() )
+           << "contact address" << qPrintable( u.networkAddress().toString() );
   if( fi.isInShareBox() )
   {
     QString to_path;
@@ -306,7 +315,8 @@ void Core::parseInlineFileMessage( const User& u, const Message& m, const FileIn
     sys_msg = tr( "%1 %2 is sending to you the voice message: %3" ).arg( IconManager::instance().toHtml( "download.png", "*F*" ), Bee::userNameToShow( u, true ), fi.name() );
   else
     sys_msg = tr( "%1 %2 is sending to you the file: %3" ).arg( IconManager::instance().toHtml( "download.png", "*F*" ), Bee::userNameToShow( u, true ), fi.name() );
-  dispatchSystemMessage( chat_to_show_message.id(), u.id(), sys_msg, chat_to_show_message.isValid() ? DispatchToChat : DispatchToAllChatsWithUser, ChatMessage::FileTransfer, false );
+  if( fi.isVoiceMessage() || fi.isInShareBox() )
+    dispatchSystemMessage( chat_to_show_message.id(), u.id(), sys_msg, chat_to_show_message.isValid() ? DispatchToChat : DispatchToAllChatsWithUser, ChatMessage::FileTransfer, false );
 
   if( !Settings::instance().isFileExtensionAllowedInFileTransfer( fi.suffix() ) )
   {

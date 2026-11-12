@@ -79,6 +79,12 @@
 </context>
 <context>
     <name>ChatMessageModel</name>
+    <message><source>%1 · %2</source><translation>%1 · %2</translation></message>
+    <message><source>Sent</source><translation>已发送</translation></message>
+    <message><source>Received</source><translation>已接收</translation></message>
+    <message><source>Sending…</source><translation>发送中…</translation></message>
+    <message><source>Receiving…</source><translation>接收中…</translation></message>
+
     <message>
         <location filename="../src/desktop/ChatMessageModel.cpp" line="444"/>
         <source>only the last %1 messages are shown</source>
@@ -7418,5 +7424,10 @@ Please select a different name.</source>
         <source>status error</source>
         <translation>状态错误</translation>
     </message>
+</context>
+<context><name>ChatMessageDelegate</name>
+    <message><source>Open file</source><translation>打开文件</translation></message>
+    <message><source>Show in folder</source><translation>在文件夹中显示</translation></message>
+    <message><source>File transfer</source><translation>文件传输</translation></message>
 </context>
 </TS>
