@@ -18,6 +18,7 @@
 #include "YongTheme.h"
 
 #include <algorithm>
+#include <QFileInfo>
 #include <QRegularExpression>
 #include <QTextDocument>
 #include <QTextDocumentFragment>
@@ -37,12 +38,13 @@ static QString PreviewWithSender( const QString& text, bool own )
   return own ? ChatListModel::tr( "You: " ) + text : text;
 }
 
-static QString LastLiveMessageSummary( const Chat& c, bool* found )
+static QString LastLiveMessageSummary( const Chat& c, QDateTime* timestamp )
 {
-  *found = false;
+  *timestamp = QDateTime();
   for( int i = c.messages().size() - 1; i >= 0; --i )
   {
     const ChatMessage& cm = c.messages().at( i );
+    if( cm.isHeader() ) continue;
     QString text;
     if( cm.isFileTransfer() )
     {
@@ -51,7 +53,7 @@ static QString LastLiveMessageSummary( const Chat& c, bool* found )
       if( !link.hasMatch() ) continue; // offers and diagnostic lines are not messages
       text = ChatListModel::tr( "[File] %1" ).arg( QTextDocumentFragment::fromHtml( link.captured( 1 ) ).toPlainText() );
       const bool own = cm.message().contains( "<!--yb-file:out:" );
-      *found = true;
+      *timestamp = cm.timestamp();
       return PreviewWithSender( text, own );
     }
     if( cm.isImagePreview() ) text = ChatListModel::tr( "[Image]" );
@@ -59,46 +61,49 @@ static QString LastLiveMessageSummary( const Chat& c, bool* found )
     else if( !cm.isFromSystem() ) text = MessagePlainText( cm );
     else continue;
     if( text.isEmpty() ) continue;
-    *found = true;
+    *timestamp = cm.timestamp();
     return PreviewWithSender( text, cm.isFromLocalUser() );
   }
   return QString();
 }
 
-static QString SavedHtmlForSummary( const Chat& c )
+static QDateTime LegacyHistoryTime( const QString& text )
 {
-  if( ChatManager::instance().chatHasSavedText( c.name() ) )
-    return ChatManager::instance().chatSavedText( c.name() );
-  if( c.isPrivate() && c.name().contains( "@" ) )
-    return ChatManager::instance().chatSavedText( User::nameFromPath( c.name() ) );
-  return QString();
+  // Older histories only stored the visible time separators. Use the saved
+  // file's date for separators that omit a year or date.
+  QDate reference_date = QFileInfo( Settings::instance().savedChatsFilePath() ).lastModified().date();
+  if( !reference_date.isValid() ) reference_date = QDate::currentDate();
+  QDateTime timestamp = QDateTime::fromString( text, "yyyy-MM-dd hh:mm" );
+  if( timestamp.isValid() ) return timestamp;
+  timestamp = QDateTime::fromString( QString( "%1-%2" ).arg( reference_date.year() ).arg( text ), "yyyy-MM-dd hh:mm" );
+  if( timestamp.isValid() )
+    return timestamp.date() > reference_date ? timestamp.addYears( -1 ) : timestamp;
+  const QTime time = QTime::fromString( text, "hh:mm" );
+  return time.isValid() ? QDateTime( reference_date, time ) : QDateTime();
 }
 
-static QString LastHistoryMessageSummary( const Chat& c )
+static QString LastHistoryMessageSummary( const Chat& c, QDateTime* timestamp )
 {
+  *timestamp = QDateTime();
   ChatMessageModel history;
   history.resetFromChat( c, true );
   for( int row = history.rowCount() - 1; row >= 0; --row )
   {
     const ChatMessageItem* item = history.itemAt( row );
+    if( item->kind != ChatMessageItem::FileCard && item->kind != ChatMessageItem::UserMessage ) continue;
+    *timestamp = item->timestamp;
+    if( !timestamp->isValid() )
+    {
+      int time_row = row;
+      while( time_row > 0 && history.itemAt( time_row )->timestampText.isEmpty() ) --time_row;
+      *timestamp = LegacyHistoryTime( history.itemAt( time_row )->timestampText );
+    }
     if( item->kind == ChatMessageItem::FileCard )
       return PreviewWithSender( ChatListModel::tr( "[File] %1" ).arg( item->fileName ), item->ownMessage );
     if( item->kind == ChatMessageItem::UserMessage )
       return PreviewWithSender( item->plainText.simplified(), item->ownMessage );
   }
   return QString();
-}
-
-static QDateTime ChatActivityTime( const Chat& c )
-{
-  QDateTime dt = c.lastMessageTimestamp();
-  if( !c.messages().isEmpty() )
-  {
-    const QDateTime& last_msg_ts = c.messages().last().timestamp();
-    if( last_msg_ts.isValid() && ( !dt.isValid() || last_msg_ts > dt ) )
-      dt = last_msg_ts;
-  }
-  return dt;
 }
 
 static QString FormatChatTime( const QDateTime& dt )
@@ -176,7 +181,7 @@ QVariant ChatListModel::data( const QModelIndex& index, int role ) const
   case SummaryRole:
     return m_summaries.value( c.id() );
   case TimeTextRole:
-    return FormatChatTime( ChatActivityTime( c ) );
+    return FormatChatTime( m_messageTimes.value( c.id() ) );
   case UnreadRole:
     return c.unreadMessages();
   case TransportsRole:
@@ -190,27 +195,36 @@ void ChatListModel::reload()
 {
   QList<VNumber> new_ids;
   QMap<VNumber, QString> summaries;
+  QMap<VNumber, QDateTime> message_times;
   foreach( Chat c, ChatManager::instance().constChatList() )
   {
     if( !c.isValid() || c.isGroup() ) // group chats are out of product scope (PRD 3.4)
       continue;
     new_ids.append( c.id() );
-    bool live = false;
-    QString summary = LastLiveMessageSummary( c, &live );
-    if( !live )
+    QDateTime timestamp;
+    QString summary = LastLiveMessageSummary( c, &timestamp );
+    if( summary.isEmpty() )
     {
-      const QString saved = SavedHtmlForSummary( c );
-      if( !m_historySummaries.contains( c.id() ) || m_historySummaries.value( c.id() ).first != saved )
-        m_historySummaries.insert( c.id(), qMakePair( saved, saved.isEmpty() ? QString() : LastHistoryMessageSummary( c ) ) );
-      summary = m_historySummaries.value( c.id() ).second;
+      const QString saved = ChatMessageModel::savedHtmlForChat( c );
+      if( !m_historySummaries.contains( c.id() ) || m_historySummaries.value( c.id() ).html != saved )
+      {
+        HistorySummary history;
+        history.html = saved;
+        if( !saved.isEmpty() ) history.text = LastHistoryMessageSummary( c, &history.timestamp );
+        m_historySummaries.insert( c.id(), history );
+      }
+      const HistorySummary history = m_historySummaries.value( c.id() );
+      summary = history.text;
+      timestamp = history.timestamp.isValid() ? history.timestamp : c.lastMessageTimestamp();
     }
     summaries.insert( c.id(), summary );
+    message_times.insert( c.id(), timestamp );
   }
 
-  std::sort( new_ids.begin(), new_ids.end(), []( VNumber id_a, VNumber id_b )
+  std::sort( new_ids.begin(), new_ids.end(), [&message_times]( VNumber id_a, VNumber id_b )
   {
-    QDateTime ts_a = ChatActivityTime( ChatManager::instance().chat( id_a ) );
-    QDateTime ts_b = ChatActivityTime( ChatManager::instance().chat( id_b ) );
+    const QDateTime ts_a = message_times.value( id_a );
+    const QDateTime ts_b = message_times.value( id_b );
     if( ts_a != ts_b )
       return ts_a > ts_b; // most recent first
     return id_a < id_b;
@@ -254,6 +268,7 @@ void ChatListModel::reload()
 
   beginResetModel();
   m_summaries = summaries;
+  m_messageTimes = message_times;
   m_results = results;
   m_chatIds = new_ids;
   endResetModel();

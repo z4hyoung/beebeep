@@ -48,6 +48,7 @@ public:
 
   bool showTimestamp;
   QString timestampText;
+  QDateTime timestamp;
   bool showName;
   QString nameText;
 

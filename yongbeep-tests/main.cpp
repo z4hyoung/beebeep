@@ -446,6 +446,88 @@ static void testLastMessageSummary()
   ChatManager::instance().addSavedChats( previous_history );
 }
 
+static void testConversationOrder()
+{
+  const auto previous_history = ChatManager::instance().constHistoryMap();
+  auto createChat = []( VNumber id, const QString& name, User::Status status )
+  {
+    User peer;
+    peer.setId( id ); peer.setName( name ); peer.setStatus( status ); peer.setColor( "#518ACE" );
+    UserManager::instance().setUser( peer );
+    return Protocol::instance().createPrivateChat( peer );
+  };
+  Chat older = createChat( 880101, "Order online", User::Online );
+  Chat newer = createChat( 880102, "Order offline", User::Offline );
+  Chat empty = createChat( 880103, "Order empty", User::Online );
+  Chat tied = createChat( 880104, "Order tied", User::Online );
+  const QDate day = QDate::currentDate();
+  auto append = [&]( Chat& chat, VNumber sender, ChatMessage::Type type, const QTime& time, const QString& text )
+  {
+    Message message( sender == ID_SYSTEM_MESSAGE ? Message::System : Message::Chat, chat.id(), text );
+    message.setTimestamp( QDateTime( day, time ) );
+    chat.addMessage( ChatMessage( sender, message, type, true ) );
+  };
+  append( older, older.privateUserId(), ChatMessage::Chat, QTime( 9, 30 ), "Older real message" );
+  append( newer, newer.privateUserId(), ChatMessage::Chat, QTime( 10, 30 ), "Newer real message" );
+  append( older, ID_SYSTEM_MESSAGE, ChatMessage::Connection, QTime( 23, 50 ), "Peer connected" );
+  append( empty, ID_SYSTEM_MESSAGE, ChatMessage::Header, QTime( 23, 59 ), "Chat header" );
+  append( tied, tied.privateUserId(), ChatMessage::Chat, QTime( 10, 30 ), "Same time" );
+  ChatListModel list;
+  auto reload = [&]()
+  {
+    for( const Chat& chat : { older, newer, empty, tied } ) ChatManager::instance().setChat( chat );
+    list.reload();
+  };
+  auto timeText = [&]( const Chat& chat )
+  {
+    return list.index( list.rowOfChat( chat.id() ), 0 ).data( ChatListModel::TimeTextRole ).toString();
+  };
+  reload();
+  CHECK( list.rowOfChat( newer.id() ) < list.rowOfChat( older.id() ), "newer offline conversation sorts before older online conversation" );
+  CHECK( list.rowOfChat( empty.id() ) > list.rowOfChat( older.id() ) && timeText( empty ).isEmpty(), "empty conversation has no system-event timestamp and sorts last" );
+  CHECK( timeText( older ) == "09:30", "conversation time matches real message instead of later connection notice" );
+  CHECK( (list.rowOfChat( newer.id() ) < list.rowOfChat( tied.id() )) == (newer.id() < tied.id()), "equal message timestamps have deterministic order" );
+  User peer = UserManager::instance().findUser( newer.privateUserId() );
+  peer.setStatus( User::Online ); UserManager::instance().setUser( peer );
+  older.addUnreadMessage();
+  reload();
+  CHECK( list.rowOfChat( newer.id() ) < list.rowOfChat( older.id() ), "presence and unread counts do not override message time" );
+
+  const QString file = "Sent <a href=\"file:///tmp/order.txt\">order.txt</a><!--yb-file:out:complete:10-->";
+  append( older, ID_SYSTEM_MESSAGE, ChatMessage::FileTransfer, QTime( 11, 0 ), file );
+  reload();
+  CHECK( list.rowOfChat( older.id() ) < list.rowOfChat( newer.id() ) && timeText( older ) == "11:00", "outgoing file message moves conversation to its message-time position" );
+  append( older, ID_SYSTEM_MESSAGE, ChatMessage::Connection, QTime( 23, 58 ), "Peer disconnected" );
+  reload();
+  CHECK( timeText( older ) == "11:00", "later disconnection leaves last message time intact" );
+
+  append( older, ID_SYSTEM_MESSAGE, ChatMessage::FileTransfer, QTime( 13, 10, 25 ), file );
+  append( newer, newer.privateUserId(), ChatMessage::Chat, QTime( 13, 10, 20 ), "Archived first message" );
+  append( newer, newer.privateUserId(), ChatMessage::Chat, QTime( 13, 10, 30 ), "Archived last message" );
+  const QString saved = GuiChatMessage::chatToHtml( newer, true, true, true, true, false, true );
+  CHECK( saved.contains( QDateTime( day, QTime( 13, 10, 30 ) ).toString( Qt::ISODateWithMs ) ), "saved message preserves precise timestamp even within a separator group" );
+  const Group group = newer.group();
+  newer = Chat(); newer.setGroup( group );
+  append( newer, ID_SYSTEM_MESSAGE, ChatMessage::Header, QTime( 23, 59 ), "Restarted chat header" );
+  auto history = previous_history;
+  history.insert( newer.name(), saved );
+  ChatManager::instance().addSavedChats( history );
+  reload();
+  CHECK( list.rowOfChat( newer.id() ) < list.rowOfChat( older.id() ) && timeText( newer ) == "13:10", "restart restores exact last-message ordering from history" );
+  reload();
+  CHECK( list.rowOfChat( newer.id() ) < list.rowOfChat( older.id() ), "cached history time retains ordering on list refresh" );
+
+  QString legacy = saved;
+  legacy.remove( QRegularExpression( " data-yb-timestamp=\"[^\"]*\"" ) );
+  legacy.replace( ">13:10<", QString( ">%1 13:10<" ).arg( day.toString( "yyyy-MM-dd" ) ) );
+  history.insert( newer.name(), legacy );
+  ChatManager::instance().addSavedChats( history );
+  reload();
+  CHECK( timeText( newer ) == "13:10" && list.rowOfChat( newer.id() ) < list.rowOfChat( tied.id() ), "legacy history uses its visible date and time for ordering" );
+  for( const Chat& chat : { older, newer, empty, tied } ) ChatManager::instance().removeChat( chat );
+  ChatManager::instance().addSavedChats( previous_history );
+}
+
 static void testPresenceNeutralAvatars()
 {
   User peer;
@@ -679,6 +761,7 @@ int main( int argc, char** argv )
   testConnectionRecovery();
   testPresenceNeutralAvatars();
   testLastMessageSummary();
+  testConversationOrder();
   qInfo() << "=== YongBEEP core unit tests:" << g_passed << "passed," << g_failed << "failed ===";
   return g_failed == 0 ? 0 : 1;
 }

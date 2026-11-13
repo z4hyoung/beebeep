@@ -357,6 +357,7 @@ QString GuiChatMessage::chatToHtml( const Chat& c, bool skip_file_transfers, boo
 
   foreach( ChatMessage cm, c.messages() )
   {
+    QString message_html;
     if( cm.isFromSystem() )
     {
       if( cm.isFileTransfer() || cm.isImagePreview() )
@@ -365,7 +366,7 @@ QString GuiChatMessage::chatToHtml( const Chat& c, bool skip_file_transfers, boo
           continue;
         if( skip_cannot_be_saved_messages && !cm.canBeSaved() )
           continue;
-        html_text += formatSystemMessage( cm, last_message_user_id, force_timestamp || Settings::instance().chatShowMessageTimestamp(), force_datestamp || Settings::instance().chatShowMessageDatestamp(), use_chat_compact );
+        message_html = formatSystemMessage( cm, last_message_user_id, force_timestamp || Settings::instance().chatShowMessageTimestamp(), force_datestamp || Settings::instance().chatShowMessageDatestamp(), use_chat_compact );
       }
       else
       {
@@ -373,7 +374,7 @@ QString GuiChatMessage::chatToHtml( const Chat& c, bool skip_file_transfers, boo
           continue;
         if( skip_cannot_be_saved_messages && !cm.canBeSaved() )
           continue;
-        html_text += formatSystemMessage( cm, last_message_user_id, force_timestamp || Settings::instance().chatShowMessageTimestamp(), force_datestamp || Settings::instance().chatShowMessageDatestamp(), use_chat_compact );
+        message_html = formatSystemMessage( cm, last_message_user_id, force_timestamp || Settings::instance().chatShowMessageTimestamp(), force_datestamp || Settings::instance().chatShowMessageDatestamp(), use_chat_compact );
       }
     }
     else
@@ -385,9 +386,13 @@ QString GuiChatMessage::chatToHtml( const Chat& c, bool skip_file_transfers, boo
         if( u.isValid() )
           chat_users.set( u );
       }
-      html_text += formatMessage( u, cm, last_message_user_id, force_timestamp || Settings::instance().chatShowMessageTimestamp(), force_datestamp || Settings::instance().chatShowMessageDatestamp(), skip_system_message, false, true, use_chat_compact, last_message_timestamp, c.isPrivate() );
+      message_html = formatMessage( u, cm, last_message_user_id, force_timestamp || Settings::instance().chatShowMessageTimestamp(), force_datestamp || Settings::instance().chatShowMessageDatestamp(), skip_system_message, false, true, use_chat_compact, last_message_timestamp, c.isPrivate() );
       last_message_timestamp = cm.timestamp();
     }
+    const int table = message_html.indexOf( "<table" );
+    if( table >= 0 )
+      message_html.insert( table + 6, QString( " data-yb-timestamp=\"%1\"" ).arg( cm.timestamp().toString( Qt::ISODateWithMs ) ) );
+    html_text += message_html;
     last_message_user_id = cm.isImportant() ? ID_IMPORTANT_MESSAGE : cm.userId();
   }
 

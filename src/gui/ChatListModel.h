@@ -5,7 +5,7 @@
 // Wraps ChatManager's chat list into a QAbstractListModel for the
 // QListView + delegate rendering in GuiMainWindow. Group chats are
 // not exposed (PRD 3.4 removal list); the default chat and 1:1
-// private chats are shown, sorted by last activity.
+// private chats are shown, sorted by their last message time.
 //
 //////////////////////////////////////////////////////////////////////
 
@@ -66,7 +66,14 @@ private:
     QIcon icon;
   };
   QMap<VNumber, QString> m_summaries;
-  QMap<VNumber, QPair<QString, QString>> m_historySummaries;
+  QMap<VNumber, QDateTime> m_messageTimes;
+  struct HistorySummary
+  {
+    QString html;
+    QString text;
+    QDateTime timestamp;
+  };
+  QMap<VNumber, HistorySummary> m_historySummaries;
   QList<SearchResult> m_results;
   QList<VNumber> m_chatIds;
   QString m_filter;

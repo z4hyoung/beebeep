@@ -276,6 +276,7 @@ ChatMessageItem* ChatMessageModel::createItem( const Chat& c, const ChatMessage&
 {
   ChatMessageItem* item = new ChatMessageItem();
   item->message = cm;
+  item->timestamp = cm.timestamp();
 
   if( cm.isFromSystem() )
   {
@@ -699,6 +700,7 @@ QList<ChatMessageItem*> ChatMessageModel::itemsFromSavedHtml( const Chat& c, con
   const QRegularExpression table_rx( "<table\\b[^>]*>.*?</table>", QRegularExpression::DotMatchesEverythingOption );
   const QRegularExpression cell_rx( "<td\\b[^>]*>(.*?)</td>", QRegularExpression::DotMatchesEverythingOption );
   const QRegularExpression bubble_rx( "<span style=\"background-color:[^\"]*\">(.*)</span>", QRegularExpression::DotMatchesEverythingOption );
+  const QRegularExpression timestamp_rx( "\\bdata-yb-timestamp=['\"]([^'\"]+)['\"]" );
   auto append_other = [&]( const QString& fragment )
   {
     QString text = plainTextFromHtml( fragment );
@@ -766,6 +768,7 @@ QList<ChatMessageItem*> ChatMessageModel::itemsFromSavedHtml( const Chat& c, con
       append_other( table.captured() );
     else
     {
+      item->timestamp = QDateTime::fromString( timestamp_rx.match( table.captured() ).captured( 1 ), Qt::ISODateWithMs );
       item->showTimestamp = !pending_timestamp.isEmpty();
       item->timestampText = pending_timestamp;
       pending_timestamp.clear();
