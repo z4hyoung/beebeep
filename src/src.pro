@@ -29,6 +29,12 @@ greaterThan(QT_MAJOR_VERSION, 5) {
 
 include(../beebeep.pri)
 
+# Resolve generated UI headers in this build before any old in-source output.
+# qmake otherwise prepends the source directory ahead of shadow-build headers.
+CONFIG += no_include_pwd
+isEmpty(UI_DIR): UI_DIR = .
+INCLUDEPATH = $$absolute_path($$UI_DIR, $$OUT_PWD) $$INCLUDEPATH
+
 message( Target folder: $$DESTDIR )
 
 TEMPLATE = app

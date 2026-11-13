@@ -18,6 +18,7 @@
 #include "GuiChatMessage.h"
 #include "GuiScanDevices.h"
 #include "GuiChat.h"
+#include "GuiEditVCard.h"
 #include "GuiMainWindow.h"
 #include <QLabel>
 #include <QListWidget>
@@ -855,6 +856,35 @@ static void testDefaultMarkdown()
   ChatManager::instance().addSavedChats( previous_history );
 }
 
+static void testProfileEditorLayout()
+{
+  User local = Settings::instance().localUser();
+  VCard original = local.vCard();
+  original.setNickName( "Profile fixture" );
+  original.setFirstName( "Keep existing data" );
+  original.setEmail( "profile@example.invalid" );
+  local.setVCard( original );
+  GuiEditVCard editor;
+  editor.setUser( local );
+  const auto fields = editor.findChildren<QLineEdit*>();
+  CHECK( fields.size() == 1 && fields.first()->objectName() == "mp_leNickname",
+         "profile editor uses current name-and-avatar form rather than stale generated UI" );
+  CHECK( editor.findChild<QLineEdit*>( "mp_leEmail" ) == nullptr &&
+         editor.findChild<QPushButton*>( "mp_pbRegenerateHash" ) == nullptr,
+         "legacy profile fields and hash controls stay removed" );
+  CHECK( editor.findChild<QLabel*>( "mp_lPhoto" ) &&
+         editor.findChild<QPushButton*>( "mp_pbChangePhoto" ) &&
+         editor.findChild<QPushButton*>( "mp_pbRemovePhoto" ),
+         "profile editor exposes avatar preview and editing actions" );
+  if( fields.size() != 1 ) return;
+  fields.first()->setText( "  Profile Updated  " );
+  QMetaObject::invokeMethod( &editor, "onOkClicked", Qt::DirectConnection );
+  CHECK( editor.result() == QDialog::Accepted && editor.vCard().nickName() == "Profile Updated",
+         "profile name can still be saved through the current form" );
+  CHECK( editor.vCard().firstName() == original.firstName() && editor.vCard().email() == original.email(),
+         "simplified profile editor preserves unrelated existing profile data" );
+}
+
 int main( int argc, char** argv )
 {
   qputenv( "QT_QPA_PLATFORM", "offscreen" );
@@ -876,6 +906,7 @@ int main( int argc, char** argv )
   testBluetoothCallbackLifetime();
   testConnectionRecovery();
   testDefaultMarkdown();
+  testProfileEditorLayout();
   testPresenceNeutralAvatars();
   testLastMessageSummary();
   testConversationOrder();
