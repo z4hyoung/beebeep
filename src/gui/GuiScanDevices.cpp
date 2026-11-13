@@ -33,7 +33,7 @@ GuiScanDevices::GuiScanDevices( QWidget* parent )
   QLabel* title = new QLabel( tr( "Connection & devices" ), this );
   title->setStyleSheet( "font-size: 18px; font-weight: 600;" );
   main_layout->addWidget( title );
-  QLabel* introduction = new QLabel( tr( "Nearby devices connect automatically over LAN. Use this page to check connections or Bluetooth pairing." ), this );
+  QLabel* introduction = new QLabel( tr( "YongBEEP reconnects automatically after sleep or network changes. These statuses describe the app's connection services." ), this );
   introduction->setWordWrap( true );
   introduction->setStyleSheet( "color: #808080; font-size: 12px;" );
   main_layout->addWidget( introduction );
@@ -109,7 +109,7 @@ void GuiScanDevices::startSearch()
 {
   if( !beeCore->isConnected() || !beeCore->btManager() || !beeCore->btManager()->isActive() )
   {
-    mp_searchStatus->setText( tr( "Bluetooth is not ready. Turn on Bluetooth and allow YongBEEP to use it, then retry." ) );
+    mp_searchStatus->setText( tr( "YongBEEP connection services are not running yet. They retry automatically when the network is available." ) );
     return;
   }
   mp_pbSearch->setEnabled( false );
@@ -147,12 +147,18 @@ void GuiScanDevices::rebuildDeviceList()
 void GuiScanDevices::updateStatus()
 {
   QStringList lines;
-  lines << (beeCore->isConnected() ? tr( "LAN · automatic discovery enabled" ) : tr( "LAN · not connected" ));
+  lines << (beeCore->isConnected() ? tr( "LAN service · automatic discovery enabled" ) : tr( "LAN service · stopped, waiting to reconnect" ));
   const bool bluetooth_ready = beeCore->btManager() && beeCore->btManager()->isActive();
+  if( !Settings::instance().useBluetooth() )
+    lines << tr( "Bluetooth service · disabled in YongBEEP" );
+  else if( !bluetooth_ready )
+    lines << tr( "Bluetooth service · not started" );
 #if defined( Q_OS_MACOS )
-  lines << (bluetooth_ready && beeCore->btManager()->listenerPort() > 0 ? tr( "Bluetooth · ready" ) : tr( "Bluetooth · not ready" ));
+  else
+    lines << (beeCore->btManager()->listenerPort() > 0 ? tr( "Bluetooth service · ready" ) : tr( "Bluetooth service · outgoing connections only" ));
 #else
-  lines << (bluetooth_ready ? tr( "Bluetooth · automatic discovery enabled" ) : tr( "Bluetooth · not ready" ));
+  else
+    lines << tr( "Bluetooth service · automatic discovery enabled" );
 #endif
   lines << QString() << tr( "Connected devices" );
   bool has_peers = false;

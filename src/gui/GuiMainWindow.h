@@ -71,6 +71,7 @@ protected:
   void closeEvent( QCloseEvent* );
 
 private slots:
+  void scheduleReconnect();
   void onCoreConnected();
   void onCoreDisconnected();
   void onUserChanged( const User& );
@@ -125,6 +126,7 @@ private:
   QLineEdit* mp_searchBox;
   QLabel* mp_searchStatus;
   QTimer* mp_searchTimer;
+  QTimer* mp_reconnectTimer;
   QListView* mp_chatListView;
   ChatListModel* mp_chatListModel;
   QPushButton* mp_profileButton;
@@ -145,6 +147,7 @@ private:
 
   bool m_forceShutdown;
   bool m_coreIsConnecting;
+  bool m_suspended;
 
 };
 

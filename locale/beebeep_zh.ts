@@ -5697,6 +5697,15 @@ Please select a different name.</source>
 </context>
 <context>
     <name>GuiScanDevices</name>
+    <message><source>YongBEEP reconnects automatically after sleep or network changes. These statuses describe the app's connection services.</source><translation>休眠唤醒或网络变化后，YongBEEP 会自动重连。下方显示的是应用连接服务的状态。</translation></message>
+    <message><source>YongBEEP connection services are not running yet. They retry automatically when the network is available.</source><translation>应用连接服务尚未启动，网络可用后会自动重试，请稍后再搜索。</translation></message>
+    <message><source>LAN service · automatic discovery enabled</source><translation>局域网服务 · 已启动，自动发现设备</translation></message>
+    <message><source>LAN service · stopped, waiting to reconnect</source><translation>局域网服务 · 未启动，等待自动恢复</translation></message>
+    <message><source>Bluetooth service · disabled in YongBEEP</source><translation>蓝牙服务 · 已在 YongBEEP 中禁用</translation></message>
+    <message><source>Bluetooth service · not started</source><translation>蓝牙服务 · 尚未启动</translation></message>
+    <message><source>Bluetooth service · ready</source><translation>蓝牙服务 · 已就绪</translation></message>
+    <message><source>Bluetooth service · outgoing connections only</source><translation>蓝牙服务 · 可主动连接，接收服务未启动</translation></message>
+    <message><source>Bluetooth service · automatic discovery enabled</source><translation>蓝牙服务 · 已启动，自动发现设备</translation></message>
     <message><source>Unable to open Bluetooth settings. Open your system settings and select Bluetooth.</source><translation>无法打开蓝牙设置，请手动进入系统设置并选择“蓝牙”。</translation></message>
     <message><source>Bluetooth connection failed: %1. Check YongBEEP on the other device, then retry.</source><translation>蓝牙连接失败：%1 请检查对方的 YongBEEP 后重试。</translation></message>
     <message><source>Bluetooth devices running YongBEEP</source><translation>运行 YongBEEP 的蓝牙设备</translation></message>

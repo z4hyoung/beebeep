@@ -62,7 +62,14 @@ GuiMainWindow::GuiMainWindow( QWidget* parent )
   setWindowIcon( IconManager::instance().icon( "beebeep.png" ) );
   m_forceShutdown = false;
   m_coreIsConnecting = false;
+  m_suspended = false;
   mp_scanDevices = Q_NULLPTR;
+
+  mp_reconnectTimer = new QTimer( this );
+  mp_reconnectTimer->setObjectName( "GuiConnectionRecoveryTimer" );
+  mp_reconnectTimer->setSingleShot( true );
+  mp_reconnectTimer->setInterval( 2000 );
+  connect( mp_reconnectTimer, &QTimer::timeout, this, &GuiMainWindow::startCore );
 
   createGui();
   setupCoreConnections();
@@ -327,6 +334,11 @@ void GuiMainWindow::setupCoreConnections()
 {
   connect( beeCore, SIGNAL( connected() ), this, SLOT( onCoreConnected() ) );
   connect( beeCore, SIGNAL( disconnected() ), this, SLOT( onCoreDisconnected() ) );
+  connect( beeCore, &Core::networkInterfaceIsUp, this, &GuiMainWindow::scheduleReconnect, Qt::QueuedConnection );
+  connect( beeCore, &Core::networkInterfaceIsDown, this, [this]()
+  {
+    if( !m_forceShutdown && beeCore->isConnected() ) beeCore->stop();
+  }, Qt::QueuedConnection );
   connect( beeCore, SIGNAL( newChatMessage( const Chat&, const ChatMessage& ) ), this, SLOT( onNewChatMessage( const Chat&, const ChatMessage& ) ) );
   connect( beeCore, SIGNAL( chatChanged( const Chat& ) ), this, SLOT( onChatChanged( const Chat& ) ) );
   connect( beeCore, SIGNAL( chatRemoved( const Chat& ) ), this, SLOT( onChatRemoved( const Chat& ) ) );
@@ -721,6 +733,7 @@ void GuiMainWindow::onUserConnectionStatusChanged( const User& u )
 
 void GuiMainWindow::onCoreConnected()
 {
+  mp_reconnectTimer->stop();
   updateFooter();
   m_coreIsConnecting = false;
   updateWindowTitle();
@@ -741,6 +754,7 @@ void GuiMainWindow::onCoreDisconnected()
   updateWindowTitle();
   updateChatHeader();
   refreshChatList( true );
+  scheduleReconnect();
 }
 
 
@@ -1032,7 +1046,7 @@ void GuiMainWindow::loadSession()
 
 void GuiMainWindow::startCore()
 {
-  if( beeCore->isConnected() || m_coreIsConnecting )
+  if( m_forceShutdown || m_suspended || (beeApp && beeApp->isInSleepMode()) || beeCore->isConnected() || m_coreIsConnecting )
     return;
 
   m_coreIsConnecting = true;
@@ -1071,7 +1085,9 @@ void GuiMainWindow::startCore()
   else
   {
     m_coreIsConnecting = false;
-    QMetaObject::invokeMethod( beeCore, "checkNetworkInterface", Qt::QueuedConnection );
+    // A restored interface may still be acquiring its address. Retry with
+    // backoff instead of immediately feeding networkInterfaceIsUp back here.
+    scheduleReconnect();
   }
 }
 
@@ -1101,6 +1117,8 @@ void GuiMainWindow::onTickEvent( int ticks )
 
 void GuiMainWindow::onSleepRequest()
 {
+  m_suspended = true;
+  mp_reconnectTimer->stop();
   if( beeCore->isConnected() )
     beeCore->stop();
 }
@@ -1108,7 +1126,17 @@ void GuiMainWindow::onSleepRequest()
 
 void GuiMainWindow::onWakeUpRequest()
 {
+  m_suspended = false;
   refreshChatList( true );
+  scheduleReconnect();
+}
+
+void GuiMainWindow::scheduleReconnect()
+{
+  if( m_forceShutdown || m_suspended || (beeApp && beeApp->isInSleepMode()) || beeCore->isConnected() || m_coreIsConnecting )
+    return;
+  if( !mp_reconnectTimer->isActive() )
+    mp_reconnectTimer->start();
 }
 
 

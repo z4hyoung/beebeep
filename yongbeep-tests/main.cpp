@@ -26,6 +26,7 @@
 #include <QStackedWidget>
 #include <QTextEdit>
 #include <QPushButton>
+#include <QTimer>
 #include "YongTheme.h"
 #include "BeeUtils.h"
 #include <QTemporaryDir>
@@ -631,6 +632,31 @@ static void testBluetoothCallbackLifetime()
 #endif
 }
 
+static void testConnectionRecovery()
+{
+  TestCore core;
+  GuiMainWindow window;
+  QTimer* retry = window.findChild<QTimer*>( "GuiConnectionRecoveryTimer" );
+  CHECK( retry && !retry->isActive(), "connection recovery starts idle" );
+  if( !retry ) return;
+  emit core.networkInterfaceIsUp();
+  QCoreApplication::processEvents();
+  CHECK( retry->isActive() && retry->isSingleShot() && retry->interval() >= 1000,
+         "network recovery schedules a bounded reconnect instead of a busy loop" );
+  window.onSleepRequest();
+  CHECK( !retry->isActive(), "sleep cancels pending reconnects" );
+  emit core.networkInterfaceIsUp();
+  QCoreApplication::processEvents();
+  CHECK( !retry->isActive(), "late network notifications cannot reconnect while suspended" );
+  window.onWakeUpRequest();
+  CHECK( retry->isActive(), "wake automatically schedules connection service recovery" );
+  emit core.connected();
+  CHECK( !retry->isActive(), "successful connection cancels retry timer" );
+  emit core.disconnected();
+  CHECK( retry->isActive(), "unexpected service stop schedules automatic recovery" );
+  window.onSleepRequest();
+}
+
 int main( int argc, char** argv )
 {
   qputenv( "QT_QPA_PLATFORM", "offscreen" );
@@ -650,6 +676,7 @@ int main( int argc, char** argv )
   testConversationCache();
   testConnectionPage();
   testBluetoothCallbackLifetime();
+  testConnectionRecovery();
   testPresenceNeutralAvatars();
   testLastMessageSummary();
   qInfo() << "=== YongBEEP core unit tests:" << g_passed << "passed," << g_failed << "failed ===";
