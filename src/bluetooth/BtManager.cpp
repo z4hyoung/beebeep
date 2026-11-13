@@ -41,6 +41,8 @@ BtManager::BtManager( QObject* parent )
 #endif
 {
   connect( mp_discoverer, &BtDiscoverer::btPeerFound, this, &BtManager::btPeerFound );
+  connect( mp_discoverer, &BtDiscoverer::searchStatusChanged, this, &BtManager::manualSearchStatusChanged );
+  connect( mp_discoverer, &BtDiscoverer::searchFinished, this, &BtManager::manualSearchFinished );
   connect( mp_listener, &BtListener::newBtConnection, this, &BtManager::newBtConnection );
 
 #if defined( Q_OS_WIN )

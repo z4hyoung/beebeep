@@ -13,7 +13,6 @@
 #include <QDesktopServices>
 #include <QLabel>
 #include <QListWidget>
-#include <QProcess>
 #include <QPushButton>
 #include <QUrl>
 #include <QVBoxLayout>
@@ -51,37 +50,36 @@ GuiScanDevices::GuiScanDevices( QWidget* parent )
   mp_deviceList->setAlternatingRowColors( true );
   mp_pbConnect = new QPushButton( tr( "Connect" ), this );
   mp_pbConnect->setEnabled( false );
-#if defined( Q_OS_WIN )
-  main_layout->addWidget( new QLabel( tr( "Nearby Bluetooth devices" ), this ) );
+  main_layout->addWidget( new QLabel( tr( "Bluetooth devices running YongBEEP" ), this ) );
+  mp_searchStatus = new QLabel( tr( "Search for devices, then select one to connect." ), this );
+  mp_searchStatus->setObjectName( "GuiBluetoothSearchStatus" );
+  mp_searchStatus->setWordWrap( true );
+  mp_searchStatus->setStyleSheet( "color: #808080; font-size: 12px;" );
+  main_layout->addWidget( mp_searchStatus );
   main_layout->addWidget( mp_deviceList );
-#else
-  // Active discovery is disabled on macOS. Never present an empty scan list
-  // or a Connect button that cannot become usable on this platform.
-  mp_deviceList->hide();
-  mp_pbConnect->hide();
-#endif
   QLabel* hint = new QLabel( this );
   hint->setWordWrap( true );
   hint->setStyleSheet( "color: #808080; font-size: 12px;" );
 #if defined( Q_OS_MACOS )
-  hint->setText( tr( "Mac receives Bluetooth connections initiated by Windows. Keep YongBEEP open on both devices. Pair the computers once in system Bluetooth settings if needed." ) );
+  hint->setText( tr( "Mac can search paired computers and start Bluetooth connections. Pair once in system Bluetooth settings and keep YongBEEP open on both computers." ) );
 #else
   hint->setText( tr( "Bluetooth devices are discovered automatically. If a connection fails, pair the computers once in system Bluetooth settings, then refresh the list." ) );
 #endif
   main_layout->addWidget( hint );
   QHBoxLayout* buttons = new QHBoxLayout;
   mp_pbOpenSettings = new QPushButton( tr( "Bluetooth settings" ), this );
+  mp_pbOpenSettings->setObjectName( "GuiBluetoothSettingsButton" );
   buttons->addWidget( mp_pbOpenSettings );
   buttons->addStretch( 1 );
-#if defined( Q_OS_WIN )
-  QPushButton* refresh = new QPushButton( tr( "Refresh devices" ), this );
-  connect( refresh, &QPushButton::clicked, this, []()
-  {
-    if( beeCore && beeCore->btManager() ) beeCore->btManager()->triggerManualScan();
-  } );
-  buttons->addWidget( refresh );
-  buttons->addWidget( mp_pbConnect );
+#if defined( Q_OS_MACOS )
+  mp_pbSearch = new QPushButton( tr( "Search paired devices" ), this );
+#else
+  mp_pbSearch = new QPushButton( tr( "Refresh devices" ), this );
 #endif
+  mp_pbSearch->setObjectName( "GuiBluetoothSearchButton" );
+  connect( mp_pbSearch, &QPushButton::clicked, this, &GuiScanDevices::startSearch );
+  buttons->addWidget( mp_pbSearch );
+  buttons->addWidget( mp_pbConnect );
   QPushButton* close = new QPushButton( tr( "Close" ), this );
   close->setDefault( true );
   buttons->addWidget( close );
@@ -90,8 +88,15 @@ GuiScanDevices::GuiScanDevices( QWidget* parent )
   connect( mp_pbOpenSettings, &QPushButton::clicked, this, &GuiScanDevices::openSystemBluetoothSettings );
   connect( close, &QPushButton::clicked, this, &QDialog::reject );
   if( beeCore->btManager() )
-    connect( beeCore->btManager(), SIGNAL( btPeerFound( const QBluetoothAddress&, const QString& ) ),
-             this, SLOT( onBtPeerFound( const QBluetoothAddress&, const QString& ) ) );
+  {
+    connect( beeCore->btManager(), &BtManager::btPeerFound, this, &GuiScanDevices::onBtPeerFound );
+    connect( beeCore->btManager(), &BtManager::manualSearchStatusChanged, mp_searchStatus, &QLabel::setText );
+    connect( beeCore->btManager(), &BtManager::manualSearchFinished, this, [this]() { mp_pbSearch->setEnabled( true ); } );
+  }
+  connect( beeCore, &Core::bluetoothConnectionFailed, this, [this]( const QString& reason )
+  {
+    mp_searchStatus->setText( tr( "Bluetooth connection failed: %1. Check YongBEEP on the other device, then retry." ).arg( reason ) );
+  } );
   QTimer* refresh_status = new QTimer( this );
   refresh_status->setInterval( 1000 );
   connect( refresh_status, &QTimer::timeout, this, [this]() { if( isVisible() ) updateStatus(); } );
@@ -99,6 +104,18 @@ GuiScanDevices::GuiScanDevices( QWidget* parent )
   updateStatus();
 }
 
+
+void GuiScanDevices::startSearch()
+{
+  if( !beeCore->isConnected() || !beeCore->btManager() || !beeCore->btManager()->isActive() )
+  {
+    mp_searchStatus->setText( tr( "Bluetooth is not ready. Turn on Bluetooth and allow YongBEEP to use it, then retry." ) );
+    return;
+  }
+  mp_pbSearch->setEnabled( false );
+  mp_searchStatus->setText( tr( "Searching for YongBEEP devices…" ) );
+  beeCore->btManager()->triggerManualScan();
+}
 
 void GuiScanDevices::onBtPeerFound( const QBluetoothAddress& bt_address, const QString& device_name )
 {
@@ -133,7 +150,7 @@ void GuiScanDevices::updateStatus()
   lines << (beeCore->isConnected() ? tr( "LAN · automatic discovery enabled" ) : tr( "LAN · not connected" ));
   const bool bluetooth_ready = beeCore->btManager() && beeCore->btManager()->isActive();
 #if defined( Q_OS_MACOS )
-  lines << (bluetooth_ready && beeCore->btManager()->listenerPort() > 0 ? tr( "Bluetooth · ready to receive connections" ) : tr( "Bluetooth · not ready" ));
+  lines << (bluetooth_ready && beeCore->btManager()->listenerPort() > 0 ? tr( "Bluetooth · ready" ) : tr( "Bluetooth · not ready" ));
 #else
   lines << (bluetooth_ready ? tr( "Bluetooth · automatic discovery enabled" ) : tr( "Bluetooth · not ready" ));
 #endif
@@ -169,18 +186,26 @@ void GuiScanDevices::connectToDevice()
   // Reuses the automatic discovery path (Core::btPeerFound slot) through the
   // minimal Core forwarder: same guards, same StreamDeviceBt handshake.
   beeCore->connectToBluetoothPeer( QBluetoothAddress( bt_address ), device_name );
-  accept();
+  mp_searchStatus->setText( tr( "Connecting to %1…" ).arg( device_name ) );
 }
 
 void GuiScanDevices::openSystemBluetoothSettings()
 {
 #ifdef Q_OS_MACOS
-  // Deep link to the bluetooth pane; fall back to the generic System Settings.
-  if( !QProcess::startDetached( QStringLiteral( "open" ), QStringList() << QStringLiteral( "x-apple.systempreferences:com.apple.Bluetooth-Settings.extension" ) ) )
-    QProcess::startDetached( QStringLiteral( "open" ), QStringList() << QStringLiteral( "-b" ) << QStringLiteral( "com.apple.systempreferences" ) );
+  // The installed Bluetooth.appex declares com.apple.BluetoothSettings.
+  // Ask Launch Services directly: spawning `open` only reports whether that
+  // process started, so a rejected settings URL used to fail silently.
+  bool opened = QDesktopServices::openUrl( QUrl( QStringLiteral( "x-apple.systempreferences:com.apple.BluetoothSettings" ) ) );
+  if( !opened )
+    opened = QDesktopServices::openUrl( QUrl( QStringLiteral( "x-apple.systempreferences:" ) ) );
 #elif defined( Q_OS_WIN )
-  QDesktopServices::openUrl( QUrl( QStringLiteral( "ms-settings:bluetooth" ) ) );
+  const bool opened = QDesktopServices::openUrl( QUrl( QStringLiteral( "ms-settings:bluetooth" ) ) );
 #else
-  QDesktopServices::openUrl( QUrl( QStringLiteral( "https://www.qt.io" ) ) );
+  const bool opened = false;
 #endif
+  if( !opened )
+  {
+    qWarning() << "Unable to open system Bluetooth settings";
+    mp_searchStatus->setText( tr( "Unable to open Bluetooth settings. Open your system settings and select Bluetooth." ) );
+  }
 }

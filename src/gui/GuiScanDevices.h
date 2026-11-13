@@ -3,8 +3,8 @@
 // YongBEEP — scan nearby devices dialog (S3-4b)
 //
 // Connection diagnostics and pairing help. LAN discovers peers automatically;
-// Windows supports active Bluetooth discovery, while macOS listens passively.
-// The device list/connect fallback is exposed only on Windows.
+// Windows discovers nearby Bluetooth services; macOS can search paired devices
+// and actively connect through its native service discovery helper.
 //
 //////////////////////////////////////////////////////////////////////
 
@@ -30,6 +30,7 @@ public:
   void updateStatus();
 
 private slots:
+  void startSearch();
   void onBtPeerFound( const QBluetoothAddress& bt_address, const QString& device_name );
   void connectToDevice();
   void openSystemBluetoothSettings();
@@ -39,6 +40,8 @@ private:
 
 private:
   QLabel* mp_statusLabel;
+  QLabel* mp_searchStatus;
+  QPushButton* mp_pbSearch;
   QListWidget* mp_deviceList;
   QPushButton* mp_pbConnect;
   QPushButton* mp_pbOpenSettings;

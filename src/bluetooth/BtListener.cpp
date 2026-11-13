@@ -39,6 +39,13 @@ BtListener::BtListener( QObject* parent )
 #endif
 }
 
+BtListener::~BtListener()
+{
+#if !defined( Q_OS_WIN )
+  close();
+#endif
+}
+
 #if defined( Q_OS_WIN )
 void BtListener::setWinWorker( BtWinWorker* win_worker )
 {
@@ -65,8 +72,10 @@ bool BtListener::listen( const QString& service_name )
 
 #if !defined( Q_OS_WIN )
   // listen(uuid, name) picks a free RFCOMM channel and registers the SDP record.
-  QBluetoothServiceInfo service_info = mp_server->listen( StreamDeviceBt::serviceUuid(), name_to_register );
-  if( !service_info.isValid() )
+  // Keep the native SDP record alive for the listener's whole lifetime and
+  // unregister it before closing. macOS binds its real channel to this record.
+  m_serviceInfo = mp_server->listen( StreamDeviceBt::serviceUuid(), name_to_register );
+  if( !m_serviceInfo.isRegistered() )
   {
     qWarning() << "BtListener cannot listen on RFCOMM service" << name_to_register << "with error" << static_cast<int>( mp_server->error() );
     return false;
@@ -91,6 +100,9 @@ bool BtListener::listen( const QString& service_name )
 void BtListener::close()
 {
 #if !defined( Q_OS_WIN )
+  if( m_serviceInfo.isRegistered() )
+    m_serviceInfo.unregisterService();
+  m_serviceInfo = QBluetoothServiceInfo();
   if( mp_server->isListening() )
   {
     mp_server->close();

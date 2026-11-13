@@ -47,6 +47,7 @@ class BtListener : public QObject
 
 public:
   explicit BtListener( QObject* parent = Q_NULLPTR );
+  ~BtListener() override;
 
   bool listen( const QString& service_name );
   void close();
@@ -73,6 +74,7 @@ private slots:
 private:
 #if !defined( Q_OS_WIN )
   QBluetoothServer* mp_server;
+  QBluetoothServiceInfo m_serviceInfo;
 #else
   BtWinWorker* mp_winWorker;
   bool m_listening;
@@ -84,7 +86,7 @@ private:
 
 // Inline Functions
 #if !defined( Q_OS_WIN )
-inline bool BtListener::isListening() const { return mp_server->isListening(); }
+inline bool BtListener::isListening() const { return mp_server->isListening() && m_serviceInfo.isRegistered(); }
 inline quint16 BtListener::serverPort() const { return mp_server->serverPort(); }
 #else
 inline bool BtListener::isListening() const { return m_listening; }

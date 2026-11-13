@@ -155,6 +155,7 @@ public:
 signals:
   void connected();
   void disconnected();
+  void bluetoothConnectionFailed( const QString& reason );
   void userChanged( const User& );
   void userIsWriting( const User&, VNumber );
   void userRemoved( const User& );

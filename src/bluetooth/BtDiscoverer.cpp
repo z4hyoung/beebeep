@@ -17,6 +17,9 @@
 #include "BtDiscoverer.h"
 #include "Config.h"
 #include "StreamDeviceBt.h"
+#ifdef Q_OS_MACOS
+#include "BtMacDiscovery.h"
+#endif
 #include <QList>
 #include <QtBluetooth/QBluetoothServiceInfo>
 #include <QTimer>
@@ -45,6 +48,12 @@ BtDiscoverer::BtDiscoverer( QObject* parent )
   connect( mp_agent, &QBluetoothServiceDiscoveryAgent::errorOccurred, this, &BtDiscoverer::onDiscoveryError );
 #endif
 
+#ifdef Q_OS_MACOS
+  mp_macDiscovery = new BtMacDiscovery( this );
+  connect( mp_macDiscovery, &BtMacDiscovery::peerFound, this, &BtDiscoverer::btPeerFound );
+  connect( mp_macDiscovery, &BtMacDiscovery::statusChanged, this, &BtDiscoverer::searchStatusChanged );
+  connect( mp_macDiscovery, &BtMacDiscovery::finished, this, &BtDiscoverer::searchFinished );
+#endif
   mp_scanTimer->setInterval( BLUETOOTH_SCAN_INTERVAL_MS );
   connect( mp_scanTimer, &QTimer::timeout, this, &BtDiscoverer::startScan );
 }
@@ -69,9 +78,9 @@ void BtDiscoverer::start()
 {
 #if defined( Q_OS_MACOS )
   // YongBEEP SDP crash guard: on macOS the periodic timer stays OFF (see
-  // startScan); peers find US because BtListener listens passively, and
-  // active discovery (including manual scans) stays disabled on this platform.
-  qDebug() << "BtDiscoverer: periodic scan disabled on macOS (SDP crash guard); listener passive, active discovery disabled";
+  // startScan). The listener accepts incoming connections; manual searches
+  // use the native helper instead of Qt's unsafe SDP discovery backend.
+  qDebug() << "BtDiscoverer: periodic scan disabled on macOS (SDP crash guard); listener passive, native manual service search available";
   return;
 #else
   if( mp_scanTimer->isActive() )
@@ -92,24 +101,18 @@ void BtDiscoverer::startSingleScan()
 {
 #if defined( Q_OS_WIN )
   startScan();
+#elif defined( Q_OS_MACOS )
+  mp_macDiscovery->start();
 #else
-  // YongBEEP SDP crash guard (macOS): manual scans are disabled as well.
-  // The 11-05 23:21 crash hit this exact path - startSingleScan() ->
-  // QBluetoothServiceDiscoveryAgent::start(MinimalDiscovery) -> the darwin
-  // backend's DarwinBTSDPInquiry delivers sdpQueryComplete: into a freed
-  // object on the main queue (EXC_BAD_ACCESS, SIGSEGV at 0x10). The periodic
-  // timer is already suppressed in start()/startScan(); with this guard the
-  // whole discovery agent is never started on macOS. Bluetooth discovery is
-  // OFF on macOS until the Qt darwin backend is fixed or replaced with a
-  // native IOBluetoothDeviceInquiry implementation; the passive listener
-  // (BtListener) and outgoing RFCOMM connections keep working.
-  qDebug() << "BtDiscoverer manual scan disabled on macOS (SDP crash guard); discovery OFF, listener passive";
-  Q_UNUSED( mp_agent );
+  startScan();
 #endif
 }
 
 void BtDiscoverer::stop()
 {
+#ifdef Q_OS_MACOS
+  mp_macDiscovery->stop();
+#endif
   if( !mp_scanTimer->isActive() )
     return;
 
@@ -136,8 +139,8 @@ void BtDiscoverer::startScan()
   // DarwinBTSDPInquiry callback delivers into a freed object whenever an
   // inquiry is (re)started while IOBluetooth still holds results of the
   // previous cycle. Even at 30s spacing this fired once more at 22:27.
-  // Active discovery is disabled on macOS in both the periodic and manual
-  // paths until the backend is fixed. The RFCOMM listener stays available.
+  // Qt discovery stays disabled. Manual searches use BtMacDiscovery instead.
+  // The RFCOMM listener stays available.
 #ifndef Q_OS_MACOS
 #error "This guard is macOS-only by design - remove the enclosing platform check if porting"
 #endif
@@ -213,6 +216,7 @@ void BtDiscoverer::onWinPeerFound( quint64 bt_address, const QString& device_nam
 
 void BtDiscoverer::onWinScanFinished()
 {
+  emit searchFinished();
   m_scanRequested = false;
 }
 

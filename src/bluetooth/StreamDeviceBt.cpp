@@ -59,6 +59,14 @@ QHostAddress StreamDeviceBt::syntheticAddressFromBtAddress( const QBluetoothAddr
 
 #if !defined( Q_OS_WIN )
 
+#ifdef Q_OS_MACOS
+static QHash<quint64, quint16> macRfcommChannels;
+void StreamDeviceBt::rememberRfcommChannel( const QBluetoothAddress& address, quint16 channel )
+{
+  if( !address.isNull() && channel >= 1 && channel <= 30 ) macRfcommChannels.insert( address.toUInt64(), channel );
+}
+#endif
+
 StreamDeviceBt::StreamDeviceBt( QObject* parent )
   : StreamDevice( parent ), mp_socket( new QBluetoothSocket( QBluetoothServiceInfo::RfcommProtocol, this ) )
 {
@@ -70,8 +78,11 @@ void StreamDeviceBt::connectSocketSignals()
   connect( mp_socket, &QBluetoothSocket::connected, this, &StreamDeviceBt::connected );
   connect( mp_socket, &QBluetoothSocket::readyRead, this, &StreamDeviceBt::readyRead );
   connect( mp_socket, &QBluetoothSocket::bytesWritten, this, &StreamDeviceBt::bytesWritten );
-  connect( mp_socket, &QBluetoothSocket::errorOccurred, this, &StreamDeviceBt::onSocketError );
-  connect( mp_socket, &QBluetoothSocket::disconnected, this, &StreamDeviceBt::disconnected );
+  // Core aborts the stream when it receives either signal. Let Darwin's
+  // native callback return first, so abort cannot release its channel while
+  // handleChannelOpenTimeout is still using it on the stack.
+  connect( mp_socket, &QBluetoothSocket::errorOccurred, this, &StreamDeviceBt::onSocketError, Qt::QueuedConnection );
+  connect( mp_socket, &QBluetoothSocket::disconnected, this, &StreamDeviceBt::disconnected, Qt::QueuedConnection );
 }
 
 void StreamDeviceBt::connectToService( const QBluetoothAddress& bt_address )
@@ -79,6 +90,15 @@ void StreamDeviceBt::connectToService( const QBluetoothAddress& bt_address )
   // QBluetoothSocket resolves the RFCOMM channel of our service UUID with an
   // SDP query (ServiceLookupState) and then connects; both phases are covered
   // by the relaxed connection timeout of ConnectionSocket.
+#ifdef Q_OS_MACOS
+  const quint16 channel = macRfcommChannels.value( bt_address.toUInt64() );
+  if( channel )
+  {
+    qDebug() << "Mac connects directly to RFCOMM channel" << channel << bt_address.toString();
+    mp_socket->connectToService( bt_address, channel );
+    return;
+  }
+#endif
   mp_socket->connectToService( bt_address, serviceUuid() );
 }
 

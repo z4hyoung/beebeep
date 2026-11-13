@@ -29,6 +29,7 @@
 #include "ChatMessage.h"
 #include "ColorManager.h"
 #include "Core.h"
+#include "BtManager.h"
 #include "EmoticonManager.h"
 #include "FileShare.h"
 #include "GuiIconProvider.h"
@@ -332,6 +333,27 @@ int main( int argc, char *argv[] )
   qDebug() << "Loading saved session";
   mw.loadSession();
 
+  // Explicit local diagnostic request: perform one native Bluetooth search
+  // as soon as the existing transport has finished its normal startup.
+  if( qEnvironmentVariableIsSet( "YONGBEEP_SEARCH_BLUETOOTH" ) )
+  {
+    QTimer* search = new QTimer( &mw );
+    search->setInterval( 1000 );
+    QObject::connect( search, &QTimer::timeout, &mw, [search, &bee_core, &mw]()
+    {
+      if( bee_core.isConnected() && bee_core.btManager() && bee_core.btManager()->isActive() )
+      {
+        search->stop();
+        if( QPushButton* button = mw.findChild<QPushButton*>( "GuiBluetoothSearchButton" ) )
+          button->click();
+        else
+          bee_core.btManager()->triggerManualScan();
+        search->deleteLater();
+      }
+    } );
+    search->start();
+  }
+
   if( demo_chat )
   {
     // YongBEEP S3-4b debug helper: fill the default chat with fake messages
@@ -478,7 +500,8 @@ int main( int argc, char *argv[] )
         }
       } );
     }
-    QTimer::singleShot( 3000, &mw, [ &mw, screenshot_path ]() { mw.takeScreenshot( screenshot_path ); } );
+    const int review_delay = qBound( 3000, qEnvironmentVariableIntValue( "YONGBEEP_SCREENSHOT_DELAY_MS" ), 60000 );
+    QTimer::singleShot( review_delay, &mw, [ &mw, screenshot_path ]() { mw.takeScreenshot( screenshot_path ); } );
   }
 
   /* Event Loop */

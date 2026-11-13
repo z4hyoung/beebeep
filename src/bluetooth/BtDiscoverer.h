@@ -22,6 +22,7 @@
 
 class QBluetoothServiceDiscoveryAgent;
 class BtWinWorker;
+class BtMacDiscovery;
 
 #if !defined( Q_OS_WIN )
   #include <QtBluetooth/QBluetoothServiceDiscoveryAgent>
@@ -37,7 +38,7 @@ class BtWinWorker;
  * address, device name). The local device address is filtered out to prevent
  * self connections.
  *
- * On macOS the scan runs in a QBluetoothServiceDiscoveryAgent; on Windows it
+ * On macOS manual searches use native SDP queries for paired computers; on Windows it
  * is delegated to the native BtWinWorker (BluetoothFindFirstDevice inquiry
  * plus a per device WSALookupService SDP query in the worker thread,
  * docs/02-技术设计.md §2.6).
@@ -50,8 +51,7 @@ public:
   explicit BtDiscoverer( QObject* parent = Q_NULLPTR );
 
   void start();
-  /*! YongBEEP: one-shot manual scan (macOS SDP crash guard: the periodic
-   * timer is disabled there; the devices dialog triggers this instead). */
+  /*! One-shot manual search; macOS uses native SDP instead of the unsafe Qt discovery agent. */
   void startSingleScan();
   void stop();
   inline bool isActive() const;
@@ -64,6 +64,8 @@ public:
 #endif
 
 signals:
+  void searchStatusChanged( const QString& );
+  void searchFinished();
   void btPeerFound( const QBluetoothAddress& bt_address, const QString& device_name );
 #if !defined( Q_OS_WIN )
   void discoveryError( QBluetoothServiceDiscoveryAgent::Error error );
@@ -86,6 +88,10 @@ private:
 #else
   BtWinWorker* mp_winWorker;
   bool m_scanRequested;
+#endif
+
+#ifdef Q_OS_MACOS
+  BtMacDiscovery* mp_macDiscovery;
 #endif
   QTimer* mp_scanTimer;
   QBluetoothAddress m_localAddress;

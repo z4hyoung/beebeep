@@ -115,6 +115,7 @@
 </context>
 <context>
     <name>Core</name>
+    <message><source>Bluetooth could not connect to the other device.</source><translation>未能与对方建立蓝牙连接。</translation></message>
     <message>
         <location filename="../src/core/Core.cpp" line="240"/>
         <source>%1 Unable to connect to %2 Network. Please check your firewall settings.</source>
@@ -5696,6 +5697,17 @@ Please select a different name.</source>
 </context>
 <context>
     <name>GuiScanDevices</name>
+    <message><source>Unable to open Bluetooth settings. Open your system settings and select Bluetooth.</source><translation>无法打开蓝牙设置，请手动进入系统设置并选择“蓝牙”。</translation></message>
+    <message><source>Bluetooth connection failed: %1. Check YongBEEP on the other device, then retry.</source><translation>蓝牙连接失败：%1 请检查对方的 YongBEEP 后重试。</translation></message>
+    <message><source>Bluetooth devices running YongBEEP</source><translation>运行 YongBEEP 的蓝牙设备</translation></message>
+    <message><source>Search for devices, then select one to connect.</source><translation>点击搜索查找设备，也可选中设备后主动连接。</translation></message>
+    <message><source>Mac can search paired computers and start Bluetooth connections. Pair once in system Bluetooth settings and keep YongBEEP open on both computers.</source><translation>Mac 可以主动搜索已配对电脑并发起蓝牙连接。首次请在系统蓝牙设置配对，并保持两端 YongBEEP 开启。</translation></message>
+    <message><source>Search paired devices</source><translation>搜索已配对设备</translation></message>
+    <message><source>Bluetooth is not ready. Turn on Bluetooth and allow YongBEEP to use it, then retry.</source><translation>蓝牙尚未就绪。请开启蓝牙并允许 YongBEEP 使用，然后重试。</translation></message>
+    <message><source>Searching for YongBEEP devices…</source><translation>正在搜索 YongBEEP 设备…</translation></message>
+    <message><source>Bluetooth · ready</source><translation>蓝牙 · 已就绪</translation></message>
+    <message><source>Connecting to %1…</source><translation>正在连接 %1…</translation></message>
+
     <message><source>Connection &amp; devices</source><translation>连接与设备</translation></message>
     <message><source>Nearby devices connect automatically over LAN. Use this page to check connections or Bluetooth pairing.</source><translation>局域网内设备会自动发现并连接。此处可查看连接状态或进行蓝牙配对。</translation></message>
     <message><source>Nearby Bluetooth devices</source><translation>附近的蓝牙设备</translation></message>
@@ -7465,5 +7477,13 @@ Please select a different name.</source>
     <message><source>Open file</source><translation>打开文件</translation></message>
     <message><source>Show in folder</source><translation>在文件夹中显示</translation></message>
     <message><source>File transfer</source><translation>文件传输</translation></message>
+</context>
+<context><name>BtMacDiscovery</name>
+    <message><source>Searching paired computers for YongBEEP…</source><translation>正在查找已配对电脑上的 YongBEEP 服务…</translation></message>
+    <message><source>No paired computers found. Pair the Windows computer in Bluetooth settings first.</source><translation>未找到已配对的电脑，请先在系统蓝牙设置中与 Windows 配对。</translation></message>
+    <message><source>Found %1 YongBEEP device(s).</source><translation>找到 %1 台 YongBEEP 设备。</translation></message>
+    <message><source>Bluetooth search timed out. Keep YongBEEP open on Windows and try again.</source><translation>蓝牙搜索超时。请保持 Windows 上的 YongBEEP 开启后重试。</translation></message>
+    <message><source>%1: Bluetooth service query failed (%2).</source><translation>%1：蓝牙服务查询失败（%2）。</translation></message>
+    <message><source>%1 is paired, but its YongBEEP service is not available.</source><translation>%1 已配对，但未找到其 YongBEEP 蓝牙服务。</translation></message>
 </context>
 </TS>

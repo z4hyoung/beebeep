@@ -25,6 +25,7 @@
 #include <QScrollBar>
 #include <QStackedWidget>
 #include <QTextEdit>
+#include <QPushButton>
 #include "YongTheme.h"
 #include "BeeUtils.h"
 #include <QTemporaryDir>
@@ -38,6 +39,7 @@
 #include "Connection.h"
 #include "Settings.h"
 #include "StreamDeviceTcp.h"
+#include "StreamDeviceBt.h"
 #include "UserManager.h"
 
 static int g_failed = 0, g_passed = 0;
@@ -593,11 +595,40 @@ static void testConnectionPage()
   CHECK( status && !status->text().contains( "Scanning", Qt::CaseInsensitive ), "connection page never claims a stopped scan is active" );
 #if defined( Q_OS_MACOS )
   QListWidget* devices = page.findChild<QListWidget*>();
-  CHECK( devices && devices->isHidden(), "macOS hides unavailable active-discovery list" );
+  CHECK( devices && !devices->isHidden(), "macOS offers native paired-device search and connection list" );
+  CHECK( page.findChild<QPushButton*>( "GuiBluetoothSearchButton" ) != nullptr, "manual Bluetooth search button is available" );
 #endif
+  Connection* failed_bt = core.openLink( true );
+  QString failure_reason;
+  QObject::connect( &core, &Core::bluetoothConnectionFailed, [&failure_reason]( const QString& reason ) { failure_reason = reason; } );
+  emit failed_bt->error( QAbstractSocket::UnknownSocketError );
+  QLabel* search_status = page.findChild<QLabel*>( "GuiBluetoothSearchStatus" );
+  CHECK( !failure_reason.isEmpty(), "Bluetooth connection failure has a readable reason" );
+  CHECK( search_status && search_status->text() == GuiScanDevices::tr( "Bluetooth connection failed: %1. Check YongBEEP on the other device, then retry." ).arg( failure_reason ),
+         "Bluetooth connection failure appears in the devices page" );
   core.closeConnection( link );
   page.updateStatus();
   CHECK( status && !status->text().contains( "BadgePeer", Qt::CaseInsensitive ), "connection page removes disconnected peers" );
+}
+
+static void testBluetoothCallbackLifetime()
+{
+#if defined( Q_OS_MACOS )
+  StreamDeviceBt stream;
+  QBluetoothSocket* socket = qobject_cast<QBluetoothSocket*>( stream.ioDevice() );
+  bool native_callback_active = true;
+  bool handled = false, aborted_inside_callback = false;
+  QObject::connect( &stream, &StreamDevice::errorOccurred, [&]()
+  {
+    handled = true;
+    aborted_inside_callback = native_callback_active;
+    stream.abort(); // Core performs this cleanup after a failed connection.
+  } );
+  emit socket->errorOccurred( QBluetoothSocket::SocketError::UnknownSocketError );
+  native_callback_active = false;
+  QCoreApplication::processEvents();
+  CHECK( handled && !aborted_inside_callback, "Bluetooth error cleanup waits until native callback returns" );
+#endif
 }
 
 int main( int argc, char** argv )
@@ -618,6 +649,7 @@ int main( int argc, char** argv )
   testChatPresentation();
   testConversationCache();
   testConnectionPage();
+  testBluetoothCallbackLifetime();
   testPresenceNeutralAvatars();
   testLastMessageSummary();
   qInfo() << "=== YongBEEP core unit tests:" << g_passed << "passed," << g_failed << "failed ===";

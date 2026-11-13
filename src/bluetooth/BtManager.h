@@ -55,10 +55,12 @@ public:
   /*! RFCOMM channel of our listening service (0 if not listening). */
   quint16 listenerPort() const;
 
-  /*! YongBEEP: one-shot manual scan on Windows; disabled on macOS by the SDP crash guard. */
+  /*! YongBEEP: one-shot search; native SDP queries on macOS, native discovery worker on Windows. */
   void triggerManualScan();
 
 signals:
+  void manualSearchStatusChanged( const QString& );
+  void manualSearchFinished();
   void btPeerFound( const QBluetoothAddress& bt_address, const QString& device_name );
   void newBtConnection( QObject* bt_socket );
   void bluetoothPermissionDenied();

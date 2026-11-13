@@ -270,6 +270,9 @@ void Core::setConnectionError( QAbstractSocket::SocketError se )
   if( c )
   {
     qWarning() << "Connection from" << qPrintable( c->networkAddress().toString() ) << "has an error:" << c->errorString() << "-" << static_cast<int>(se);
+    if( c->isBluetoothTransport() )
+      emit bluetoothConnectionFailed( c->errorString().isEmpty()
+          ? tr( "Bluetooth could not connect to the other device." ) : c->errorString() );
     closeConnection( c );
   }
   else

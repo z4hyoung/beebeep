@@ -7,7 +7,7 @@ TESTBIN=/tmp/yb_core_tests
 
 # 1) 编译测试 main
 clang++ -c -std=gnu++17 -pipe -O0 \
-  -I../src -I../src/core -I../src/ecdh -I../src/gui -I../src/desktop -I../src/utils -I../locale \
+  -I../src -I../src/core -I../src/bluetooth -I../src/ecdh -I../src/gui -I../src/desktop -I../src/utils -I../locale \
   -I/opt/homebrew/include -I/opt/homebrew/include/QtCore -I/opt/homebrew/include/QtNetwork \
   -I/opt/homebrew/include/QtGui -I/opt/homebrew/include/QtSvg \
   -I/opt/homebrew/include/QtWidgets -I/opt/homebrew/include/QtXml \
@@ -22,7 +22,7 @@ echo "linking $(echo $ALL_OBJS | wc -w | tr -d ' ') objects"
 # 3) 链接
 QT_LIBS="-F/opt/homebrew/lib -framework QtCore -framework QtNetwork -framework QtGui -framework QtSvg -framework QtWidgets -framework QtXml -framework QtMultimedia -framework QtPrintSupport \
 -framework Carbon -framework Foundation -framework AppKit -framework ApplicationServices -framework CoreFoundation \
--framework IOKit -framework DiskArbitration -framework UniformTypeIdentifiers -framework OpenGL \
+-framework IOKit -framework IOBluetooth -framework DiskArbitration -framework UniformTypeIdentifiers -framework OpenGL \
 -framework QtBluetooth -framework AVFoundation -framework CoreBluetooth \
 /opt/homebrew/share/qt/plugins/permissions/libqdarwinmicrophonepermission.a \
 /opt/homebrew/share/qt/plugins/permissions/libqdarwinbluetoothpermission.a"

@@ -71,6 +71,9 @@ public:
 
   /*! The fixed RFCOMM service UUID used by every YongBEEP instance. */
   static QBluetoothUuid serviceUuid();
+#ifdef Q_OS_MACOS
+  static void rememberRfcommChannel( const QBluetoothAddress&, quint16 channel );
+#endif
 
   /*! Stable synthetic IPv6 link-local address for a Bluetooth MAC. */
   static QHostAddress syntheticAddressFromBtAddress( const QBluetoothAddress& bt_address );

@@ -18,3 +18,9 @@ win32 {
   SOURCES += bluetooth/BtWinWorker.cpp
   LIBS += -lbthprops -lws2_32
 }
+
+macx {
+  HEADERS += bluetooth/BtMacDiscovery.h
+  OBJECTIVE_SOURCES += bluetooth/BtMacDiscovery.mm
+  LIBS += -framework IOBluetooth
+}
