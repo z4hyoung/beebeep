@@ -449,6 +449,7 @@ static void testLastMessageSummary()
 static void testConversationOrder()
 {
   const auto previous_history = ChatManager::instance().constHistoryMap();
+  const Chat previous_default = ChatManager::instance().defaultChat();
   auto createChat = []( VNumber id, const QString& name, User::Status status )
   {
     User peer;
@@ -524,6 +525,36 @@ static void testConversationOrder()
   ChatManager::instance().addSavedChats( history );
   reload();
   CHECK( timeText( newer ) == "13:10" && list.rowOfChat( newer.id() ) < list.rowOfChat( tied.id() ), "legacy history uses its visible date and time for ordering" );
+
+  auto legacyMessage = [&]( const Chat& conversation, const QTime& time )
+  {
+    Chat single; single.setGroup( conversation.group() );
+    append( single, peer.id(), ChatMessage::Chat, time, "Legacy ordering fixture" );
+    QString html = GuiChatMessage::chatToHtml( single, true, true, true, true, false, true );
+    html.remove( QRegularExpression( " data-yb-timestamp=\"[^\"]*\"" ) );
+    return html;
+  };
+  Chat all_users = Protocol::instance().createDefaultChat();
+  QString dated_history = legacyMessage( newer, QTime( 10, 13 ) );
+  dated_history.replace( ">10:13<", QString( ">%1 10:13<" ).arg( day.addDays( -2 ).toString( "yyyy-MM-dd" ) ) );
+  dated_history += legacyMessage( newer, QTime( 9, 14 ) );
+  dated_history += legacyMessage( newer, QTime( 21, 31 ) );
+  dated_history += legacyMessage( newer, QTime( 18, 5 ) );
+  history.insert( newer.name(), dated_history );
+  history.insert( all_users.name(), legacyMessage( all_users, QTime( 20, 30 ) ) );
+  ChatManager::instance().addSavedChats( history );
+  ChatManager::instance().setChat( all_users );
+  reload();
+  CHECK( timeText( newer ) == "18:05", "dated legacy history carries dates across midnight between saved batches" );
+  CHECK( timeText( all_users ).isEmpty(), "clock-only archive never fabricates today's date from the history file" );
+  CHECK( list.rowOfChat( newer.id() ) < list.rowOfChat( all_users.id() ), "recent dated contact sorts ahead of undated All users history" );
+  append( all_users, ID_LOCAL_USER, ChatMessage::Chat, QTime( 18, 6 ), "New broadcast message" );
+  ChatManager::instance().setChat( all_users );
+  reload();
+  CHECK( list.rowOfChat( all_users.id() ) < list.rowOfChat( newer.id() ) && timeText( all_users ) == "18:06",
+      "All users sorts ahead when its actual last message is newer" );
+  if( previous_default.isValid() ) ChatManager::instance().setChat( previous_default );
+  else ChatManager::instance().removeChat( all_users );
   for( const Chat& chat : { older, newer, empty, tied } ) ChatManager::instance().removeChat( chat );
   ChatManager::instance().addSavedChats( previous_history );
 }

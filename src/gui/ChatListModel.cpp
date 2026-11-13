@@ -67,19 +67,26 @@ static QString LastLiveMessageSummary( const Chat& c, QDateTime* timestamp )
   return QString();
 }
 
-static QDateTime LegacyHistoryTime( const QString& text )
+static QDateTime LegacyHistoryTime( const QString& text, const QDateTime& previous )
 {
-  // Older histories only stored the visible time separators. Use the saved
-  // file's date for separators that omit a year or date.
-  QDate reference_date = QFileInfo( Settings::instance().savedChatsFilePath() ).lastModified().date();
-  if( !reference_date.isValid() ) reference_date = QDate::currentDate();
   QDateTime timestamp = QDateTime::fromString( text, "yyyy-MM-dd hh:mm" );
   if( timestamp.isValid() ) return timestamp;
+  const QTime time = QTime::fromString( text, "hh:mm" );
+  if( time.isValid() )
+  {
+    // A clock value alone cannot establish a date. Carry forward a known
+    // message date, including midnight rollovers between saved batches.
+    if( !previous.isValid() ) return QDateTime();
+    timestamp = QDateTime( previous.date(), time );
+    return time < previous.time() ? timestamp.addDays( 1 ) : timestamp;
+  }
+  // Date separators without a year use the history file's year.
+  QDate reference_date = QFileInfo( Settings::instance().savedChatsFilePath() ).lastModified().date();
+  if( !reference_date.isValid() ) reference_date = QDate::currentDate();
   timestamp = QDateTime::fromString( QString( "%1-%2" ).arg( reference_date.year() ).arg( text ), "yyyy-MM-dd hh:mm" );
   if( timestamp.isValid() )
     return timestamp.date() > reference_date ? timestamp.addYears( -1 ) : timestamp;
-  const QTime time = QTime::fromString( text, "hh:mm" );
-  return time.isValid() ? QDateTime( reference_date, time ) : QDateTime();
+  return QDateTime();
 }
 
 static QString LastHistoryMessageSummary( const Chat& c, QDateTime* timestamp )
@@ -87,23 +94,23 @@ static QString LastHistoryMessageSummary( const Chat& c, QDateTime* timestamp )
   *timestamp = QDateTime();
   ChatMessageModel history;
   history.resetFromChat( c, true );
-  for( int row = history.rowCount() - 1; row >= 0; --row )
+  QString summary;
+  QDateTime message_time;
+  for( int row = 0; row < history.rowCount(); ++row )
   {
     const ChatMessageItem* item = history.itemAt( row );
+    if( item->timestamp.isValid() )
+      message_time = item->timestamp;
+    else if( !item->timestampText.isEmpty() )
+      message_time = LegacyHistoryTime( item->timestampText, message_time );
     if( item->kind != ChatMessageItem::FileCard && item->kind != ChatMessageItem::UserMessage ) continue;
-    *timestamp = item->timestamp;
-    if( !timestamp->isValid() )
-    {
-      int time_row = row;
-      while( time_row > 0 && history.itemAt( time_row )->timestampText.isEmpty() ) --time_row;
-      *timestamp = LegacyHistoryTime( history.itemAt( time_row )->timestampText );
-    }
+    *timestamp = message_time;
     if( item->kind == ChatMessageItem::FileCard )
-      return PreviewWithSender( ChatListModel::tr( "[File] %1" ).arg( item->fileName ), item->ownMessage );
-    if( item->kind == ChatMessageItem::UserMessage )
-      return PreviewWithSender( item->plainText.simplified(), item->ownMessage );
+      summary = PreviewWithSender( ChatListModel::tr( "[File] %1" ).arg( item->fileName ), item->ownMessage );
+    else
+      summary = PreviewWithSender( item->plainText.simplified(), item->ownMessage );
   }
-  return QString();
+  return summary;
 }
 
 static QString FormatChatTime( const QDateTime& dt )
