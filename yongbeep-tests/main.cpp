@@ -27,6 +27,12 @@
 #include <QTextEdit>
 #include <QPushButton>
 #include <QTimer>
+#include <QClipboard>
+#include <QToolBar>
+#include <QToolButton>
+#include <QTextCursor>
+#include <QTextBlock>
+#include <QTextList>
 #include "YongTheme.h"
 #include "BeeUtils.h"
 #include <QTemporaryDir>
@@ -770,6 +776,85 @@ static void testConnectionRecovery()
   window.onSleepRequest();
 }
 
+static void testDefaultMarkdown()
+{
+  const auto previous_history = ChatManager::instance().constHistoryMap();
+  TestCore core;
+  User peer; peer.setId( 880015 ); peer.setName( "MarkdownPeer" );
+  peer.setColor( "#518ACE" );
+  UserManager::instance().setUser( peer );
+  Chat chat = Protocol::instance().createPrivateChat( peer );
+  const QString raw = QString::fromUtf8(
+      "# 标题\n\n**粗体** 与 [链接](https://example.com/path?q=1&x=2)\n\n"
+      "- 第一项\n- 第二项\n\n```cpp\nstd::cout << \"<tag> & text\";\n```\n\n尾部  \n" );
+  Message incoming( Message::Chat, chat.id(), raw ); // Older peers send no Markdown flag.
+  ChatMessage message( peer.id(), incoming, ChatMessage::Chat, true );
+  CHECK( !incoming.isMarkdown() && message.isMarkdown(), "unflagged remote text renders as Markdown by default" );
+  CHECK( message.message() == raw, "Markdown payload preserves whitespace, entities and code verbatim" );
+  chat.addMessage( message );
+  ChatManager::instance().setChat( chat );
+  ChatMessageModel model; model.resetFromChat( chat );
+  ChatMessageItem* item = model.itemAt( 0 );
+  CHECK( item && item->markdown, "ordinary text uses Markdown document renderer" );
+  if( !item ) return;
+  model.ensureLayout( item );
+  CHECK( item->doc->firstBlock().blockFormat().headingLevel() == 1, "Markdown headings render semantically" );
+  CHECK( item->doc->toPlainText().contains( "std::cout << \"<tag> & text\";" ), "code fences retain literal angle brackets" );
+  CHECK( model.textToCopy( 0 ) == raw, "whole-message copy returns exact Markdown source" );
+  auto select = [&]( const QString& text )
+  {
+    const QTextCursor cursor = item->doc->find( text );
+    model.setItemSelection( 0, cursor.selectionStart(), cursor.selectionEnd() );
+  };
+  select( QString::fromUtf8( "粗体" ) );
+  CHECK( model.textToCopy( 0, true ).contains( QString::fromUtf8( "**粗体**" ) ), "partial copy retains bold Markdown markers" );
+  select( QString::fromUtf8( "链接" ) );
+  const QString link = model.textToCopy( 0, true );
+  CHECK( link.contains( "https://example.com/path?q=1&x=2" ) && link.contains( "](" ), "partial copy retains link destination" );
+  select( "std::cout" );
+  CHECK( model.textToCopy( 0, true ).contains( '`' ), "partial code copy retains Markdown code formatting" );
+  select( QString::fromUtf8( "第一项" ) );
+  QTextDocument copied_list; copied_list.setMarkdown( model.textToCopy( 0, true ) );
+  CHECK( copied_list.firstBlock().textList() != nullptr, "partial list copy retains list formatting" );
+  model.setItemSelection( 0, 0, item->doc->characterCount() - 1 );
+  CHECK( model.textToCopy( 0, true ) == raw, "selecting the whole message copies original source without reserialization" );
+
+  const QString saved = GuiChatMessage::chatToHtml( chat, true, true, true, true, false, true );
+  CHECK( saved.contains( "<!--yb-raw:md:" ), "history stores lossless Markdown source metadata" );
+  ChatManager::instance().addSavedChats( { { chat.name(), saved } } );
+  Chat archive; archive.setGroup( chat.group() );
+  ChatMessageModel restored; restored.resetFromChat( archive, true );
+  CHECK( restored.rowCount() == 1 && restored.itemAt( 0 )->markdown, "archived messages restore as Markdown bubbles" );
+  CHECK( restored.textToCopy( 0 ) == raw, "history round-trip retains exact Markdown source" );
+  if( restored.rowCount() )
+  {
+    restored.ensureLayout( restored.itemAt( 0 ) );
+    CHECK( restored.itemAt( 0 )->doc->firstBlock().blockFormat().headingLevel() == 1, "restored headings still render" );
+  }
+  ChatManager::instance().addSavedChats( previous_history );
+
+  Message code( Message::Chat, chat.id(), "    literal **stars**\n<br>" ); code.setSourceCode();
+  ChatMessage source( peer.id(), code, ChatMessage::Chat, true );
+  CHECK( source.isSourceCode() && !source.isMarkdown() && source.message() == code.text(), "explicit source-code messages remain literal and lossless" );
+
+  GuiChat view; QToolBar toolbar( &view ); view.setupToolBar( &toolbar ); view.setChat( chat );
+  CHECK( view.findChild<QToolButton*>( "GuiChatMarkdownButton" ) == nullptr, "input toolbar has no Markdown toggle" );
+  QListView* messages = view.findChild<QListView*>( "GuiChatViewer" );
+  messages->setCurrentIndex( messages->model()->index( 0, 0 ) );
+  view.copySelectionOrMessage();
+  CHECK( QApplication::clipboard()->text() == raw, "keyboard-copy path uses Markdown source" );
+  view.m_contextIndex = messages->model()->index( 0, 0 );
+  QMetaObject::invokeMethod( &view, "copyMessageToClipboard", Qt::DirectConnection );
+  CHECK( QApplication::clipboard()->text() == raw, "context-menu copy uses Markdown source" );
+  bool sent_as_markdown = false; QString sent_text;
+  QObject::connect( &view, &GuiChat::newMessage, [&]( VNumber, const QString& text, bool code, bool markdown )
+  { sent_text = text; sent_as_markdown = markdown && !code; } );
+  view.setDemoInputDraft( raw );
+  QMetaObject::invokeMethod( &view, "sendMessage", Qt::DirectConnection );
+  CHECK( sent_as_markdown && sent_text == raw, "sending defaults to Markdown and preserves original whitespace" );
+  ChatManager::instance().addSavedChats( previous_history );
+}
+
 int main( int argc, char** argv )
 {
   qputenv( "QT_QPA_PLATFORM", "offscreen" );
@@ -790,6 +875,7 @@ int main( int argc, char** argv )
   testConnectionPage();
   testBluetoothCallbackLifetime();
   testConnectionRecovery();
+  testDefaultMarkdown();
   testPresenceNeutralAvatars();
   testLastMessageSummary();
   testConversationOrder();

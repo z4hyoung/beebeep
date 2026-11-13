@@ -69,10 +69,7 @@ void GuiMessageEdit::createMessageToSend()
   }
   else
     text = toPlainText();
-  while( !text.isEmpty() && text.endsWith( " " ) )
-    text.chop( 1 );
-  if( text.endsWith( "\n" ) )
-    text.chop( 1 );
+  // Whitespace is meaningful in Markdown (indentation and hard line breaks).
   m_currentMessage = text.trimmed().isEmpty() ? QLatin1String( "" ) : text;
   m_messageChanged = false;
 }

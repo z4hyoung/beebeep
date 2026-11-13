@@ -25,6 +25,7 @@
 #include <QRegularExpression>
 #include <QTextBoundaryFinder>
 #include <QTextCursor>
+#include <QTextBlock>
 #include <QTextDocument>
 #include <QtDebug>
 
@@ -382,6 +383,7 @@ ChatMessageItem* ChatMessageModel::createItem( const Chat& c, const ChatMessage&
   item->user = u;
   item->ownMessage = u.isValid() && u.isLocal();
   item->avatar = roundedAvatar( u );
+  item->sourceText = cm.message();
 
   // Markdown: the wire flag is authoritative (works for remote peers, history
   // reloads and cross-session); the GUI-side registry stays only as a fallback
@@ -605,6 +607,51 @@ QString ChatMessageModel::selectedText( int row ) const
   return plain.mid( start, end - start );
 }
 
+QString ChatMessageModel::textToCopy( int row, bool selection_only ) const
+{
+  ChatMessageItem* item = itemAt( row );
+  if( !item ) return QString();
+  if( !selection_only )
+    return item->kind == ChatMessageItem::UserMessage ? item->sourceText : item->plainText;
+  if( !hasSelection( row ) ) return QString();
+  if( !item->markdown ) return selectedText( row );
+  ensureLayout( item );
+  const int length = item->doc->characterCount() - 1;
+  const int start = qBound( 0, qMin( item->selectionAnchor, item->selectionPosition ), length );
+  const int end = qBound( 0, qMax( item->selectionAnchor, item->selectionPosition ), length );
+  if( start == 0 && end == length ) return item->sourceText;
+  QTextCursor cursor( item->doc );
+  cursor.setPosition( start );
+  cursor.setPosition( end, QTextCursor::KeepAnchor );
+  const QTextBlock first = item->doc->findBlock( start );
+  const QTextBlock last = item->doc->findBlock( qMax( start, end - 1 ) );
+  const QTextBlockFormat code_format = first.blockFormat();
+  bool code_only = code_format.hasProperty( QTextFormat::BlockCodeFence ) ||
+                   code_format.hasProperty( QTextFormat::BlockCodeLanguage );
+  for( QTextBlock block = first; code_only && block.isValid(); block = block.next() )
+  {
+    const QTextBlockFormat format = block.blockFormat();
+    code_only = (format.hasProperty( QTextFormat::BlockCodeFence ) || format.hasProperty( QTextFormat::BlockCodeLanguage )) &&
+        format.property( QTextFormat::BlockCodeLanguage ) == code_format.property( QTextFormat::BlockCodeLanguage );
+    if( block == last ) break;
+  }
+  if( code_only )
+  {
+    // Qt's fragment exporter drops fences when only part of a code block is
+    // selected. Retain the block's language and choose a non-conflicting fence.
+    QString text = cursor.selectedText();
+    text.replace( QChar::ParagraphSeparator, QChar( '\n' ) );
+    text.replace( QChar::LineSeparator, QChar( '\n' ) );
+    QString fence = "```";
+    while( text.contains( fence ) ) fence += QChar( '`' );
+    return fence + code_format.property( QTextFormat::BlockCodeLanguage ).toString() + "\n" + text + "\n" + fence;
+  }
+  QString markdown = QTextDocumentFragment( cursor ).toMarkdown( QTextDocument::MarkdownDialectGitHub );
+  // Remove only the exporter's paragraph terminator, preserving indentation.
+  while( markdown.endsWith( QChar( '\n' ) ) ) markdown.chop( 1 );
+  return markdown;
+}
+
 QString ChatMessageModel::savedHtmlForChat( const Chat& c )
 {
   if( ChatManager::instance().chatHasSavedText( c.name() ) )
@@ -754,7 +801,22 @@ QList<ChatMessageItem*> ChatMessageModel::itemsFromSavedHtml( const Chat& c, con
         // Strip only the padding inserted by the old serializer.
         if( item->contentHtml.startsWith( "&nbsp;" ) ) item->contentHtml.remove( 0, 6 );
         if( item->contentHtml.endsWith( "&nbsp;" ) ) item->contentHtml.chop( 6 );
-        item->plainText = plainTextFromHtml( item->contentHtml );
+        const auto source = QRegularExpression( "<!--yb-raw:(md|code):([A-Za-z0-9+/=]*)-->" ).match( item->contentHtml );
+        if( source.hasMatch() )
+        {
+          item->sourceText = QString::fromUtf8( QByteArray::fromBase64( source.captured( 2 ).toLatin1() ) );
+          item->markdown = source.captured( 1 ) == "md";
+        }
+        else
+        {
+          // Older HTML-only archives have no exact payload. Recover their
+          // text and line breaks without interpreting serializer tags as MD.
+          item->sourceText = QTextDocumentFragment::fromHtml( item->contentHtml ).toPlainText();
+          item->sourceText.replace( QChar( 0x00a0 ), QChar( ' ' ) );
+          item->markdown = !item->contentHtml.contains( QRegularExpression( "<(?:img|code|pre)\\b", QRegularExpression::CaseInsensitiveOption ) );
+        }
+        if( item->markdown ) item->markdownRaw = item->sourceText;
+        item->plainText = item->markdown ? item->sourceText : plainTextFromHtml( item->contentHtml );
         item->nameText = plainTextFromHtml( content.left( bubble.capturedStart() ) );
         item->showName = !m_chatIsPrivate && !own && !item->nameText.isEmpty();
       }

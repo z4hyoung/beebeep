@@ -207,7 +207,7 @@ QString GuiChatMessage::formatMessage( const User& u, const ChatMessage& cm, VNu
   Q_UNUSED( use_your_name );
   Q_UNUSED( use_chat_compact );
 
-  QString text_formatted = cm.message();
+  QString text_formatted = cm.isMarkdown() ? cm.message().toHtmlEscaped() : cm.message();
 
   if( cm.isSourceCode() )
   {
@@ -273,7 +273,9 @@ QString GuiChatMessage::formatMessage( const User& u, const ChatMessage& cm, VNu
   QString bubble = QString( "<span style=\"%1\">&nbsp;%2%3&nbsp;</span>" )
                      .arg( own_message ? ownBubbleStyle() : peerBubbleStyle(),
                            cm.isImportant() ? textImportantPrefix() : QString(),
-                           text_formatted );
+                           (cm.isMarkdown() || cm.isSourceCode()
+                               ? QString( "<!--yb-raw:%1:%2-->" ).arg( cm.isMarkdown() ? "md" : "code", QString::fromLatin1( cm.message().toUtf8().toBase64() ) )
+                               : QString()) + text_formatted );
 
   // Outer positioning table: avatar column on the outer edge, empty spacer
   // column (~40%) capping the bubble width at ~60% of the chat area (S4c),

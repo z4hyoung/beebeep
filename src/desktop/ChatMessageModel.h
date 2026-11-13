@@ -7,12 +7,9 @@
 // a cached QTextDocument (built once, laid out shrink-to-fit against the
 // current viewport width) so paint() never re-parses rich text.
 //
-// Markdown (S4e): Message::Markdown is the wire flag; the Core dispatch
-// path is frozen in this round, so the model keeps a GUI-side registry of
-// the raw texts sent with the input-bar MD toggle on (they render with
-// QTextDocument::setMarkdown, both on the local echo and on same-session
-// chat reloads). Old messages without a registry hit keep the classic
-// HTML pipeline.
+// Ordinary chat messages render as Markdown by default. Their original
+// payload is retained independently of the document used for display,
+// including when messages are restored from saved HTML archives.
 //
 //////////////////////////////////////////////////////////////////////
 
@@ -54,6 +51,7 @@ public:
 
   bool markdown;              // render with QTextDocument::setMarkdown
   QString markdownRaw;        // original raw markdown text
+  QString sourceText;         // exact message payload for copying
   QString contentHtml;        // classic-pipeline inner HTML (no bubble table)
   QString plainText;          // for copy / quote / find
 
@@ -123,6 +121,8 @@ public:
   bool hasSelection( int row ) const;
   /*! Selected plain text of a row (empty when no selection). */
   QString selectedText( int row ) const;
+  /*! Whole messages use their original source; selections retain Markdown formatting. */
+  QString textToCopy( int row, bool selection_only = false ) const;
 
   void setChatFont( const QFont& );
   void setViewportWidth( int );

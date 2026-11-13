@@ -66,7 +66,6 @@ GuiChat::GuiChat( QWidget *parent )
   mp_inputToolbar = Q_NULLPTR;
   mp_tbEmoticons = Q_NULLPTR;
   mp_tbAttach = Q_NULLPTR;
-  mp_tbMarkdown = Q_NULLPTR;
   mp_emoticonsPopup = Q_NULLPTR;
   mp_emoticonsWidget = Q_NULLPTR;
 
@@ -391,7 +390,7 @@ void GuiChat::copySelectionOrMessage()
   // of the context/current row is the fallback (old behavior)
   if( m_selectionIndex.isValid() && mp_messageModel->hasSelection( m_selectionIndex.row() ) )
   {
-    QString selected_text = mp_messageModel->selectedText( m_selectionIndex.row() );
+    QString selected_text = mp_messageModel->textToCopy( m_selectionIndex.row(), true );
     if( !selected_text.isEmpty() )
     {
       QApplication::clipboard()->setText( selected_text );
@@ -399,15 +398,15 @@ void GuiChat::copySelectionOrMessage()
     }
   }
   QModelIndex idx = m_contextIndex.isValid() ? QModelIndex( m_contextIndex ) : mp_lvChat->currentIndex();
-  if( idx.isValid() && !idx.data().toString().isEmpty() )
-    QApplication::clipboard()->setText( idx.data().toString() );
+  if( idx.isValid() )
+    QApplication::clipboard()->setText( mp_messageModel->textToCopy( idx.row() ) );
 }
 
 void GuiChat::copySelectionToClipboard()
 {
   if( m_contextIndex.isValid() && mp_messageModel->hasSelection( m_contextIndex.row() ) )
   {
-    QString selected_text = mp_messageModel->selectedText( m_contextIndex.row() );
+    QString selected_text = mp_messageModel->textToCopy( m_contextIndex.row(), true );
     if( !selected_text.isEmpty() )
       QApplication::clipboard()->setText( selected_text );
   }
@@ -483,41 +482,12 @@ void GuiChat::setupInputToolbar()
   mp_tbAttach->setAutoRaise( true );
   mp_tbAttach->setCursor( Qt::PointingHandCursor );
 
-  // S4e: checkable Markdown toggle - messages sent while on carry the
-  // Message::Markdown intent and render with QTextDocument::setMarkdown
-  mp_tbMarkdown = new QToolButton( mp_inputToolbar );
-  mp_tbMarkdown->setObjectName( "GuiChatMarkdownButton" );
-  mp_tbMarkdown->setIcon( YongTheme::svgIcon( "markdown", YongTheme::iconGray(), YongTheme::textPrimary(), YongTheme::toolbarIconPx() ) );
-  mp_tbMarkdown->setIconSize( QSize( YongTheme::toolbarIconPx(), YongTheme::toolbarIconPx() ) );
-  mp_tbMarkdown->setText( tr( "MD" ) );
-  mp_tbMarkdown->setToolTip( tr( "Send messages as Markdown" ) );
-  mp_tbMarkdown->setCheckable( true );
-  mp_tbMarkdown->setAutoRaise( true );
-  mp_tbMarkdown->setCursor( Qt::PointingHandCursor );
-
   toolbar_layout->addWidget( mp_tbEmoticons );
   toolbar_layout->addWidget( mp_tbAttach );
-  toolbar_layout->addWidget( mp_tbMarkdown );
   toolbar_layout->addStretch( 1 );
 
   connect( mp_tbEmoticons, SIGNAL( clicked() ), this, SLOT( showEmoticonsPopup() ) );
   connect( mp_tbAttach, SIGNAL( clicked() ), this, SLOT( sendFile() ) );
-  connect( mp_tbMarkdown, SIGNAL( toggled( bool ) ), this, SLOT( onMarkdownToggled( bool ) ) );
-}
-
-void GuiChat::onMarkdownToggled( bool checked )
-{
-  if( checked )
-  {
-    mp_tbMarkdown->setIcon( YongTheme::svgIcon( "markdown", YongTheme::brandGreen(), YongTheme::textPrimary(), YongTheme::toolbarIconPx() ) );
-    mp_tbMarkdown->setToolTip( tr( "Markdown is enabled" ) );
-  }
-  else
-  {
-    mp_tbMarkdown->setIcon( YongTheme::svgIcon( "markdown", YongTheme::iconGray(), YongTheme::textPrimary(), YongTheme::toolbarIconPx() ) );
-    mp_tbMarkdown->setToolTip( tr( "Send messages as Markdown" ) );
-  }
-  ensureFocusInChat();
 }
 
 void GuiChat::showEmoticonsPopup()
@@ -782,7 +752,7 @@ void GuiChat::copyMessageToClipboard()
 {
   if( !m_contextIndex.isValid() )
     return;
-  QString text = m_contextIndex.data().toString();
+  QString text = mp_messageModel->textToCopy( m_contextIndex.row() );
   if( text.isEmpty() )
     return;
   QClipboard* cb = qApp->clipboard();
@@ -794,12 +764,11 @@ void GuiChat::quoteMessageToInput()
 {
   if( !m_contextIndex.isValid() )
     return;
-  QString text = m_contextIndex.data().toString();
+  QString text = mp_messageModel->textToCopy( m_contextIndex.row() );
   if( text.isEmpty() )
     return;
-  text.replace( QChar( '\n' ), QLatin1String( " " ) );
-  QString text_to_add = QString( " [quote]%1 [/quote]<br>" ).arg( text.trimmed() );
-  mp_teMessage->addText( text_to_add );
+  text.replace( QChar( '\n' ), QLatin1String( "\n> " ) );
+  mp_teMessage->insertPlainText( "> " + text + "\n\n" );
   mp_teMessage->setFocus();
 }
 
@@ -901,13 +870,8 @@ void GuiChat::sendMessage()
   if( msg.isEmpty() )
     return;
   mp_teMessage->addMessageToHistory();
-  // S4e: the MD toggle now travels on the wire as Message::Markdown
-  // (sendChatMessage -> m.setMarkdown()); the model-side registry is kept
-  // only as a fallback for messages built before the flag existed.
-  const bool is_markdown = mp_tbMarkdown && mp_tbMarkdown->isChecked();
-  if( is_markdown )
-    mp_messageModel->addMarkdownText( msg );
-  emit newMessage( m_chatId, msg, false, is_markdown );
+  // Markdown is the default. Keep the original text on the wire.
+  emit newMessage( m_chatId, msg, false, true );
   mp_teMessage->clearMessage();
   if( mp_cbSendAndClose->isChecked() )
   {

@@ -7,6 +7,7 @@ TESTBIN=/tmp/yb_core_tests
 
 # 1) 编译测试 main
 clang++ -c -std=gnu++17 -pipe -O0 \
+  -DBEEBEEP_USE_QXT -DBEEBEEP_USE_MULTICAST_DNS \
   -I../src -I../src/core -I../src/bluetooth -I../src/ecdh -I../src/gui -I../src/desktop -I../src/utils -I../locale \
   -I/opt/homebrew/include -I/opt/homebrew/include/QtCore -I/opt/homebrew/include/QtNetwork \
   -I/opt/homebrew/include/QtGui -I/opt/homebrew/include/QtSvg \

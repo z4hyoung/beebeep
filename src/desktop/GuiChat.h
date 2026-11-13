@@ -139,7 +139,6 @@ private slots:
   void showChatMessageFilterMenu();
   void changeChatMessageFilter();
   void checkAnchorClicked( const QUrl& );
-  void onMarkdownToggled( bool ); // S4e: MD input toggle
   void copyMessageToClipboard(); // S4e: context menu on the message list
   void quoteMessageToInput();    // S4e: context menu on the message list
   void copyUrlToClipboard();
@@ -220,7 +219,6 @@ private:
   QWidget* mp_inputToolbar;
   QToolButton* mp_tbEmoticons;
   QToolButton* mp_tbAttach;
-  QToolButton* mp_tbMarkdown; // S4e: checkable Markdown toggle
   QFrame* mp_emoticonsPopup;
   GuiEmoticons* mp_emoticonsWidget;
 

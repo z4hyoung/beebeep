@@ -29,7 +29,7 @@
 ChatMessage::ChatMessage()
   : m_userId( ID_INVALID ), m_message( "" ), m_timestamp(), m_textColor(),
     m_type( ChatMessage::Other ), m_isImportant( false ), m_canBeSaved( false ),
-    m_isSourceCode( false )
+    m_isSourceCode( false ), m_isMarkdown( false )
 {
 }
 
@@ -76,27 +76,27 @@ ChatMessage& ChatMessage::operator=( const ChatMessage& cm )
 
 void ChatMessage::createFromMessage( const Message& m )
 {
+  // Ordinary chat text is Markdown even when an older peer sends no flag.
+  // Preserve the payload exactly for copying and archive round-trips.
+  m_isSourceCode = m.hasFlag( Message::SourceCode );
+  m_isMarkdown = !m_isSourceCode && !isFromSystem() &&
+      (m.type() == Message::Chat || m.hasFlag( Message::Markdown ));
   if( m.type() != Message::System )
   {
-    // Markdown messages keep their raw text (the delegate renders it with
-    // QTextDocument::setMarkdown), exactly like source-code messages skip
-    // the HTML/emoticon pipeline.
-    m_message = ( m.isSourceCode() || m.isMarkdown() ) ? m.text().trimmed() : Protocol::instance().formatHtmlText( m.text() );
-    if( m_message.endsWith( "<br>" ) )
+    m_message = (m_isSourceCode || m_isMarkdown) ? m.text() : Protocol::instance().formatHtmlText( m.text() );
+    if( !m_isSourceCode && !m_isMarkdown && m_message.endsWith( "<br>" ) )
       m_message.chop( 4 );
   }
   else
     m_message = m.text();
   m_timestamp = m.timestamp();
-  if( !m.isSourceCode() && !m.isMarkdown() )
+  if( !m_isSourceCode && !m_isMarkdown )
   {
     ChatMessageData cm_data = Protocol::instance().dataFromChatMessage( m );
     if( cm_data.textColor().isValid() )
       m_textColor = cm_data.textColor();
   }
   m_isImportant = m.hasFlag( Message::Important );
-  m_isSourceCode = m.hasFlag( Message::SourceCode );
-  m_isMarkdown = m.hasFlag( Message::Markdown );
 }
 
 bool ChatMessage::isChatActivity() const
