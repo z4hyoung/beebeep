@@ -972,10 +972,32 @@ void GuiChat::loadSavedMessages()
   setChat( c );
 }
 
-bool GuiChat::setChat( const Chat& c )
+bool GuiChat::setChat( const Chat& c, bool force_reload )
 {
   if( !c.isValid() )
     return false;
+
+  const Settings& settings = Settings::instance();
+  const QString saved_history = ChatMessageModel::savedHtmlForChat( c );
+  const QVariantList display_options = {
+    settings.chatMessagesToShow(), settings.chatMessageFilter(),
+    settings.showOnlyMessagesInDefaultChat(), settings.chatShowMessageTimestamp(),
+    settings.chatShowMessageDatestamp(), settings.showMessagesGroupByUser(),
+    settings.useUserFullName(), settings.useUserFirstNameFirstInFullName(),
+    settings.useDarkStyle(), settings.chatFontColor(), settings.chatDefaultTextColor(),
+    settings.chatSystemTextColor(), settings.chatBackgroundColor(),
+    settings.defaultChatBackgroundColor(), settings.autoresponderName(), QDate::currentDate()
+  };
+  // Chat copies share their message list until it is edited. Retaining the
+  // loaded copy makes this check constant-time even for long conversations.
+  if( !force_reload && m_chatId == c.id() && m_loadedChat.id() == c.id() &&
+      m_loadedChat.name() == c.name() && m_loadedChat.usersId() == c.usersId() &&
+      m_loadedChat.isPrivate() == c.isPrivate() && m_loadedChat.isDefault() == c.isDefault() &&
+      m_loadedChat.lastMessageTimestamp() == c.lastMessageTimestamp() &&
+      m_loadedChat.messages().constData() == c.messages().constData() &&
+      m_loadedChat.messages().size() == c.messages().size() &&
+      m_loadedHistory == saved_history && m_loadedDisplayOptions == display_options )
+    return true;
 
   // Keep the scroll position when the SAME chat is reloaded (saved-messages
   // load); jump to the bottom when a different chat is opened.
@@ -993,6 +1015,9 @@ bool GuiChat::setChat( const Chat& c )
   m_lastMessageTimestamp = QDateTime();
 
   mp_messageModel->resetFromChat( c );
+  m_loadedChat = c;
+  m_loadedHistory = saved_history;
+  m_loadedDisplayOptions = display_options;
 
   setLastMessageTimestamp( c.lastMessageTimestamp() );
   if( keep_row >= 0 && keep_row < mp_messageModel->rowCount() )

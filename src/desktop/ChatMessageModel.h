@@ -102,6 +102,7 @@ public:
   QVariant data( const QModelIndex& index, int role ) const override;
 
   void resetFromChat( const Chat& c, bool all_history = false );
+  static QString savedHtmlForChat( const Chat& );
   void updateUserProfile( const User& );
   bool appendMessage( const Chat& c, const ChatMessage& cm );
 

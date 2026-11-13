@@ -17,8 +17,14 @@
 #include "ChatMessageDelegate.h"
 #include "GuiChatMessage.h"
 #include "GuiScanDevices.h"
+#include "GuiChat.h"
+#include "GuiMainWindow.h"
 #include <QLabel>
 #include <QListWidget>
+#include <QListView>
+#include <QScrollBar>
+#include <QStackedWidget>
+#include <QTextEdit>
 #include "YongTheme.h"
 #include "BeeUtils.h"
 #include <QTemporaryDir>
@@ -457,6 +463,125 @@ static void testPresenceNeutralAvatars()
   CHECK( photo_offline.pixelColor( 0, 0 ) == QColor( "#2476CC" ), "photo has no presence border or gray filter" );
 }
 
+static void testConversationCache()
+{
+  const int previous_limit = Settings::instance().chatMessagesToShow();
+  const QBitArray previous_filter = Settings::instance().chatMessageFilter();
+  const auto previous_history = ChatManager::instance().constHistoryMap();
+  Settings::instance().setChatMessagesToShow( -1 );
+  Settings::instance().setChatMessageFilter( QBitArray( ChatMessage::NumTypes, false ) );
+  TestCore core;
+  User peer;
+  peer.setId( 880002 ); peer.setName( "CachePeer" ); peer.setColor( "#518ACE" );
+  UserManager::instance().setUser( peer );
+  Chat chat = Protocol::instance().createPrivateChat( peer );
+  for( int i = 0; i < 60; ++i )
+    chat.addMessage( ChatMessage( peer.id(), Message( Message::Chat, chat.id(), QString( "Cached message %1" ).arg( i ) ), ChatMessage::Chat, true ) );
+  ChatManager::instance().setChat( chat );
+
+  GuiMainWindow window;
+  window.resize( 920, 620 );
+  window.show();
+  auto activate = [&]( VNumber id )
+  {
+    return QMetaObject::invokeMethod( &window, "showChat", Qt::DirectConnection, Q_ARG( VNumber, id ) );
+  };
+  CHECK( activate( chat.id() ), "normal entry opens cached conversation" );
+  QApplication::processEvents();
+  QStackedWidget* stack = window.findChild<QStackedWidget*>();
+  GuiChat* view = stack ? qobject_cast<GuiChat*>( stack->currentWidget() ) : nullptr;
+  ChatMessageModel* model = view ? view->findChild<ChatMessageModel*>() : nullptr;
+  QListView* messages = view ? view->findChild<QListView*>( "GuiChatViewer" ) : nullptr;
+  QTextEdit* input = view ? view->findChild<QTextEdit*>( "GuiMessageEdit" ) : nullptr;
+  CHECK( model && messages && input && model->rowCount() == 60, "first activation loads all live messages" );
+  if( !model || !messages || !input || model->rowCount() != 60 )
+  {
+    Settings::instance().setChatMessagesToShow( previous_limit );
+    Settings::instance().setChatMessageFilter( previous_filter );
+    return;
+  }
+  view->setDemoInputDraft( "Unsent cache draft" );
+  model->ensureLayout( model->itemAt( 0 ) );
+  ChatMessageItem* first = model->itemAt( 0 );
+  QTextDocument* document = first->doc;
+  messages->verticalScrollBar()->setValue( messages->verticalScrollBar()->maximum() / 2 + 3 );
+  const int scroll_position = messages->verticalScrollBar()->value();
+  int resets = 0;
+  QObject::connect( model, &QAbstractItemModel::modelReset, [&resets]() { ++resets; } );
+  for( int i = 0; i < 5; ++i )
+  {
+    activate( ID_DEFAULT_CHAT );
+    activate( chat.id() );
+    QApplication::processEvents();
+  }
+  CHECK( resets == 0, "repeated normal conversation switches never reset unchanged message models" );
+  CHECK( model->itemAt( 0 ) == first && first->doc == document, "switching retains parsed message and document caches" );
+  CHECK( messages->verticalScrollBar()->value() == scroll_position, "switching preserves exact scroll position" );
+  CHECK( input->toPlainText() == "Unsent cache draft", "switching preserves input draft" );
+
+  ChatMessage incoming( peer.id(), Message( Message::Chat, chat.id(), "Arrived while hidden" ), ChatMessage::Chat, true );
+  activate( ID_DEFAULT_CHAT );
+  chat.addMessage( incoming );
+  ChatManager::instance().setChat( chat );
+  view->appendChatMessage( chat, incoming );
+  CHECK( resets == 0 && model->rowCount() == 61, "hidden conversation appends new messages incrementally" );
+  activate( chat.id() );
+  CHECK( model->rowCount() == 61 && model->itemAt( 60 )->plainText == "Arrived while hidden", "changed conversation reloads without losing or duplicating new messages" );
+  const int after_message = resets;
+  activate( ID_DEFAULT_CHAT ); activate( chat.id() );
+  CHECK( resets == after_message, "changed conversation becomes reusable after refresh" );
+
+  QTemporaryDir directory;
+  QFile file( directory.filePath( "cached-transfer.txt" ) );
+  CHECK( file.open( QIODevice::WriteOnly ), "cache transfer fixture created" );
+  file.write( "cache test" ); file.close();
+  const QString link = QString( "<a href=\"%1\">cached-transfer.txt</a>" ).arg( QUrl::fromLocalFile( file.fileName() ).toString() );
+  chat.addMessage( ChatMessage( ID_SYSTEM_MESSAGE, Message( Message::System, chat.id(),
+      "Sending " + link + "<!--live--><!--yb-file:out:pending:10-->" ), ChatMessage::FileTransfer, true ) );
+  ChatManager::instance().setChat( chat ); activate( chat.id() );
+  CHECK( !model->itemAt( model->rowCount() - 1 )->fileAvailable, "pending file card loaded" );
+  const auto count = chat.messages().size();
+  CHECK( chat.rewriteLiveFileCard( "cached-transfer.txt", "Sent " + link + "<!--yb-file:out:complete:10-->" ), "file card rewritten in place" );
+  ChatManager::instance().setChat( chat );
+  const int before_rewrite = resets;
+  activate( ID_DEFAULT_CHAT ); activate( chat.id() );
+  CHECK( chat.messages().size() == count && resets == before_rewrite + 1 && model->itemAt( model->rowCount() - 1 )->fileAvailable,
+      "same-count file card rewrite invalidates cached content" );
+
+  Chat archive; archive.setGroup( chat.group() );
+  archive.addMessage( ChatMessage( peer.id(), Message( Message::Chat, chat.id(), "Archived cache needle" ), ChatMessage::Chat, true ) );
+  auto history = previous_history;
+  history.insert( chat.name(), GuiChatMessage::chatToHtml( archive, true, true, true, true, false, true ) );
+  ChatManager::instance().addSavedChats( history );
+  emit core.savedChatListAvailable();
+  CHECK( model->findPlainText( "Archived cache needle", -1, true ) >= 0, "asynchronous history completion refreshes visible conversation" );
+  const int after_history = resets;
+  activate( ID_DEFAULT_CHAT ); activate( chat.id() );
+  CHECK( resets == after_history, "loaded history is reused on subsequent switches" );
+
+  Settings::instance().setChatMessagesToShow( 1 );
+  activate( chat.id() );
+  CHECK( model->rowCount() == 2 && model->itemAt( 1 )->kind == ChatMessageItem::FileCard, "display limit change invalidates cache" );
+  QBitArray filter = Settings::instance().chatMessageFilter();
+  filter.setBit( ChatMessage::FileTransfer, true );
+  Settings::instance().setChatMessageFilter( filter );
+  activate( chat.id() );
+  CHECK( model->rowCount() == 1, "message filter change invalidates cache" );
+  Settings::instance().setChatMessageFilter( QBitArray( ChatMessage::NumTypes, false ) );
+  activate( chat.id() );
+  view->revealSearchResult( 0, "Archived cache needle" );
+  const int result_row = model->findPlainText( "Archived cache needle", -1, true );
+  const int after_search = resets;
+  activate( ID_DEFAULT_CHAT ); activate( chat.id() );
+  CHECK( resets == after_search && result_row >= 0 && model->selectedText( result_row ) == "Archived cache needle",
+      "switching retains full-history search result and highlight" );
+  view->setChat( chat );
+  CHECK( resets == after_search + 1 && model->rowCount() == 2, "explicit reload retains existing forced-refresh behavior" );
+  Settings::instance().setChatMessagesToShow( previous_limit );
+  Settings::instance().setChatMessageFilter( previous_filter );
+  ChatManager::instance().addSavedChats( previous_history );
+}
+
 static void testConnectionPage()
 {
   TestCore core;
@@ -491,6 +616,7 @@ int main( int argc, char** argv )
   testConcurrentLinks( false );
   testConcurrentLinks( true );
   testChatPresentation();
+  testConversationCache();
   testConnectionPage();
   testPresenceNeutralAvatars();
   testLastMessageSummary();

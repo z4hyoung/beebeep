@@ -427,7 +427,7 @@ void GuiMainWindow::showChat( VNumber chat_id )
     return;
 
   m_currentChatId = chat_id;
-  gui_chat->setChat( c );
+  gui_chat->setChat( c, false );
   gui_chat->updateActions( c, beeCore->isConnected(), beeCore->connectedUsers(), beeCore->isFileTransferActive() );
   mp_chatStack->setCurrentWidget( gui_chat );
   updateChatHeader();
@@ -691,6 +691,9 @@ void GuiMainWindow::onChatRemoved( const Chat& c )
 void GuiMainWindow::onSavedChatListAvailable()
 {
   refreshChatList( true );
+  GuiChat* gui_chat = chatWidget( m_currentChatId, false );
+  if( gui_chat )
+    gui_chat->setChat( ChatManager::instance().chat( m_currentChatId ), false );
 }
 
 

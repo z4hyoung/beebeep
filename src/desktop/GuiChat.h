@@ -26,6 +26,7 @@
 
 
 #include "ui_GuiChat.h"
+#include "Chat.h"
 #include "UserList.h"
 #include "ChatMessageModel.h"
 #include <QPersistentModelIndex>
@@ -52,7 +53,7 @@ public:
   void setupToolBar( QToolBar* chat_bar );
   void updateActions( const Chat&, bool is_connected, int connected_users, bool file_transfer_is_active );
 
-  bool setChat( const Chat& );
+  bool setChat( const Chat&, bool force_reload = true );
   inline VNumber chatId() const;
   void ensureLastMessageVisible();
   void updateShortcuts();
@@ -183,6 +184,9 @@ private:
 
 private:
   VNumber m_chatId;
+  Chat m_loadedChat;
+  QString m_loadedHistory;
+  QVariantList m_loadedDisplayOptions;
   VNumber m_lastMessageUserId;
   QDateTime m_lastMessageTimestamp;
   bool m_sendAllowedByState; // S4c: connection/membership part of the send button state

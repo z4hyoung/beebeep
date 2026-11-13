@@ -604,6 +604,15 @@ QString ChatMessageModel::selectedText( int row ) const
   return plain.mid( start, end - start );
 }
 
+QString ChatMessageModel::savedHtmlForChat( const Chat& c )
+{
+  if( ChatManager::instance().chatHasSavedText( c.name() ) )
+    return ChatManager::instance().chatSavedText( c.name() );
+  if( c.isPrivate() && c.name().contains( "@" ) )
+    return ChatManager::instance().chatSavedText( User::nameFromPath( c.name() ) );
+  return QString();
+}
+
 void ChatMessageModel::resetFromChat( const Chat& c, bool all_history )
 {
   beginResetModel();
@@ -628,14 +637,7 @@ void ChatMessageModel::resetFromChat( const Chat& c, bool all_history )
   // Recover individual message items from the legacy saved HTML.
   if( history_shown )
   {
-    QString saved_html;
-    if( !ChatManager::instance().chatHasSavedText( c.name() ) )
-    {
-      if( c.isPrivate() && c.name().contains( "@" ) && ChatManager::instance().chatHasSavedText( User::nameFromPath( c.name() ) ) )
-        saved_html = ChatManager::instance().chatSavedText( User::nameFromPath( c.name() ) );
-    }
-    else
-      saved_html = ChatManager::instance().chatSavedText( c.name() );
+    const QString saved_html = savedHtmlForChat( c );
     if( !saved_html.isEmpty() )
     {
       blob_items = itemsFromSavedHtml( c, saved_html );
