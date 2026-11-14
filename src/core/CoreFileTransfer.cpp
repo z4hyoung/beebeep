@@ -220,6 +220,9 @@ void Core::checkFileTransferMessage( VNumber peer_id, VNumber user_id, const Fil
         final_card_html += QString( " " ) + tr( "File can be sent again." );
     }
 
+    if( ft_state == FileTransferPeer::Completed && fi.inlineFileV2() )
+      final_card_html += QString( " ") + tr( "SHA-256 verified" );
+
     final_card_html += fileCardMarker( fi, ft_state == FileTransferPeer::Completed ? "complete" : "failed" );
 
     Chat live_card_chat = ChatManager::instance().findChatByPrivateId( fi.chatPrivateId(), false, u.id() );
@@ -506,7 +509,10 @@ bool Core::sendFileToUser( const User& u, const QString& file_path, const QStrin
       icon_html = IconManager::instance().toHtml( "upload.png", "*F*" );
       Message m = Protocol::instance().fileInfoToMessage( fi, c->protocolVersion() );
       if( inline_transfer )
+      {
         m.addFlag( Message::InlineFile );
+        m.addFlag( Message::InlineFileV2 );
+      }
       if( c->sendMessage( m ) )
       {
         if( inline_transfer )

@@ -1443,6 +1443,7 @@ Message Protocol::fileInfoToMessage( const FileInfo& fi, int proto_version, bool
 FileInfo Protocol::fileInfoFromMessage( const Message& m, int proto_version )
 {
   FileInfo fi( 0, FileInfo::Download );
+  fi.setInlineFileV2( m.hasFlag( Message::InlineFileV2 ) );
   fi.setNameAndSuffix( m.text() );
   QStringList sl = m.data().split( DATA_FIELD_SEPARATOR );
   if( sl.size() < 4 )

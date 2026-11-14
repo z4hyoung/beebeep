@@ -53,6 +53,7 @@ public:
   void start();
   /*! One-shot manual search; macOS uses native SDP instead of the unsafe Qt discovery agent. */
   void startSingleScan();
+  void setFileTransferActive( bool active ) { m_fileTransferActive = active; }
   void stop();
   inline bool isActive() const;
 
@@ -93,6 +94,7 @@ private:
 #ifdef Q_OS_MACOS
   BtMacDiscovery* mp_macDiscovery;
 #endif
+  bool m_fileTransferActive = false;
   QTimer* mp_scanTimer;
   QBluetoothAddress m_localAddress;
 

@@ -82,6 +82,7 @@ Core::Core( QObject* parent )
   connect( mp_broadcaster, SIGNAL( newPeerFound( const QHostAddress&, int ) ), this, SLOT( newPeerFound( const QHostAddress&, int ) ) );
   connect( mp_broadcaster, SIGNAL( newGenerationPeerFound() ), this, SLOT( showNewGenerationMessage() ) );
   connect( mp_listener, SIGNAL( newConnection( qintptr ) ), this, SLOT( checkNewConnection( qintptr ) ) );
+  connect( mp_fileTransfer, &FileTransfer::inlineTransferActivityChanged, mp_btManager, &BtManager::setFileTransferActive );
   connect( mp_btManager, &BtManager::btPeerFound, this, &Core::btPeerFound );
   connect( mp_btManager, &BtManager::newBtConnection, this, &Core::checkNewBtConnection );
   connect( mp_fileTransfer, SIGNAL( listening() ), this, SLOT( onFileTransferServerListening() ) );

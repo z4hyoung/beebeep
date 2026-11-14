@@ -167,6 +167,7 @@ Settings::Settings()
   m_resetMinimumWidthForStyle = true;
   m_onExistingFileAction = GenerateNewFileName;
   m_resumeFileTransfer = true;
+  m_fileTransferConfirmTimeout = 30000;
   m_maxInlineFileSizeBytes = 0; // YongBEEP: 0 = unlimited (was 5MB; the sliding window made big inline transfers viable)
   m_promptOnCloseEvent = true;
   m_saveUserList = true;

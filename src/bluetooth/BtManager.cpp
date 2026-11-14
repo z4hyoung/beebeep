@@ -205,6 +205,11 @@ quint16 BtManager::listenerPort() const
   return mp_listener->isListening() ? mp_listener->serverPort() : 0;
 }
 
+void BtManager::setFileTransferActive( bool active )
+{
+  mp_discoverer->setFileTransferActive( active );
+}
+
 void BtManager::triggerManualScan()
 {
   if( mp_discoverer )

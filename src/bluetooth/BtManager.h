@@ -57,6 +57,7 @@ public:
 
   /*! YongBEEP: one-shot search; native SDP queries on macOS, native discovery worker on Windows. */
   void triggerManualScan();
+  void setFileTransferActive( bool active );
 
 signals:
   void manualSearchStatusChanged( const QString& );

@@ -87,7 +87,12 @@ public:
   inline void setDuration( qint64 );
   inline qint64 duration() const;
 
+public:
+  bool inlineFileV2() const { return m_inlineFileV2; }
+  void setInlineFileV2( bool enabled ) { m_inlineFileV2 = enabled; }
+
 private:
+  bool m_inlineFileV2 = false;
   TransferType m_transferType;
   QString m_name;
   QString m_path;

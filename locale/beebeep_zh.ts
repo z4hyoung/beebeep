@@ -895,6 +895,10 @@
         <source>%1 %2: voice message not found.</source>
         <translation>%1 %2:语音消息未找到</translation>
     </message>
+    <message>
+        <source>SHA-256 verified</source>
+        <translation>SHA-256 校验通过</translation>
+    </message>
 </context>
 <context>
     <name>Date</name>
@@ -7112,6 +7116,70 @@ Please select a different name.</source>
         <source>Connection closed</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>File transfer confirmation timed out</source>
+        <translation>文件传输确认超时</translation>
+    </message>
+    <message>
+        <source>The source file changed after it was offered</source>
+        <translation>发送请求后源文件已发生变化</translation>
+    </message>
+    <message>
+        <source>Unable to send the file transfer frame</source>
+        <translation>无法发送文件传输数据</translation>
+    </message>
+    <message>
+        <source>Unable to read the source file</source>
+        <translation>无法读取源文件</translation>
+    </message>
+    <message>
+        <source>The source file changed during transfer</source>
+        <translation>传输过程中源文件已发生变化</translation>
+    </message>
+    <message>
+        <source>Remote file transfer failed: %1</source>
+        <translation>对方文件传输失败：%1</translation>
+    </message>
+    <message>
+        <source>Invalid file transfer confirmation</source>
+        <translation>文件传输确认无效</translation>
+    </message>
+    <message>
+        <source>Invalid file transfer offset</source>
+        <translation>文件传输位置无效</translation>
+    </message>
+    <message>
+        <source>Invalid compressed file data</source>
+        <translation>压缩文件数据无效</translation>
+    </message>
+    <message>
+        <source>Unable to write the received file</source>
+        <translation>无法写入接收的文件</translation>
+    </message>
+    <message>
+        <source>The received file is incomplete or could not be saved</source>
+        <translation>接收的文件不完整或无法保存</translation>
+    </message>
+    <message>
+        <source>Verifying file contents (SHA-256)</source>
+        <translation>正在校验文件内容（SHA-256）</translation>
+    </message>
+    <message>
+        <source>Unable to read the received file for verification</source>
+        <translation>无法读取接收文件进行校验</translation>
+    </message>
+    <message>
+        <source>File content verification failed (SHA-256 mismatch)</source>
+        <translation>文件内容校验失败（SHA-256 不一致）</translation>
+    </message>
+    <message>
+        <source>Unable to save the verified file</source>
+        <translation>无法保存已校验的文件</translation>
+    </message>
+    <message>
+        <source>Unable to create the temporary download file</source>
+        <translation>无法创建临时下载文件</translation>
+    </message>
 </context>
 <context>
     <name>Not available</name>
@@ -7494,5 +7562,12 @@ Please select a different name.</source>
     <message><source>Bluetooth search timed out. Keep YongBEEP open on Windows and try again.</source><translation>蓝牙搜索超时。请保持 Windows 上的 YongBEEP 开启后重试。</translation></message>
     <message><source>%1: Bluetooth service query failed (%2).</source><translation>%1：蓝牙服务查询失败（%2）。</translation></message>
     <message><source>%1 is paired, but its YongBEEP service is not available.</source><translation>%1 已配对，但未找到其 YongBEEP 蓝牙服务。</translation></message>
+</context>
+<context>
+    <name>BtDiscoverer</name>
+    <message>
+        <source>Bluetooth discovery is deferred during file transfer</source>
+        <translation>文件传输期间已延后蓝牙设备扫描</translation>
+    </message>
 </context>
 </TS>

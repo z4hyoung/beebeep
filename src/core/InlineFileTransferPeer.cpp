@@ -14,12 +14,29 @@
 #include "Protocol.h"
 #include "Settings.h"
 #include <QTimer>
+#include <QTemporaryFile>
+#include <QDir>
 
 
 InlineFileTransferPeer::InlineFileTransferPeer( QObject* parent )
   : FileTransferPeer( parent ), mp_connection( Q_NULLPTR ), m_chunkIndex( 0 ), m_ackIndex( 0 ), m_totalChunks( 0 )
 {
   setObjectName( "InlineFileTransferPeer" );
+  m_v2Timeout.setSingleShot( true );
+  m_v2Timeout.setInterval( 120000 );
+  connect( &m_v2Timeout, &QTimer::timeout, this, [this]() { failV2( tr( "File transfer confirmation timed out" ) ); } );
+  connect( this, &FileTransferPeer::operationCompleted, &m_v2Timeout, &QTimer::stop );
+  connect( this, &FileTransferPeer::operationCompleted, this, [this]() {
+    if( m_version2 && isDownload() && m_state != Completed )
+    {
+      m_file.remove();
+      if( m_verifiedFile.isOpen() )
+      {
+        m_verifiedFile.cancelWriting();
+        m_verifiedFile.commit();
+      }
+    }
+  } );
 }
 
 void InlineFileTransferPeer::setupInlineUpload( VNumber to_user_id, const FileInfo& fi, Connection* connection )
@@ -28,6 +45,7 @@ void InlineFileTransferPeer::setupInlineUpload( VNumber to_user_id, const FileIn
   setRemoteUserId( to_user_id );
   setFileInfo( FileInfo::Upload, fi );
   mp_connection = connection;
+  connect( connection, &Connection::inlineFileFrameReceived, this, &InlineFileTransferPeer::receiveV2 );
   connect( mp_connection, SIGNAL( disconnected() ), this, SLOT( onInlineConnectionClosed() ) );
   connect( mp_connection, SIGNAL( destroyed( QObject* ) ), this, SLOT( onInlineConnectionClosed() ) );
   // The offer (BEE-FILE + InlineFile) has already been sent by Core::sendFileToUser():
@@ -42,10 +60,12 @@ void InlineFileTransferPeer::setupInlineUpload( VNumber to_user_id, const FileIn
 
 bool InlineFileTransferPeer::startInlineDownload( VNumber from_user_id, const FileInfo& fi, Connection* connection )
 {
+  m_version2 = fi.inlineFileV2();
   setTransferType( FileInfo::Download );
   setRemoteUserId( from_user_id );
   setFileInfo( FileInfo::Download, fi );
   mp_connection = connection;
+  connect( connection, &Connection::inlineFileFrameReceived, this, &InlineFileTransferPeer::receiveV2 );
   connect( mp_connection, SIGNAL( disconnected() ), this, SLOT( onInlineConnectionClosed() ) );
   connect( mp_connection, SIGNAL( destroyed( QObject* ) ), this, SLOT( onInlineConnectionClosed() ) );
 
@@ -55,10 +75,27 @@ bool InlineFileTransferPeer::startInlineDownload( VNumber from_user_id, const Fi
   m_bytesTransferred = 0;
   m_totalBytesTransferred = 0;
 
+  if( m_version2 )
+  {
+    m_file.setFileName( QString() );
+    const QString folder = QFileInfo( fi.path() ).absolutePath();
+    QDir().mkpath( folder );
+    QTemporaryFile temporary( folder + "/.yongbeep-XXXXXX.part" );
+    if( !temporary.open() )
+    {
+      sendRefusedToRemote();
+      failV2( tr( "Unable to create the temporary download file" ), false );
+      return false;
+    }
+    temporary.setAutoRemove( false );
+    m_file.setFileName( temporary.fileName() );
+  }
+
   if( !m_file.isOpen() )
   {
     if( !m_file.open( QIODevice::ReadWrite | QIODevice::Truncate ) )
     {
+      sendRefusedToRemote();
       setError( tr( "Unable to create temporary file %1" ).arg( m_file.fileName() ) );
       return false;
     }
@@ -88,11 +125,16 @@ void InlineFileTransferPeer::sendGoMessage()
   Message go_message = Protocol::instance().fileInfoToMessage( m_fileInfo, mp_connection->protocolVersion() );
   go_message.addFlag( Message::InlineFile );
   go_message.addFlag( Message::Request );
+  if( m_version2 )
+  {
+    go_message.addFlag( Message::InlineFileV2 );
+    m_v2Timeout.start();
+  }
   if( !mp_connection->sendMessage( go_message ) )
     setError( tr( "Unable to send the inline file request" ) );
 }
 
-void InlineFileTransferPeer::onUploadAccepted()
+void InlineFileTransferPeer::onUploadAccepted( bool version2 )
 {
   if( m_state != FileTransferPeer::Queue && m_state != FileTransferPeer::Starting )
   {
@@ -100,9 +142,21 @@ void InlineFileTransferPeer::onUploadAccepted()
     return;
   }
 
+  m_version2 = version2;
   if( !m_file.isOpen() && !m_file.open( QIODevice::ReadOnly ) )
   {
-    setError( tr( "Unable to open file %1" ).arg( m_file.fileName() ) );
+    if( version2 )
+      failV2( tr( "Unable to open file %1" ).arg( m_file.fileName() ) );
+    else
+      setError( tr( "Unable to open file %1" ).arg( m_file.fileName() ) );
+    return;
+  }
+
+  if( version2 )
+  {
+    m_version2 = true;
+    m_fileInfo.setInlineFileV2( true );
+    startV2();
     return;
   }
 

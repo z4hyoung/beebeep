@@ -22,6 +22,8 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "ConnectionSocket.h"
+#include "InlineFileFrame.h"
+#include <QTimer>
 #include "NetworkManager.h"
 #include "Protocol.h"
 #include "Settings.h"
@@ -313,7 +315,7 @@ qint64 ConnectionSocket::readBlock()
   else
     decrypted_byte_array = byte_array_read;
 
-  if( isCompressed() )
+  if( isCompressed() && !decrypted_byte_array.startsWith( InlineFileFrame::magic() ) )
   {
     QByteArray uncompressed_byte_array = qUncompress( decrypted_byte_array );
     if( !uncompressed_byte_array.isEmpty() )
@@ -323,6 +325,12 @@ qint64 ConnectionSocket::readBlock()
 #if defined( CONNECTION_SOCKET_IO_DEBUG_VERBOSE )
   qDebug() << "ConnectionSocket reads from" << qPrintable( m_networkAddress.toString() ) << "the byte array:" << decrypted_byte_array;
 #endif
+
+  // A readyRead notification can contain several complete frames. Drain the
+  // remainder on the next event-loop turn instead of waiting for a new packet
+  // or the periodic tick. An incomplete frame stops until more bytes arrive.
+  if( mp_stream->bytesAvailable() > 0 )
+    QTimer::singleShot( 0, this, &ConnectionSocket::readBlock );
 
   if( m_userId == ID_INVALID )
   {
@@ -411,7 +419,7 @@ bool ConnectionSocket::sendData( const QByteArray& byte_array )
 #endif
   QByteArray byte_array_to_send;
 
-  if( isCompressed() )
+  if( isCompressed() && !byte_array.startsWith( InlineFileFrame::magic() ) )
   {
     byte_array_to_send = qCompress( byte_array );
 #ifdef CONNECTION_SOCKET_IO_DEBUG_VERBOSE
@@ -422,6 +430,12 @@ bool ConnectionSocket::sendData( const QByteArray& byte_array )
   }
   else
     byte_array_to_send = byte_array;
+
+  if( byte_array.startsWith( InlineFileFrame::magic() ) )
+  {
+    while( byte_array_to_send.size() % ENCRYPTED_DATA_BLOCK_SIZE )
+      byte_array_to_send.append( ' ' );
+  }
 
   if( isEncrypted() )
     byte_array_to_send = Protocol::instance().encryptByteArray( byte_array_to_send, cipherKey(), m_protocolVersion );

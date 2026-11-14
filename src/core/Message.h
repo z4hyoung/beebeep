@@ -38,7 +38,7 @@ public:
               Refused, List, Request, GroupChat, Delete, Auto, Important, VoiceMessage,
               EncryptionDisabled, Compressed, Delayed, SourceCode, InlineFile,
               Markdown /* YongBEEP: message text is Markdown, rendered with QTextDocument::setMarkdown */,
-              NumFlags };
+              InlineFileV2, NumFlags };
 
   Message();
   Message( const Message& );

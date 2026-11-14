@@ -56,6 +56,8 @@ static int g_failed = 0, g_passed = 0;
   else { g_failed++; qWarning() << "FAIL:" << name; } \
 } while(0)
 
+#include "inline_transfer_tests.h"
+
 static void testMessageRoundtrip()
 {
   Protocol& p = Protocol::instance();
@@ -896,6 +898,7 @@ int main( int argc, char** argv )
   Protocol::instance(); // 单例初始化
   testMessageRoundtrip();
   testFileChunkRoundtrip();
+  testInlineTransferV2();
   testRijndael();
   testEcdhSymmetry();
   testConcurrentLinks( false );

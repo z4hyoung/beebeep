@@ -1,6 +1,9 @@
 
 INCLUDEPATH += $$PWD
 
+HEADERS += core/InlineFileFrame.h
+SOURCES += core/InlineFileFrame.cpp core/InlineFileTransferV2.cpp ../src/thirdparty/zstd/zstd.c
+
 HEADERS += core/Broadcaster.h \
   core/BuildFileList.h \
   core/BuildFileShareList.h \

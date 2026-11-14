@@ -42,6 +42,7 @@ public:
 
 signals:
   void newMessage( VNumber, const Message& );
+  void inlineFileFrameReceived( const QByteArray& );
 
 protected slots:
   void parseData( const QByteArray& );

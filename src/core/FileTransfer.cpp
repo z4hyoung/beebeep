@@ -142,6 +142,7 @@ InlineFileTransferPeer* FileTransfer::createInlinePeer( VNumber remote_user_id, 
   connect( inline_peer, SIGNAL( operationCompleted() ), this, SLOT( deletePeer() ) );
 
   m_peers.append( inline_peer );
+  emit inlineTransferActivityChanged( true );
   return inline_peer;
 }
 
@@ -167,7 +168,7 @@ void FileTransfer::readyForInlineUpload( VNumber from_user_id, const FileInfo& f
     qWarning() << "File Transfer has no inline upload peer for file id" << fi.id() << "of user" << from_user_id;
     return;
   }
-  inline_peer->onUploadAccepted();
+  inline_peer->onUploadAccepted( fi.inlineFileV2() );
 }
 
 void FileTransfer::parseInlineFileChunk( VNumber from_user_id, const Message& m )
@@ -204,7 +205,7 @@ void FileTransfer::cancelInlineTransfer( VNumber user_id, const FileInfo& fi, bo
     return;
 
   inline_peer->cancelInlineTransfer( notify_remote );
-  if( inline_peer->isDownload() )
+  if( inline_peer->isDownload() && !inline_peer->fileInfo().inlineFileV2() )
     inline_peer->removePartiallyDownloadedFile();
 }
 
@@ -495,6 +496,10 @@ void FileTransfer::deletePeer()
   {
     qDebug() << "Removed peer from list." << m_peers.size() << "peers remained";
     sender_peer->deleteLater();
+    bool inline_active = false;
+    for( FileTransferPeer* peer : m_peers )
+      inline_active |= qobject_cast<InlineFileTransferPeer*>( peer ) != Q_NULLPTR;
+    emit inlineTransferActivityChanged( inline_active );
   }
 
   if( isListening() && downloadsInQueue() > 0 )
@@ -593,5 +598,8 @@ void FileTransfer::onTickEvent( int ticks )
     return;
 
   foreach( FileTransferPeer* transfer_peer, m_peers )
-    transfer_peer->onTickEvent( ticks );
+  {
+    if( !qobject_cast<InlineFileTransferPeer*>( transfer_peer ) )
+      transfer_peer->onTickEvent( ticks );
+  }
 }

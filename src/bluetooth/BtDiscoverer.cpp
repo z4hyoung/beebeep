@@ -100,7 +100,10 @@ void BtDiscoverer::start()
 void BtDiscoverer::startSingleScan()
 {
 #if defined( Q_OS_WIN )
+  const bool transfer_active = m_fileTransferActive;
+  m_fileTransferActive = false;
   startScan();
+  m_fileTransferActive = transfer_active;
 #elif defined( Q_OS_MACOS )
   mp_macDiscovery->start();
 #else
@@ -131,6 +134,12 @@ void BtDiscoverer::setLocalAddress( const QBluetoothAddress& local_address )
 
 void BtDiscoverer::startScan()
 {
+  if( m_fileTransferActive )
+  {
+    emit searchStatusChanged( tr( "Bluetooth discovery is deferred during file transfer" ) );
+    emit searchFinished();
+    return;
+  }
 #if !defined( Q_OS_WIN )
   if( mp_agent->isActive() )
     return;

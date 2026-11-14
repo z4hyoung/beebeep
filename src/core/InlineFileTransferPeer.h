@@ -12,30 +12,20 @@
 #define BEEBEEP_INLINEFILETRANSFERPEER_H
 
 #include "FileTransferPeer.h"
+#include "InlineFileFrame.h"
+#include <QCryptographicHash>
+#include <QTimer>
+#include <QSaveFile>
 
 class Connection;
 
 
-/*! \brief File transfer peer over the encrypted message channel (Bluetooth path)
- *
- * Implements the inline file transfer of docs/02-技术设计.md section 2.3 and
- * docs/analysis/core-transport.md section E.2: files up to
- * Settings::maxInlineFileSizeBytes() (default 5 MB) are split in 64 KiB
- * base64 chunks carried by Message::FileChunk over the existing (already
- * encrypted) message connection, so a pure Bluetooth RFCOMM link without any
- * IP network can send and receive files. The LAN TCP 6476 channel keeps its
- * original code path.
- *
- * It is a FileTransferPeer (kept in FileTransfer::m_peers unified list) so
- * GuiFileTransfer progress bars, cancel and the Core::fileTransferProgress /
- * fileTransferMessage signals work with zero GUI changes.
- *
- * Flow control is stop-and-wait, mirroring the 6476 channel: the receiver
- * answers every chunk with Message::FileChunk + Message::Request (see
- * Protocol::fileChunkAckToMessage) and only then the sender sends the next
- * chunk. Pause is not implemented yet (a GUI pause request falls back to
- * cancel, see FileTransfer::pauseTransfer); cancellation uses the existing
- * Message::File + Message::Refused pattern carrying the FileInfo back.
+/*! \brief File transfer over the encrypted message connection.
+ * Both peers negotiate InlineFileV2 in the offer and acceptance. V2 uses
+ * bounded binary Zstd/raw frames and confirms completion only after SHA-256
+ * verification and atomic destination commit. Legacy peers retain the
+ * Base64 FileChunk protocol with an eight-chunk sliding window.
+ * Pause is unsupported; cancellation uses the existing refused File message.
  */
 class InlineFileTransferPeer : public FileTransferPeer
 {
@@ -50,8 +40,8 @@ public:
   /*! Opens the temporary .part file and sends the GO message (BEE-FILE + InlineFile + Request). */
   bool startInlineDownload( VNumber from_user_id, const FileInfo&, Connection* );
 
-  /*! GO received: starts the stop-and-wait chunk loop. */
-  void onUploadAccepted();
+  /*! GO received: selects the negotiated protocol and starts uploading. */
+  void onUploadAccepted( bool version2 = false );
 
   /*! Routes a Message::FileChunk: data chunk when downloading, ACK when uploading. */
   void parseFileChunk( const Message& );
@@ -78,6 +68,21 @@ protected slots:
   void onInlineAcceptTimeout();
 
 protected:
+  void startV2();
+  void sendV2Data();
+  void receiveV2( const QByteArray& );
+  bool sendV2( const InlineFileFrame& );
+  void failV2( const QString&, bool notify = true );
+  void verifyV2();
+  bool m_version2 = false;
+  bool m_finishSent = false;
+  bool m_verifying = false;
+  quint64 m_sentOffset = 0;
+  quint64 m_ackedOffset = 0;
+  QCryptographicHash m_contentHash{ QCryptographicHash::Sha256 };
+  QByteArray m_expectedHash;
+  QSaveFile m_verifiedFile;
+  QTimer m_v2Timeout;
   Connection* mp_connection;
   quint32 m_chunkIndex;   // uploader: next chunk to SEND (window can run ahead)
   quint32 m_ackIndex;     // uploader: next chunk ACK we are waiting for

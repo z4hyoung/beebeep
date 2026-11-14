@@ -46,6 +46,7 @@ FileInfo& FileInfo::operator=( const FileInfo& fi )
 {
   if( this != &fi )
   {
+    m_inlineFileV2 = fi.m_inlineFileV2;
     m_transferType = fi.m_transferType;
     m_name = fi.m_name;
     m_path = fi.m_path;

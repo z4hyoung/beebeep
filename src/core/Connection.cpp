@@ -22,6 +22,7 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "Connection.h"
+#include "InlineFileFrame.h"
 #include "Protocol.h"
 #include "Settings.h"
 
@@ -57,6 +58,11 @@ bool Connection::sendMessage( const Message& m )
 
 void Connection::parseData( const QByteArray& message_data )
 {
+  if( message_data.startsWith( InlineFileFrame::magic() ) )
+  {
+    emit inlineFileFrameReceived( message_data );
+    return;
+  }
   if( message_data.size() > 524288 )
     qWarning() << "Incoming message from" << qPrintable( networkAddress().toString() ) << "is VERY VERY BIG:" << message_data.size() << "bytes";
 
