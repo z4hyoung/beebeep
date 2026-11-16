@@ -1,0 +1,6 @@
+Generated using the built-in image_gen tool.
+Source: yongbeep-shockwave.png
+Derived assets: ../beebeep.ico, ../beebeep.icns, beebeep.png, beebeep-tray.png
+Only format conversion and resizing were applied to the generated artwork.
+
+Create a square desktop application icon of a blue energy projectile traveling FROM LEFT TO RIGHT, inspired by the visual language of a Hadouken fireball in 1990s arcade fighting games. This is a side-view flying energy fireball, NOT an expanding circular shockwave. Composition: a large rounded blazing cyan-white leading head on the RIGHT at about 70% of the canvas width, tapering jagged blue flame trails streaming LEFT behind it. Strong unmistakable rightward motion, dynamic compact comet/fireball silhouette, a few broad horizontal speed streaks to the left. The projectile is horizontal and centered, occupies most of the width with safe margins. Polished bold hand-painted arcade game energy effect, simplified chunky shapes that read at 32px. Deep navy rounded-square app tile, transparent outside the tile. Electric blue, cyan and white energy with controlled glow and sharp flame edges. No concentric rings, no ellipse, no orbit, no starburst centered in a ring, no characters, no hands, no text, no logo lettering, no scenery, no watermark. Keep the output square, not a wide rectangular image.
